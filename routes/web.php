@@ -11,7 +11,7 @@ use App\Http\Controllers\Frontend\CatalogoFrontend;
 use App\Http\Controllers\Frontend\PedidoController;
 
 use Illuminate\Http\Request;
-
+use App\Http\Controllers\ProveedorController;
 Route::get('/', function () {
     return view('welcome');
 });
@@ -55,7 +55,7 @@ Route::middleware([
         Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
-
+        
 
     });
     
@@ -73,4 +73,22 @@ Route::middleware([
         // Dashboard Cliente
         Route::get('/dashboard', [ClienteController::class, 'index'])->name('dashboard');
     });
-});
+
+    // ========== PROVEEDORES ==========
+    Route::get('/proveedores', [ProveedorController::class, 'index'])
+    ->name('proveedores.index');
+
+    Route::get('/proveedores/create', [ProveedorController::class, 'create'])
+    ->name('proveedores.create');
+
+    Route::post('/proveedores', [ProveedorController::class, 'store'])
+    ->name('proveedores.store');
+    Route::get('/proveedores/{id}/edit', [ProveedorController::class, 'edit'])
+    ->name('proveedores.edit');
+
+    Route::put('/proveedores/{id}', [ProveedorController::class, 'update'])
+        ->name('proveedores.update');
+
+    Route::patch('/proveedores/{id}/estado', [ProveedorController::class, 'cambiarEstado'])
+        ->name('proveedores.estado');
+    });

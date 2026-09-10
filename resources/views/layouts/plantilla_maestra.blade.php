@@ -150,13 +150,16 @@
           <li class="nav-item">
             <a class="nav-link" data-bs-toggle="collapse" href="#charts">
               <i class="menu-icon mdi mdi-chart-line"></i>
-              <span class="menu-title">Ordenes</span>
+              <span class="menu-title">Proveedores</span>
               <i class="menu-arrow"></i>
             </a>
             <div class="collapse" id="charts">
               <ul class="nav flex-column sub-menu">
-                <li class="nav-item"><a class="nav-link" href="">Ver pedidos</a></li>
-                <li class="nav-item"><a class="nav-link" href="}">Ver despachos</a></li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('proveedores.index') }}">
+                        Ver Proveedores
+                    </a>
+                </li>
               </ul>
             </div>
           </li>
