@@ -13,8 +13,8 @@ class LoginResponse implements LoginResponseContract
         // Verificar si el usuario tiene rol
         if ($user && $user->role) {
             switch ($user->role->slug) {
-                case 'repartidor':
-                    return redirect()->route('repartidor.dashboard');
+                case 'vendedor':
+                    return redirect()->route('vendedor.dashboard');
                 case 'admin':
                     return redirect()->route('dashboard');
                 case 'cliente':

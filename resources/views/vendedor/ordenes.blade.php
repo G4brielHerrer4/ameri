@@ -1,4 +1,4 @@
-{{-- resources/views/repartidor/ordenes.blade.php --}}
+
 @extends('layouts.plantilla_maestra_rep')
 
 @section('title', 'Órdenes - Vendedor')
