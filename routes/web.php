@@ -61,11 +61,26 @@ Route::middleware([
 
             // Vista principal con las 2 columnas
             Route::get('/', function () {
-                $proveedores = \App\Models\Proveedor::orderBy('id', 'desc')->get();
-                $productos   = \App\Models\Producto::latest()->get();
+            $proveedores = \App\Models\Proveedor::orderBy('id', 'desc')->get();
 
-                return view('admin.suministros.index', compact('proveedores', 'productos'));
-            })->name('index');
+            $productos = \App\Models\Producto::with([
+                'tipoProducto.categoria'
+            ])->latest()->get();
+
+            $tiposProductos = \App\Models\TipoProducto::with('categoria')
+                ->orderBy('nombre')
+                ->get();
+
+            $categoriasProductos = \App\Models\CategoriaProducto::with('tipos')
+                ->orderBy('nombre')
+                ->get();
+
+            return view('admin.suministros.index', compact(
+                'proveedores',
+                'productos',
+                'tiposProductos',
+                'categoriasProductos'
+            ));})->name('index');
 
             // ---------- Proveedores ----------
             Route::prefix('proveedores')->name('proveedores.')->group(function () {

@@ -13,7 +13,6 @@
     flex-wrap: wrap;
     margin-bottom: 1.75rem;
   }
-
   .suministros-header h3 {
     font-family: var(--font-display);
     font-weight: 600;
@@ -426,6 +425,40 @@
     font-size: 0.85rem;
     color: var(--ink-faint);
     opacity: 0.7;
+  }
+  /* =========================
+   DETALLES DE PRODUCTOS
+   ========================= */
+
+  .product-details {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 190px;
+      line-height: 1.25;
+  }
+
+  .product-detail {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.76rem;
+      color: var(--ink-muted);
+  }
+
+  .product-detail .mdi {
+      font-size: 0.9rem;
+      color: var(--cyan);
+      flex-shrink: 0;
+  }
+
+  .product-detail strong {
+      color: var(--ink);
+      font-weight: 600;
+  }
+
+  .product-detail .detail-value {
+      color: var(--ink-muted);
   }
 
   /* ==================== FILA INACTIVA ==================== */
@@ -973,84 +1006,408 @@
           <i class="mdi mdi-plus"></i> Nuevo
         </button>
       </div>
+      
 
       <div class="panel-body">
+
+        <div class="row g-3 mb-3">
+
+          {{-- Filtro por categoría --}}
+          <div class="col-md-4">
+              <label for="filtroCategoria" class="form-label fw-semibold">
+                  <i class="mdi mdi-shape-outline me-1"></i>
+                  Categoría
+              </label>
+
+              <select id="filtroCategoria" class="form-select">
+                  <option value="">Todas</option>
+
+                  @foreach($categoriasProductos as $categoria)
+                      <option value="{{ $categoria->nombre }}">
+                          {{ $categoria->nombre }}
+                      </option>
+                  @endforeach
+              </select>
+          </div>
+
+          {{-- Filtro por tipo --}}
+          <div class="col-md-4">
+              <label for="filtroTipo" class="form-label fw-semibold">
+                  <i class="mdi mdi-format-list-bulleted-type me-1"></i>
+                  Tipo
+              </label>
+
+              <select id="filtroTipo" class="form-select">
+                  <option value="">Todos</option>
+
+                  @foreach($tiposProductos as $tipo)
+                      <option
+                          value="{{ $tipo->nombre }}"
+                          data-categoria="{{ $tipo->categoria->nombre }}"
+                      >
+                          {{ $tipo->nombre }}
+                      </option>
+                  @endforeach
+              </select>
+        </div>
+
+      </div>
         <table id="tablaProductos" class="table dt-responsive nowrap" style="width:100%">
           <thead>
-            <tr>
-              <th>#</th>
-              <th>Producto</th>
-              <th>Modelo</th>
-              <th>Especificaciones</th>
-              <th>Acabado</th>
-              <th>Presentación</th>
-              <th class="text-end">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach($productos as $producto)
               <tr>
-                <td>{{ $producto->id }}</td>
-
-                <td>
-                  <span class="cell-name">
-                    <span class="cell-name-text" title="{{ $producto->nombre }}">
-                      {{ $producto->nombre }}
-                    </span>
-                  </span>
-                </td>
-
-                <td>{{ $producto->modelo ?? '—' }}</td>
-
-                <td>
-                  <div class="cell-specs">
-                    <span class="main-line">
-                      <i class="mdi mdi-ruler"></i>
-                      {{ $producto->medida }}
-                    </span>
-                    @if($producto->color)
-                      <span class="sub-line">
-                        <i class="mdi mdi-palette"></i>
-                        {{ $producto->color }}
-                      </span>
-                    @endif
-                  </div>
-                </td>
-
-                <td>{{ $producto->acabado ?? '—' }}</td>
-                <td>{{ $producto->presentacion ?? '—' }}</td>
-
-                <td>
-                  <div class="actions-cell">
-                    <button type="button"
-                            class="action-btn edit"
-                            title="Editar"
-                            onclick='abrirModalEditarProducto(@json($producto))'>
-                      <i class="mdi mdi-pencil"></i>
-                    </button>
-
-                    <form id="form-delete-prod-{{ $producto->id }}"
-                          action="{{ route('admin.suministros.productos.destroy', $producto) }}"
-                          method="POST" class="d-none">
-                      @csrf @method('DELETE')
-                    </form>
-
-                    <button type="button"
-                            class="action-btn delete"
-                            title="Eliminar"
-                            onclick='confirmarEliminar({
-                              nombre: @json($producto->nombre),
-                              url: "form-delete-prod-{{ $producto->id }}",
-                              tipo: "producto"
-                            })'>
-                      <i class="mdi mdi-delete"></i>
-                    </button>
-                  </div>
-                </td>
+                  <th>#</th>
+                  <th>Producto</th>
+                  <th>Categoría</th>
+                  <th>Tipo</th>
+                  <th>Detalles</th>
+                  <th class="text-end">Acciones</th>
               </tr>
-            @endforeach
+          </thead>
+
+          <tbody>
+              @foreach($productos as $producto)
+
+                  @php
+                      $tipo = $producto->tipoProducto?->nombre ?? '';
+                  @endphp
+
+                  <tr>
+                      {{-- ID --}}
+                      <td>
+                          {{ $producto->id }}
+                      </td>
+
+                      {{-- PRODUCTO --}}
+                      <td>
+                          <div class="cell-product">
+                              <span class="main-line">
+                                  {{ $producto->nombre }}
+                              </span>
+                          </div>
+                      </td>
+
+                      {{-- CATEGORÍA --}}
+                      <td>
+                          {{ $producto->tipoProducto?->categoria?->nombre ?? '—' }}
+                      </td>
+
+                      {{-- TIPO --}}
+                      <td>
+                          {{ $tipo ?: '—' }}
+                      </td>
+
+                      {{-- DETALLES --}}
+                      <td>
+                          <div class="product-details">
+
+                              {{-- CERÁMICA / PORCELANATO --}}
+                              @if(in_array($tipo, ['Cerámica', 'Porcelanato']))
+
+                                  @if($producto->marca)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-trademark"></i>
+                                          <strong>Marca:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->marca }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->medida)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-ruler"></i>
+                                          <strong>Medida:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->medida }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->piezas_por_caja)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-package-variant"></i>
+                                          <span class="detail-value">
+                                              {{ $producto->piezas_por_caja }} piezas/caja
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->m2_por_caja)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-ruler-square"></i>
+                                          <span class="detail-value">
+                                              {{ number_format((float) $producto->m2_por_caja, 2) }} m²/caja
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->color)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-palette"></i>
+                                          <strong>Color:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->color }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->acabado)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-texture"></i>
+                                          <strong>Acabado:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->acabado }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->presentacion)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-package-variant-closed"></i>
+                                          <strong>Presentación:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->presentacion }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+
+                              {{-- CEMENTO COLA --}}
+                              @elseif($tipo === 'Cemento Cola')
+
+                                  @if($producto->color)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-palette"></i>
+                                          <strong>Color:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->color }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->peso)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-weight-kilogram"></i>
+                                          <strong>Peso:</strong>
+                                          <span class="detail-value">
+                                              {{ number_format((float) $producto->peso, 2) }} kg
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->presentacion)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-package-variant-closed"></i>
+                                          <strong>Presentación:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->presentacion }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+
+                              {{-- LISTELO / RANDA / PASTINAS --}}
+                              @elseif(in_array($tipo, ['Listelo', 'Randa decorativa', 'Pastinas']))
+
+                                  @if($producto->modelo)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-shape-outline"></i>
+                                          <strong>Modelo:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->modelo }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->medida)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-ruler"></i>
+                                          <strong>Medida:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->medida }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->color)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-palette"></i>
+                                          <strong>Color:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->color }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->piezas_por_caja)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-package-variant"></i>
+                                          <span class="detail-value">
+                                              {{ $producto->piezas_por_caja }} piezas/caja
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->presentacion)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-package-variant-closed"></i>
+                                          <strong>Presentación:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->presentacion }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+
+                              {{-- ESQUINERO DE ALUMINIO / GOMA --}}
+                              @elseif(in_array($tipo, ['Esquinero de aluminio', 'Esquinero de goma']))
+
+                                  @if($producto->color)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-palette"></i>
+                                          <strong>Color:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->color }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->medida)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-ruler"></i>
+                                          <strong>Medida:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->medida }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->piezas_por_caja)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-package-variant"></i>
+                                          <span class="detail-value">
+                                              {{ $producto->piezas_por_caja }} piezas/caja
+                                          </span>
+                                      </div>
+                                  @endif
+
+
+                              {{-- OTROS / SIN TIPO --}}
+                              @else
+
+                                  @if($producto->marca)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-trademark"></i>
+                                          <strong>Marca:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->marca }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->modelo)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-shape-outline"></i>
+                                          <strong>Modelo:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->modelo }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->medida)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-ruler"></i>
+                                          <strong>Medida:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->medida }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->color)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-palette"></i>
+                                          <strong>Color:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->color }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                                  @if($producto->presentacion)
+                                      <div class="product-detail">
+                                          <i class="mdi mdi-package-variant-closed"></i>
+                                          <strong>Presentación:</strong>
+                                          <span class="detail-value">
+                                              {{ $producto->presentacion }}
+                                          </span>
+                                      </div>
+                                  @endif
+
+                              @endif
+
+                              {{-- SI NO TIENE INFORMACIÓN --}}
+                              @if(
+                                  !$producto->marca &&
+                                  !$producto->modelo &&
+                                  !$producto->medida &&
+                                  !$producto->piezas_por_caja &&
+                                  !$producto->m2_por_caja &&
+                                  !$producto->peso &&
+                                  !$producto->color &&
+                                  !$producto->acabado &&
+                                  !$producto->presentacion
+                              )
+                                  <span class="detail-value">—</span>
+                              @endif
+
+                          </div>
+                      </td>
+
+                      {{-- ACCIONES --}}
+                      <td class="text-end">
+                          <div class="actions-cell">
+
+                              <button
+                                  type="button"
+                                  class="action-btn edit"
+                                  title="Editar"
+                                  onclick='abrirModalEditarProducto(@json($producto))'
+                              >
+                                  <i class="mdi mdi-pencil"></i>
+                              </button>
+
+                              <form
+                                  id="form-delete-prod-{{ $producto->id }}"
+                                  action="{{ route('admin.suministros.productos.destroy', $producto) }}"
+                                  method="POST"
+                                  class="d-none"
+                              >
+                                  @csrf
+                                  @method('DELETE')
+                              </form>
+
+                              <button
+                                  type="button"
+                                  class="action-btn delete"
+                                  title="Eliminar"
+                                  onclick='confirmarEliminar({
+                                      nombre: @json($producto->nombre),
+                                      url: "form-delete-prod-{{ $producto->id }}",
+                                      tipo: "producto"
+                                  })'
+                              >
+                                  <i class="mdi mdi-delete"></i>
+                              </button>
+
+                          </div>
+                      </td>
+                  </tr>
+
+              @endforeach
           </tbody>
-        </table>
+      </table>
       </div>
     </div>
 
@@ -1203,20 +1560,112 @@
       dom: '<"dt-top"lf>t<"dt-bottom"ip>',
     });
 
-    $('#tablaProductos').DataTable({
-      language: dtEspanol,
-      pageLength: 10,
-      lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, 'Todos']],
-      order: [[0, 'desc']],
-      columnDefs: [
-        { orderable: false, targets: [6] },
-        { responsivePriority: 1, targets: [1, 6] },
-        { responsivePriority: 2, targets: [3] },
-        { responsivePriority: 3, targets: [2, 4] },
-      ],
-      responsive: { details: { type: 'inline', target: 'tr' } },
-      dom: '<"dt-top"lf>t<"dt-bottom"ip>',
+    const tablaProductos = $('#tablaProductos').DataTable({
+        language: dtEspanol,
+        pageLength: 10,
+
+        lengthMenu: [
+            [5, 10, 25, 50, -1],
+            [5, 10, 25, 50, 'Todos']
+        ],
+
+        order: [[0, 'desc']],
+
+        columnDefs: [
+            // Columna Acciones
+            {
+                orderable: false,
+                targets: [5]
+            },
+
+            // Prioridades para responsive
+            {
+                responsivePriority: 1,
+                targets: [1, 5]
+            },
+            {
+                responsivePriority: 2,
+                targets: [4]
+            },
+            {
+                responsivePriority: 3,
+                targets: [2, 3]
+            }
+        ],
+
+        responsive: {
+            details: {
+                type: 'inline',
+                target: 'tr'
+            }
+        },
+
+        dom: '<"dt-top"lf>t<"dt-bottom"ip>',
     });
+
+  const filtroCategoria = document.getElementById('filtroCategoria');
+const filtroTipo = document.getElementById('filtroTipo');
+
+if (filtroCategoria && filtroTipo) {
+
+    const opcionesTipo = Array.from(
+        filtroTipo.querySelectorAll('option')
+    );
+
+    filtroCategoria.addEventListener('change', function () {
+
+        const categoriaSeleccionada = this.value;
+
+        filtroTipo.innerHTML = '';
+
+        const opcionTodos = document.createElement('option');
+        opcionTodos.value = '';
+        opcionTodos.textContent = 'Todos';
+
+        filtroTipo.appendChild(opcionTodos);
+
+        opcionesTipo.forEach(function (opcion) {
+
+            if (!opcion.value) {
+                return;
+            }
+
+            const categoria = opcion.dataset.categoria;
+
+            if (
+                !categoriaSeleccionada ||
+                categoria === categoriaSeleccionada
+            ) {
+                const nuevaOpcion = opcion.cloneNode(true);
+                filtroTipo.appendChild(nuevaOpcion);
+            }
+        });
+
+        filtroTipo.value = '';
+
+        aplicarFiltrosProductos();
+    });
+
+    filtroTipo.addEventListener('change', function () {
+        aplicarFiltrosProductos();
+    });
+
+    function aplicarFiltrosProductos() {
+
+        const categoria = filtroCategoria.value;
+        const tipo = filtroTipo.value;
+
+        tablaProductos
+            .column(2)
+            .search(categoria, false, false);
+
+        tablaProductos
+            .column(3)
+            .search(tipo, false, false);
+
+        tablaProductos.draw();
+    }
+}
   });
 
   /* ==================== NOTIFICACIONES FLASH ==================== */
@@ -1272,17 +1721,356 @@
 
   /* ==================== ABRIR MODAL EDITAR PRODUCTO ==================== */
   function abrirModalEditarProducto(producto) {
+
     const form = document.getElementById('formEditarProducto');
+
+    const categoriaSelect = document.getElementById(
+        'editar_categoria_producto'
+    );
+
+    const tipoSelect = document.getElementById(
+        'editar_tipo_producto'
+    );
+
+    /*
+     * ==========================================
+     * CONFIGURACIÓN INICIAL
+     * ==========================================
+     */
+
     form.action = `/admin/suministros/productos/${producto.id}`;
 
-    form.querySelector('[name="nombre"]').value       = producto.nombre || '';
-    form.querySelector('[name="modelo"]').value       = producto.modelo || '';
-    form.querySelector('[name="medida"]').value       = producto.medida || '';
-    form.querySelector('[name="color"]').value        = producto.color || '';
-    form.querySelector('[name="acabado"]').value      = producto.acabado || '';
-    form.querySelector('[name="presentacion"]').value = producto.presentacion || '';
 
-    new bootstrap.Modal(document.getElementById('modalEditarProducto')).show();
-  }
+    /*
+     * ==========================================
+     * LIMPIAR TODOS LOS CAMPOS
+     * ==========================================
+     */
+
+    form.querySelectorAll('input').forEach(function(input) {
+
+        if (
+            input.type !== 'hidden' &&
+            input.name !== '_token'
+        ) {
+            input.value = '';
+        }
+
+    });
+
+
+    /*
+     * ==========================================
+     * CARGAR NOMBRE
+     * ==========================================
+     */
+
+    const nombre = form.querySelector('[name="nombre"]');
+
+    if (nombre) {
+        nombre.value = producto.nombre || '';
+    }
+
+
+    /*
+     * ==========================================
+     * CARGAR CATEGORÍA
+     * ==========================================
+     */
+
+    if (categoriaSelect) {
+        categoriaSelect.value =
+            producto.tipo_producto?.categoria_id ||
+            producto.tipoProducto?.categoria_id ||
+            '';
+    }
+
+
+    /*
+     * ==========================================
+     * CARGAR TIPO
+     * ==========================================
+     */
+
+    if (tipoSelect) {
+
+        tipoSelect.value =
+            producto.tipo_producto_id ||
+            producto.tipoProducto?.id ||
+            '';
+
+        actualizarTiposEditar();
+
+    }
+
+
+    /*
+     * ==========================================
+     * CARGAR CAMPOS
+     * ==========================================
+     */
+
+    form.querySelectorAll('[name]').forEach(function(input) {
+
+        const nombreCampo = input.name;
+
+        if (
+            nombreCampo === 'nombre' ||
+            nombreCampo === '_token' ||
+            nombreCampo === '_method' ||
+            nombreCampo === 'tipo_producto_id'
+        ) {
+            return;
+        }
+
+        if (
+            producto[nombreCampo] !== undefined &&
+            producto[nombreCampo] !== null
+        ) {
+            input.value = producto[nombreCampo];
+        }
+
+    });
+
+
+    /*
+     * ==========================================
+     * MOSTRAR MODAL
+     * ==========================================
+     */
+
+    const modalElement =
+        document.getElementById('modalEditarProducto');
+
+    const modal =
+        new bootstrap.Modal(modalElement);
+
+    modal.show();
+}
+function actualizarTiposEditar() {
+
+    const categoriaSelect =
+        document.getElementById('editar_categoria_producto');
+
+    const tipoSelect =
+        document.getElementById('editar_tipo_producto');
+
+    if (!categoriaSelect || !tipoSelect) {
+        return;
+    }
+
+    const categoriaSeleccionada =
+        categoriaSelect.value;
+
+    Array.from(tipoSelect.options).forEach(function(option) {
+
+        if (!option.value) {
+            option.hidden = false;
+            return;
+        }
+
+        option.hidden =
+            categoriaSeleccionada &&
+            option.dataset.categoria !== categoriaSeleccionada;
+
+    });
+
+    if (
+        tipoSelect.selectedOptions.length &&
+        tipoSelect.selectedOptions[0].hidden
+    ) {
+        tipoSelect.value = '';
+    }
+
+    actualizarCamposEditar();
+}
+function actualizarCamposEditar() {
+    const tipoSelect =
+        document.getElementById('editar_tipo_producto');
+
+    const colorDecorativo =
+        document.getElementById('editar_color_decorativo');
+
+    if (!tipoSelect) {
+        return;
+    }
+
+    const tipo =
+        tipoSelect.options[tipoSelect.selectedIndex]?.text || '';
+
+    // Por defecto el color se muestra
+    if (colorDecorativo) {
+        colorDecorativo.style.display = '';
+    }
+
+
+    /*
+     * ==========================================
+     * OCULTAR TODOS LOS BLOQUES
+     * ==========================================
+     */
+
+    document
+        .querySelectorAll('.editar-campos-tipo')
+        .forEach(function(bloque) {
+
+            bloque.style.display = 'none';
+
+            bloque
+                .querySelectorAll('[data-required="true"]')
+                .forEach(function(input) {
+
+                    input.required = false;
+
+                });
+
+        });
+
+
+    /*
+     * ==========================================
+     * CERÁMICA / PORCELANATO
+     * ==========================================
+     */
+
+    if (
+        tipo === 'Cerámica' ||
+        tipo === 'Porcelanato'
+    ) {
+
+        mostrarCamposEditar(
+            'editar_campos_ceramica'
+        );
+
+        return;
+    }
+
+
+    /*
+     * ==========================================
+     * CEMENTO COLA
+     * ==========================================
+     */
+
+    if (tipo === 'Cemento Cola') {
+
+        mostrarCamposEditar(
+            'editar_campos_cemento_cola'
+        );
+
+        return;
+    }
+
+
+    /*
+     * ==========================================
+     * LISTELO / RANDA / PASTINAS
+     * ==========================================
+     */
+
+    if (
+        tipo === 'Listelo' ||
+        tipo === 'Randa decorativa' ||
+        tipo === 'Pastinas'
+    ) {
+        mostrarCamposEditar('editar_campos_decorativo');
+
+        // Pastinas no utiliza color
+        if (
+            tipo === 'Pastinas' &&
+            colorDecorativo
+        ) {
+            colorDecorativo.style.display = 'none';
+
+            const colorInput =
+                colorDecorativo.querySelector('[name="color"]');
+
+            if (colorInput) {
+                colorInput.value = '';
+            }
+        }
+
+        return;
+    }
+
+
+    /*
+     * ==========================================
+     * ESQUINEROS
+     * ==========================================
+     */
+
+    if (
+        tipo === 'Esquinero de aluminio' ||
+        tipo === 'Esquinero de goma'
+    ) {
+
+        mostrarCamposEditar(
+            'editar_campos_esquinero'
+        );
+
+        return;
+    }
+}
+function mostrarCamposEditar(id) {
+
+    const bloque =
+        document.getElementById(id);
+
+    if (!bloque) {
+        return;
+    }
+
+    bloque.style.display = 'block';
+
+    bloque
+        .querySelectorAll('[data-required="true"]')
+        .forEach(function(input) {
+
+            input.required = true;
+
+        });
+}
+document.addEventListener('DOMContentLoaded', function() {
+
+    const categoriaSelect =
+        document.getElementById(
+            'editar_categoria_producto'
+        );
+
+    const tipoSelect =
+        document.getElementById(
+            'editar_tipo_producto'
+        );
+
+
+    if (categoriaSelect) {
+
+        categoriaSelect.addEventListener(
+            'change',
+            function() {
+
+                actualizarTiposEditar();
+
+            }
+        );
+
+    }
+
+
+    if (tipoSelect) {
+
+        tipoSelect.addEventListener(
+            'change',
+            function() {
+
+                actualizarCamposEditar();
+
+            }
+        );
+
+    }
+
+});
 </script>
 @endpush

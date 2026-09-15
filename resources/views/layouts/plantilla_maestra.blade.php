@@ -1185,6 +1185,7 @@
               <span class="menu-title">Suministros</span>
             </a>
           </li>
+          
 
           <li class="nav-item">
             <a class="nav-link" data-bs-toggle="collapse" href="#tables" aria-expanded="false">
