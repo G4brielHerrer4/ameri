@@ -103,4 +103,15 @@ class User extends Authenticatable
         }
         return in_array($this->role->slug, $roles);
     }
+
+    //COMPRAS
+    public function compras()
+    {
+        return $this->hasMany(Compra::class);
+    }
+
+    public function stocks()
+    {
+        return $this->hasMany(Stock::class);
+    }
 }

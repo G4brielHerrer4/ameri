@@ -1187,9 +1187,32 @@
           </li>
           
 
+          <!-- Compras -->
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="collapse" href="#compras" aria-expanded="false">
+              <i class="menu-icon mdi mdi-cart-plus"></i>
+              <span class="menu-title">Compras</span>
+              <i class="menu-arrow"></i>
+            </a>
+            <div class="collapse" id="compras">
+              <ul class="nav flex-column sub-menu">
+                <li class="nav-item">
+                  <a class="nav-link" href="{{ route('admin.compras.index') }}">Órdenes de compra</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="{{ route('admin.compras.create') }}">Nueva compra</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="{{ route('admin.stocks.index') }}">Stock por admin</a>
+                </li>
+              </ul>
+            </div>
+          </li>
+
+          <!-- Reportes -->
           <li class="nav-item">
             <a class="nav-link" data-bs-toggle="collapse" href="#tables" aria-expanded="false">
-              <i class="menu-icon mdi mdi-table"></i>
+              <i class="menu-icon mdi mdi-chart-box-outline"></i>
               <span class="menu-title">Reportes</span>
               <i class="menu-arrow"></i>
             </a>

@@ -20,4 +20,10 @@ class Proveedor extends Model
     protected $casts = [
         'estado' => 'boolean',
     ];
+
+    //COMRPAS
+    public function compras()
+    {
+        return $this->hasMany(Compra::class);
+    }
 }
