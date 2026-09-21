@@ -24,12 +24,16 @@ class Producto extends Model
         'color',
         'acabado',
         'presentacion',
+        'stock_minimo',
+        'stock_maximo',
     ];
 
-    protected $casts = [
+        protected $casts = [
         'piezas_por_caja' => 'integer',
-        'm2_por_caja'     => 'decimal:2',
-        'peso'            => 'decimal:2',
+        'm2_por_caja' => 'decimal:2',
+        'peso' => 'decimal:2',
+        'stock_minimo' => 'decimal:2',
+        'stock_maximo' => 'decimal:2',
     ];
 
     /* ============================================================
@@ -51,7 +55,7 @@ class Producto extends Model
 
     public function stocks()
     {
-        return $this->hasMany(Stock::class);
+        return $this->hasMany(Stock::class, 'producto_id');
     }
 
     /* ============================================================
@@ -114,4 +118,6 @@ class Producto extends Model
             default                                       => 'unidades',
         };
     }
+
+    
 }

@@ -125,8 +125,13 @@ Route::middleware([
         // STOCK  (al mismo nivel que Compras, dentro de Admin)
         // ============================================================
         Route::prefix('stocks')->name('stocks.')->group(function () {
-            Route::get('/', [StockController::class, 'index'])->name('index');
-        });
+        Route::get('/', [StockController::class, 'index'])->name('index');
+
+        Route::patch(
+            '/productos/{producto}/limites',
+            [StockController::class, 'actualizarLimites']
+        )->name('limites');
+    });
     });
 
     // ============================================================
