@@ -119,5 +119,11 @@ class Producto extends Model
         };
     }
 
+    //VENTA
+    public function ventaDetalles()
+    {
+        return $this->hasMany(VentaDetalle::class);
+    }
+
     
 }

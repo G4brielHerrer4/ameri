@@ -114,4 +114,20 @@ class User extends Authenticatable
     {
         return $this->hasMany(Stock::class);
     }
+
+    //VENTAS
+    public function ventas()
+    {
+        return $this->hasMany(Venta::class);
+    }
+
+    public function notificaciones()
+    {
+        return $this->hasMany(Notificacion::class)->orderBy('created_at', 'desc');
+    }
+
+    public function notificacionesNoLeidas()
+    {
+        return $this->notificaciones()->where('leida', false);
+    }
 }

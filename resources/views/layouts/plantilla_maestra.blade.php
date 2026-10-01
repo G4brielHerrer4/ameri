@@ -39,7 +39,6 @@
   <link rel="shortcut icon" href="{{ asset('template/images/favicon.png') }}" />
 
   <script>
-    /* Sincroniza el tema con el guardado en las vistas públicas, ANTES de pintar (evita flash) */
     (function () {
       try {
         var saved = localStorage.getItem('ameri-theme');
@@ -158,7 +157,6 @@
       color: var(--ink);
     }
 
-    /* Compensa el navbar fijo con precisión (evita saltos de layout) */
     .page-body-wrapper {
       padding-top: var(--navbar-h);
     }
@@ -171,10 +169,7 @@
 
     .content-wrapper { flex: 1 1 auto; }
 
-    /* ==================== HELPERS DE VISIBILIDAD (sin pisar flex) ==================== */
-    /* Sustituyen a las utilidades d-none/d-lg-block de Bootstrap para los ítems
-       del navbar cuyo centrado vertical depende de display:flex; así evitamos
-       que un !important de Bootstrap rompa el alineado en pantallas grandes. */
+    /* ==================== HELPERS DE VISIBILIDAD ==================== */
     .navbar-nav .nav-item.only-desktop {
       display: none;
     }
@@ -202,7 +197,6 @@
       transition: background 0.3s var(--ease), border-color 0.3s var(--ease);
     }
 
-    /* Marca (logo + hamburguesa) */
     .navbar.default-layout .navbar-brand-wrapper {
       background: transparent !important;
       border-right: 1px solid var(--line) !important;
@@ -232,13 +226,6 @@
       display: block;
     }
 
-    .navbar.default-layout .navbar-brand-wrapper .navbar-brand-mini img {
-      height: 30px;
-      width: auto;
-      display: block;
-    }
-
-    /* Menú derecho */
     .navbar.default-layout .navbar-menu-wrapper {
       background: transparent !important;
       height: var(--navbar-h) !important;
@@ -248,6 +235,7 @@
       align-items: center !important;
       flex: 1 1 auto;
       min-width: 0;
+      gap: 1rem;
     }
 
     .navbar.default-layout .navbar-menu-wrapper > ul.navbar-nav {
@@ -263,7 +251,6 @@
       margin-left: auto !important;
     }
 
-    /* Botón hamburguesa */
     .navbar.default-layout .navbar-toggler {
       border: 1px solid var(--line);
       background: var(--surface-alpha);
@@ -284,14 +271,16 @@
       box-shadow: 0 0 18px -6px var(--glow);
     }
 
-    /* ==================== TEXTO DE BIENVENIDA ==================== */
+    /* ==================== TEXTO DE BIENVENIDA (MEJORADO) ==================== */
     .navbar-welcome {
       display: flex;
       flex-direction: column;
       justify-content: center;
       padding: 0 0.75rem;
       height: var(--navbar-h);
-      max-width: 340px;
+      min-width: 220px;
+      max-width: 480px;
+      flex: 1 1 auto;
       overflow: hidden;
     }
 
@@ -301,7 +290,7 @@
       font-weight: 600;
       color: var(--ink);
       margin: 0;
-      line-height: 1.15;
+      line-height: 1.2;
       letter-spacing: -0.01em;
       white-space: nowrap;
       overflow: hidden;
@@ -309,6 +298,7 @@
     }
     .navbar-welcome .welcome-text .highlight {
       color: var(--cyan);
+      text-shadow: 0 0 16px var(--glow-soft);
     }
     .navbar-welcome .welcome-sub-text {
       font-size: 0.72rem;
@@ -321,57 +311,225 @@
       text-overflow: ellipsis;
     }
 
-    /* ==================== INPUTS NAVBAR ==================== */
-    .navbar .datepicker input.form-control,
-    .navbar .search-form .form-control {
-      background: var(--bg-2) !important;
-      border: 1px solid var(--line) !important;
-      color: var(--ink) !important;
-      border-radius: var(--r-md);
-      height: 38px;
-      font-size: 0.83rem;
-      transition: all 0.25s var(--ease);
-    }
-    .navbar .datepicker input.form-control:focus,
-    .navbar .search-form .form-control:focus {
-      border-color: var(--cyan) !important;
-      box-shadow: 0 0 0 3px var(--glow-soft) !important;
-      outline: none;
-    }
-    .navbar .datepicker .input-group-text.calendar-icon {
-      background: var(--bg-2) !important;
-      border: 1px solid var(--line) !important;
-      border-right: none !important;
-      color: var(--cyan);
-      border-radius: var(--r-md) 0 0 var(--r-md);
-      height: 38px;
+    /* ==================== FECHA / CALENDARIO ==================== */
+    .navbar-date-wrapper {
+      position: relative;
       display: inline-flex;
-      align-items: center;
-    }
-    .navbar .datepicker .form-control {
-      border-left: none !important;
-      border-radius: 0 var(--r-md) var(--r-md) 0 !important;
-    }
-    .navbar .datepicker .input-group-addon {
-      border-radius: var(--r-md) 0 0 var(--r-md);
-      display: flex;
-      align-items: center;
-    }
-    .navbar .datepicker .input-group {
-      display: flex;
       align-items: center;
       height: 38px;
     }
 
-    /* Search */
-    .navbar .search-form {
+    .navbar-date-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      height: 38px;
+      padding: 0 0.85rem;
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      color: var(--ink);
+      font-family: var(--font-display);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s var(--ease);
+    }
+    .navbar-date-btn:hover {
+      border-color: var(--line-strong);
+      color: var(--cyan);
+      box-shadow: 0 0 18px -6px var(--glow);
+    }
+    .navbar-date-btn .mdi {
+      color: var(--cyan);
+      font-size: 1rem;
+    }
+    .navbar-date-btn .date-text {
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .navbar-date-btn .date-text .day {
+      color: var(--cyan);
+    }
+
+    /* Calendario custom */
+    .custom-calendar {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      background: var(--bg-1);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--r-md);
+      box-shadow: 0 24px 48px -20px var(--shadow);
+      padding: 0.85rem;
+      min-width: 290px;
+      z-index: 1050;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-6px);
+      transition: all 0.25s var(--ease);
+      pointer-events: none;
+    }
+    .custom-calendar.open {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .cal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.85rem;
+      padding-bottom: 0.65rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .cal-nav-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--line);
+      background: var(--surface-alpha);
+      color: var(--ink-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s var(--ease);
+      padding: 0;
+      font-size: 1rem;
+    }
+    .cal-nav-btn:hover {
+      color: var(--cyan);
+      border-color: var(--line-strong);
+      background: color-mix(in srgb, var(--cyan) 10%, transparent);
+    }
+    .cal-month-year {
+      font-family: var(--font-display);
+      font-weight: 600;
+      color: var(--ink);
+      font-size: 0.88rem;
+      text-align: center;
+      flex: 1;
+      text-transform: capitalize;
+    }
+
+    .cal-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      margin-bottom: 0.35rem;
+    }
+    .cal-weekdays span {
+      text-align: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.35rem 0;
+    }
+
+    .cal-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+    .cal-day {
+      aspect-ratio: 1;
+      border: none;
+      background: transparent;
+      color: var(--ink-muted);
+      font-size: 0.78rem;
+      font-weight: 500;
+      font-family: var(--font-display);
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s var(--ease);
+      padding: 0;
+      position: relative;
+    }
+    .cal-day:hover {
+      background: var(--surface-alpha);
+      color: var(--ink);
+    }
+    .cal-day.otro-mes {
+      color: var(--ink-faint);
+      opacity: 0.45;
+    }
+    .cal-day.hoy {
+      background: linear-gradient(135deg, var(--cyan), var(--cyan-2));
+      color: var(--cyan-ink);
+      font-weight: 700;
+      box-shadow: 0 4px 12px -4px var(--glow);
+    }
+    .cal-day.hoy::after {
+      content: '';
+      position: absolute;
+      bottom: 3px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--cyan-ink);
+      opacity: 0.9;
+    }
+    .cal-day.seleccionado {
+      background: color-mix(in srgb, var(--cyan) 15%, transparent);
+      border: 1px solid var(--line-strong);
+      color: var(--cyan);
+      font-weight: 700;
+    }
+
+    .cal-footer {
+      display: flex;
+      justify-content: center;
+      margin-top: 0.75rem;
+      padding-top: 0.65rem;
+      border-top: 1px solid var(--line);
+    }
+    .cal-today-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--cyan);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.35rem 0.85rem;
+      border-radius: var(--r-pill);
+      cursor: pointer;
+      transition: all 0.25s var(--ease);
+      font-family: var(--font-display);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .cal-today-btn:hover {
+      background: color-mix(in srgb, var(--cyan) 10%, transparent);
+      border-color: var(--line-strong);
+    }
+
+    /* ==================== BUSCADOR CON RESULTADOS ==================== */
+    .navbar-search-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 38px;
+      flex: 0 0 auto;
+    }
+    .navbar-search-wrapper .search-form {
       position: relative;
       display: flex;
       align-items: center;
       height: 38px;
       margin: 0;
     }
-    .navbar .search-form .icon-search {
+    .navbar-search-wrapper .search-form .icon-search {
       color: var(--ink-faint);
       z-index: 2;
       position: absolute;
@@ -380,40 +538,300 @@
       transform: translateY(-50%);
       font-size: 1rem;
       line-height: 1;
+      pointer-events: none;
     }
-    .navbar .search-form .form-control {
-      padding-left: 2.3rem;
-      width: 180px;
-      transition: width 0.3s var(--ease);
-    }
-    .navbar .search-form .form-control:focus {
-      width: 220px;
-    }
-
-    /* Dropdown "Categorías" */
-    .navbar .dropdown-toggle.dropdown-bordered {
-      background: var(--surface-alpha);
+    .navbar-search-wrapper .search-form .form-control {
+      background: var(--bg-2) !important;
       border: 1px solid var(--line) !important;
       color: var(--ink) !important;
-      border-radius: var(--r-pill);
-      padding: 0.42rem 1rem;
-      font-size: 0.82rem;
-      font-weight: 500;
+      border-radius: var(--r-md);
       height: 38px;
+      font-size: 0.83rem;
+      padding-left: 2.3rem;
+      width: 220px;
+      transition: all 0.3s var(--ease);
+    }
+    .navbar-search-wrapper .search-form .form-control:focus {
+      width: 280px;
+      border-color: var(--cyan) !important;
+      box-shadow: 0 0 0 3px var(--glow-soft) !important;
+      outline: none;
+    }
+    .navbar-search-wrapper .search-form .form-control::placeholder {
+      color: var(--ink-faint);
+    }
+
+    /* Resultados */
+    .search-results {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      width: 380px;
+      max-height: 420px;
+      overflow-y: auto;
+      background: var(--bg-1);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--r-md);
+      box-shadow: 0 24px 48px -20px var(--shadow);
+      z-index: 1050;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-6px);
+      transition: all 0.25s var(--ease);
+      pointer-events: none;
+      padding: 0.35rem;
+    }
+    .search-results.open {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .search-results-header {
+      padding: 0.55rem 0.75rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-family: var(--font-display);
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 0.35rem;
+    }
+
+    .search-result-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: var(--r-sm);
+      color: var(--ink);
+      text-decoration: none;
+      transition: all 0.2s var(--ease);
+      cursor: pointer;
+    }
+    .search-result-item:hover,
+    .search-result-item.active {
+      background: var(--surface-alpha);
+      color: var(--ink);
+    }
+    .search-result-item .result-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--r-sm);
+      background: color-mix(in srgb, var(--cyan) 10%, transparent);
+      border: 1px solid var(--line-strong);
+      color: var(--cyan);
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .search-result-item .result-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .search-result-item .result-title {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--ink);
+      margin: 0 0 0.1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .search-result-item .result-path {
+      font-size: 0.7rem;
+      color: var(--ink-faint);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .search-result-item .result-arrow {
+      color: var(--ink-faint);
+      font-size: 1rem;
+      transition: transform 0.25s var(--ease);
+    }
+    .search-result-item:hover .result-arrow {
+      color: var(--cyan);
+      transform: translateX(3px);
+    }
+
+    .search-empty {
+      padding: 1.5rem 1rem;
+      text-align: center;
+      color: var(--ink-muted);
+      font-size: 0.82rem;
+    }
+    .search-empty .mdi {
+      font-size: 2rem;
+      color: var(--ink-faint);
+      opacity: 0.5;
+      display: block;
+      margin-bottom: 0.35rem;
+    }
+
+    /* ==================== CAMPANITA NOTIFICACIONES ==================== */
+    .navbar .notif-bell {
+      position: relative;
+    }
+    .navbar .notif-bell .mdi {
+      font-size: 1.3rem;
+      color: var(--ink-muted);
       transition: all 0.25s var(--ease);
+      display: block;
       line-height: 1;
     }
-    .navbar .dropdown-toggle.dropdown-bordered:hover {
-      border-color: var(--line-strong) !important;
+    .navbar .notif-bell:hover .mdi {
+      color: var(--cyan);
+      transform: rotate(-8deg) scale(1.08);
+    }
+
+    .notif-badge {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: var(--r-pill);
+      background: linear-gradient(135deg, #ff5570, #e63e5a);
+      color: #fff;
+      font-size: 0.62rem;
+      font-weight: 700;
+      font-family: var(--font-display);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: -0.02em;
+      box-shadow: 0 0 0 2px var(--bg), 0 4px 12px -4px rgba(255, 85, 112, 0.6);
+      animation: notifPulse 2s ease-in-out infinite;
+      line-height: 1;
+    }
+
+    @keyframes notifPulse {
+      0%, 100% { box-shadow: 0 0 0 2px var(--bg), 0 4px 12px -4px rgba(255, 85, 112, 0.6); }
+      50% { box-shadow: 0 0 0 2px var(--bg), 0 0 14px 2px rgba(255, 85, 112, 0.5); }
+    }
+
+    .notif-dropdown {
+      min-width: 380px !important;
+      padding: 0 !important;
+      overflow: hidden;
+    }
+    .notif-dropdown-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.75rem; padding: 1rem 1.15rem;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--cyan) 5%, transparent), transparent);
+    }
+    .notif-header-left { display: flex; align-items: center; gap: 0.65rem; }
+    .notif-header-left .mdi { color: var(--cyan) !important; font-size: 1.35rem; }
+    .notif-header-left h6 {
+      font-family: var(--font-display); font-weight: 600;
+      color: var(--ink) !important; font-size: 0.9rem;
+      margin: 0 0 0.1rem; line-height: 1.2;
+    }
+    .notif-header-left span { font-size: 0.72rem; color: var(--ink-muted); }
+    .notif-header-left span strong { color: var(--cyan); font-weight: 700; }
+
+    .notif-mark-all {
+      width: 30px; height: 30px; border-radius: var(--r-sm);
+      border: 1px solid var(--line); background: var(--surface-alpha);
+      color: var(--ink-muted); cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: all 0.25s var(--ease); padding: 0; font-size: 1rem;
+    }
+    .notif-mark-all:hover {
+      color: var(--cyan); border-color: var(--line-strong);
+      background: color-mix(in srgb, var(--cyan) 10%, transparent);
+    }
+
+    .notif-dropdown-list {
+      max-height: 360px; overflow-y: auto;
+    }
+    .notif-dropdown-list::-webkit-scrollbar { width: 6px; }
+    .notif-dropdown-list::-webkit-scrollbar-thumb {
+      background: var(--line-strong); border-radius: 6px;
+    }
+
+    .notif-dropdown-item {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 0.85rem 1.15rem;
+      border-bottom: 1px solid var(--line);
+      transition: background 0.2s var(--ease);
+      position: relative; text-decoration: none; color: inherit;
+    }
+    .notif-dropdown-item:last-child { border-bottom: none; }
+    .notif-dropdown-item:hover { background: var(--surface-alpha); color: inherit; }
+    .notif-dropdown-item.is-unread {
+      background: color-mix(in srgb, var(--cyan) 3%, transparent);
+    }
+    .notif-icon-wrap {
+      width: 34px; height: 34px; border-radius: var(--r-sm); flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 1.05rem; border: 1px solid var(--line);
+      background: var(--surface-alpha); color: var(--cyan);
+    }
+    .notif-icon-wrap.tipo-prestado {
+      background: color-mix(in srgb, var(--warning) 10%, transparent);
+      border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+      color: var(--warning);
+    }
+    .notif-content { flex: 1; min-width: 0; }
+    .notif-title {
+      font-family: var(--font-display); font-weight: 600;
+      color: var(--ink) !important; font-size: 0.82rem;
+      margin: 0 0 0.2rem; line-height: 1.25;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .notif-msg {
+      font-size: 0.72rem; color: var(--ink-muted) !important;
+      margin: 0 0 0.35rem; line-height: 1.35;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .notif-meta-line {
+      display: flex; align-items: center; gap: 0.75rem;
+      flex-wrap: wrap; font-size: 0.68rem; color: var(--ink-faint);
+    }
+    .notif-meta-line .mdi { font-size: 0.78rem; }
+    .notif-from { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--cyan); font-weight: 600; }
+    .notif-time { display: inline-flex; align-items: center; gap: 0.25rem; }
+    .notif-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--cyan); box-shadow: 0 0 8px var(--glow);
+      flex-shrink: 0; margin-top: 0.4rem;
+      animation: notifDotPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes notifDotPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+    .notif-empty { padding: 2.5rem 1.5rem; text-align: center; }
+    .notif-empty .mdi { font-size: 3rem; color: var(--ink-faint); opacity: 0.4; display: block; margin-bottom: 0.5rem; }
+    .notif-empty-title { font-family: var(--font-display); font-weight: 600; color: var(--ink); font-size: 0.88rem; margin: 0 0 0.25rem; }
+    .notif-empty-sub { font-size: 0.75rem; color: var(--ink-muted); display: block; line-height: 1.4; }
+
+    .notif-dropdown-footer {
+      display: flex !important; align-items: center !important; justify-content: center !important;
+      gap: 0.4rem; padding: 0.85rem 1.15rem !important;
+      border-top: 1px solid var(--line);
+      background: color-mix(in srgb, var(--bg-2) 40%, transparent);
+      color: var(--cyan) !important;
+      font-family: var(--font-display); font-weight: 600; font-size: 0.8rem;
+      text-decoration: none; transition: all 0.25s var(--ease);
+      border-radius: 0 !important;
+    }
+    .notif-dropdown-footer:hover {
+      background: color-mix(in srgb, var(--cyan) 8%, transparent) !important;
       color: var(--cyan) !important;
     }
-    .navbar .dropdown-toggle.dropdown-bordered::after {
-      margin-left: 0.25rem;
-      vertical-align: middle;
-    }
+    .notif-dropdown-footer .mdi { color: var(--cyan) !important; font-size: 1rem; transition: transform 0.25s var(--ease); }
+    .notif-dropdown-footer:hover .mdi { transform: translateX(4px); }
 
     /* ==================== ÍTEMS / ICONOS NAVBAR ==================== */
     .navbar .navbar-nav .nav-item {
@@ -443,14 +861,7 @@
     .navbar .nav-link.count-indicator:hover {
       background: var(--surface-alpha);
     }
-    .navbar .nav-link.count-indicator .icon-mail {
-      color: var(--ink-muted);
-      font-size: 1.15rem;
-      transition: color 0.25s ease;
-    }
-    .navbar .nav-link.count-indicator:hover .icon-mail { color: var(--cyan); }
 
-    /* Avatar */
     .navbar .user-dropdown .nav-link {
       padding: 0 !important;
       width: 40px;
@@ -472,7 +883,6 @@
       transform: scale(1.05);
     }
 
-    /* Dropdown menus */
     .navbar .dropdown-menu.navbar-dropdown {
       background: var(--bg-1) !important;
       border: 1px solid var(--line-strong) !important;
@@ -492,8 +902,7 @@
       display: flex;
       align-items: center;
     }
-    .navbar .dropdown-menu.navbar-dropdown .dropdown-item:hover,
-    .navbar .dropdown-menu.navbar-dropdown .dropdown-item:focus {
+    .navbar .dropdown-menu.navbar-dropdown .dropdown-item:hover {
       background: var(--surface-alpha) !important;
       color: var(--cyan) !important;
     }
@@ -505,19 +914,6 @@
       padding-bottom: 0.75rem;
     }
     .navbar .dropdown-menu.navbar-dropdown .dropdown-header p { color: var(--ink-muted); }
-    .navbar .dropdown-menu.navbar-dropdown .preview-subject { color: var(--ink) !important; }
-    .navbar .dropdown-menu.navbar-dropdown .small-text { color: var(--ink-faint) !important; }
-    .navbar .dropdown-menu.navbar-dropdown .preview-thumbnail {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      background: var(--surface-alpha);
-      margin-right: 0.75rem;
-      flex-shrink: 0;
-    }
 
     /* ==================== THEME TOGGLE ==================== */
     .ameri-theme-toggle {
@@ -556,7 +952,6 @@
     }
 
     .sidebar .nav { padding: 0 0.75rem; }
-
     .sidebar .nav .nav-item { margin-bottom: 2px; }
 
     .sidebar .nav .nav-item.nav-category {
@@ -677,9 +1072,7 @@
     }
 
     /* ==================== MAIN PANEL ==================== */
-    .content-wrapper {
-      padding: 1.75rem 1.5rem 2rem;
-    }
+    .content-wrapper { padding: 1.75rem 1.5rem 2rem; }
 
     /* ==================== CARDS ==================== */
     .card {
@@ -695,20 +1088,12 @@
       border-color: var(--line-strong) !important;
       box-shadow: 0 28px 50px -28px var(--shadow), 0 0 0 1px var(--line);
     }
-    .card .card-title {
-      font-family: var(--font-display);
-      font-weight: 600;
-      color: var(--ink);
-    }
+    .card .card-title { font-family: var(--font-display); font-weight: 600; color: var(--ink); }
     .card .card-body { color: var(--ink); }
-    .card .card-subtitle,
-    .card .text-muted { color: var(--ink-muted) !important; }
+    .card .card-subtitle, .card .text-muted { color: var(--ink-muted) !important; }
 
     /* ==================== TABLAS ==================== */
-    .table {
-      color: var(--ink) !important;
-      background: transparent;
-    }
+    .table { color: var(--ink) !important; background: transparent; }
     .table thead th {
       border-bottom: 1px solid var(--line) !important;
       color: var(--ink-muted) !important;
@@ -747,20 +1132,16 @@
       justify-content: center;
       gap: 0.4rem;
     }
-
-    .btn-primary,
-    .btn-gradient-primary {
+    .btn-primary, .btn-gradient-primary {
       background: linear-gradient(135deg, var(--cyan), var(--cyan-2)) !important;
       border: none !important;
       color: var(--cyan-ink) !important;
       box-shadow: 0 6px 20px -8px var(--glow);
     }
-    .btn-primary:hover,
-    .btn-gradient-primary:hover {
+    .btn-primary:hover, .btn-gradient-primary:hover {
       transform: translateY(-2px);
       box-shadow: 0 12px 28px -8px var(--glow), 0 0 0 1px var(--cyan) !important;
     }
-
     .btn-secondary {
       background: var(--bg-2) !important;
       border: 1px solid var(--line) !important;
@@ -770,7 +1151,6 @@
       border-color: var(--line-strong) !important;
       color: var(--cyan) !important;
     }
-
     .btn-outline-primary {
       background: transparent !important;
       border: 1px solid var(--line-strong) !important;
@@ -781,7 +1161,6 @@
       border-color: var(--cyan) !important;
       box-shadow: 0 0 20px -6px var(--glow);
     }
-
     .btn-danger {
       background: var(--error) !important;
       border: none !important;
@@ -792,7 +1171,6 @@
       box-shadow: 0 10px 24px -8px rgba(255, 85, 112, 0.5);
       transform: translateY(-2px);
     }
-
     .btn-icon {
       width: 36px;
       height: 36px;
@@ -804,9 +1182,7 @@
     }
 
     /* ==================== FORMS ==================== */
-    .form-control,
-    .form-select,
-    textarea.form-control {
+    .form-control, .form-select, textarea.form-control {
       background: var(--bg-2) !important;
       border: 1px solid var(--line) !important;
       color: var(--ink) !important;
@@ -816,9 +1192,7 @@
       transition: all 0.25s var(--ease);
     }
     .form-control::placeholder { color: var(--ink-faint) !important; }
-    .form-control:focus,
-    .form-select:focus,
-    textarea.form-control:focus {
+    .form-control:focus, .form-select:focus, textarea.form-control:focus {
       background: var(--bg-3) !important;
       border-color: var(--cyan) !important;
       box-shadow: 0 0 0 3px var(--glow-soft), 0 0 18px -8px var(--glow) !important;
@@ -853,8 +1227,7 @@
       display: inline-flex;
       align-items: center;
     }
-    .badge-primary,
-    .badge-gradient-primary {
+    .badge-primary, .badge-gradient-primary {
       background: linear-gradient(135deg, var(--cyan), var(--cyan-2)) !important;
       color: var(--cyan-ink) !important;
     }
@@ -888,10 +1261,7 @@
     }
 
     /* ==================== PAGINACIÓN ==================== */
-    .pagination {
-      display: flex;
-      align-items: center;
-    }
+    .pagination { display: flex; align-items: center; }
     .pagination .page-item .page-link {
       background: var(--bg-1) !important;
       border: 1px solid var(--line) !important;
@@ -948,7 +1318,6 @@
     .bg-light { background: var(--bg-2) !important; }
     .bg-white { background: var(--bg-1) !important; color: var(--ink) !important; }
 
-    /* DataTables */
     .dataTables_wrapper .dataTables_length select,
     .dataTables_wrapper .dataTables_filter input {
       background: var(--bg-2) !important;
@@ -975,9 +1344,16 @@
     }
 
     /* ==================== RESPONSIVE ==================== */
+    @media (max-width: 1399.98px) {
+      .navbar-search-wrapper .search-form .form-control { width: 180px; }
+      .navbar-search-wrapper .search-form .form-control:focus { width: 240px; }
+      .navbar-welcome { max-width: 360px; }
+    }
+
     @media (max-width: 1199.98px) {
-      .navbar .search-form .form-control { width: 140px; }
-      .navbar .search-form .form-control:focus { width: 180px; }
+      .navbar-welcome { max-width: 260px; min-width: 180px; }
+      .navbar-search-wrapper .search-form .form-control { width: 150px; }
+      .navbar-search-wrapper .search-form .form-control:focus { width: 200px; }
     }
 
     @media (max-width: 991.98px) {
@@ -989,7 +1365,8 @@
     }
 
     @media (max-width: 767.98px) {
-      .navbar .search-form { display: none; }
+      .navbar-search-wrapper { display: none; }
+      .navbar-welcome { max-width: 100%; }
     }
 
     @media (max-width: 575.98px) {
@@ -998,6 +1375,17 @@
       .content-wrapper { padding: 1rem 0.75rem 1.25rem; }
       .card { border-radius: var(--r-md); }
       .navbar.default-layout .navbar-brand-wrapper { min-width: 120px; }
+
+      .notif-dropdown {
+        min-width: calc(100vw - 2rem) !important;
+        max-width: calc(100vw - 2rem) !important;
+        right: -1rem !important;
+      }
+      .notif-dropdown-list { max-height: 300px; }
+
+      .search-results {
+        width: calc(100vw - 2rem);
+      }
     }
   </style>
 
@@ -1007,7 +1395,7 @@
 <body>
   <div class="container-scroller">
 
-    <!-- ========== NAVBAR ========== -->
+    <!-- ==================== NAVBAR ==================== -->
     <nav class="navbar default-layout col-lg-12 col-12 p-0 fixed-top">
       <div class="navbar-brand-wrapper">
         <button class="navbar-toggler" type="button" data-bs-toggle="minimize" aria-label="Alternar menú">
@@ -1020,81 +1408,168 @@
       </div>
 
       <div class="navbar-menu-wrapper">
-        <ul class="navbar-nav">
-          <li class="nav-item only-desktop ms-0">
-            <div class="navbar-welcome">
-              <h1 class="welcome-text">Bienvenido, <span class="highlight">{{ Auth::user()->name ?? 'AMERI SRL' }}</span></h1>
-            </div>
-          </li>
-        </ul>
+
+        {{-- ============ BIENVENIDA (con más espacio) ============ --}}
+        <div class="navbar-welcome d-none d-md-flex">
+          <h1 class="welcome-text">
+            Bienvenido, <span class="highlight">{{ Auth::user()->name ?? 'AMERI SRL' }}</span>
+          </h1>
+        </div>
 
         <ul class="navbar-nav ms-auto">
-          <li class="nav-item dropdown only-desktop">
-            <a class="nav-link dropdown-bordered dropdown-toggle dropdown-toggle-split" id="messageDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false">
-              Categorías
-            </a>
-            <div class="dropdown-menu dropdown-menu-right navbar-dropdown preview-list pb-0" aria-labelledby="messageDropdown">
-              <a class="dropdown-item py-3"><p class="mb-0 font-weight-medium float-left">Seleccionar categoría</p></a>
-              <div class="dropdown-divider"></div>
-              <a class="dropdown-item preview-item" href="#">
-                <div class="preview-item-content flex-grow py-2">
-                  <p class="preview-subject ellipsis font-weight-medium mb-0">Cerámicos</p>
-                  <p class="fw-light small-text mb-0">Pisos y paredes</p>
-                </div>
-              </a>
-              <a class="dropdown-item preview-item" href="#">
-                <div class="preview-item-content flex-grow py-2">
-                  <p class="preview-subject ellipsis font-weight-medium mb-0">Porcelanatos</p>
-                  <p class="fw-light small-text mb-0">Alta resistencia</p>
-                </div>
-              </a>
-              <a class="dropdown-item preview-item" href="#">
-                <div class="preview-item-content flex-grow py-2">
-                  <p class="preview-subject ellipsis font-weight-medium mb-0">Cemento Cola</p>
-                  <p class="fw-light small-text mb-0">Adhesivos profesionales</p>
-                </div>
-              </a>
-            </div>
-          </li>
 
+          {{-- ============ CALENDARIO FUNCIONAL ============ --}}
           <li class="nav-item only-desktop">
-            <div class="input-group date datepicker navbar-date-picker">
-              <span class="input-group-addon input-group-prepend border-right">
-                <span class="icon-calendar input-group-text calendar-icon"></span>
-              </span>
-              <input type="text" class="form-control" placeholder="Fecha">
+            <div class="navbar-date-wrapper">
+              <button type="button" class="navbar-date-btn" id="navbarDateBtn" aria-label="Ver calendario">
+                <i class="mdi mdi-calendar-month-outline"></i>
+                <span class="date-text">
+                  <span class="day" id="navbarDateDay">{{ now()->format('d') }}</span>
+                  {{ ucfirst(\Carbon\Carbon::now()->translatedFormat('M Y')) }}
+                </span>
+              </button>
+
+              <div class="custom-calendar" id="customCalendar">
+                <div class="cal-header">
+                  <button type="button" class="cal-nav-btn" id="calPrev" aria-label="Mes anterior">
+                    <i class="mdi mdi-chevron-left"></i>
+                  </button>
+                  <div class="cal-month-year" id="calMonthYear"></div>
+                  <button type="button" class="cal-nav-btn" id="calNext" aria-label="Mes siguiente">
+                    <i class="mdi mdi-chevron-right"></i>
+                  </button>
+                </div>
+
+                <div class="cal-weekdays">
+                  <span>Lun</span>
+                  <span>Mar</span>
+                  <span>Mié</span>
+                  <span>Jue</span>
+                  <span>Vie</span>
+                  <span>Sáb</span>
+                  <span>Dom</span>
+                </div>
+
+                <div class="cal-days" id="calDays"></div>
+
+                <div class="cal-footer">
+                  <button type="button" class="cal-today-btn" id="calTodayBtn">
+                    <i class="mdi mdi-calendar-today"></i>
+                    Ir a hoy
+                  </button>
+                </div>
+              </div>
             </div>
           </li>
 
+          {{-- ============ BUSCADOR FUNCIONAL ============ --}}
           <li class="nav-item">
-            <form class="search-form" action="#" onsubmit="return false;">
-              <i class="icon-search"></i>
-              <input type="search" class="form-control" placeholder="Buscar...">
-            </form>
+            <div class="navbar-search-wrapper">
+              <form class="search-form" action="#" onsubmit="return false;" autocomplete="off">
+                <i class="icon-search"></i>
+                <input type="search"
+                       class="form-control"
+                       id="navbarSearch"
+                       placeholder="Buscar módulo, acción..."
+                       autocomplete="off">
+              </form>
+
+              <div class="search-results" id="searchResults">
+                <div class="search-results-header">Resultados</div>
+                <div id="searchResultsList"></div>
+              </div>
+            </div>
           </li>
 
-          <li class="nav-item dropdown">
-            <a class="nav-link count-indicator" id="notificationDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notificaciones">
-              <i class="icon-mail icon-lg"></i>
+          {{-- ============ NOTIFICACIONES ============ --}}
+          @php
+            $noLeidasNav = \App\Models\Notificacion::where('user_id', auth()->id())->where('leida', false)->count();
+            $ultimasNotif = \App\Models\Notificacion::with('fromUser')
+                ->where('user_id', auth()->id())
+                ->latest()
+                ->take(4)
+                ->get();
+          @endphp
+
+          <li class="nav-item dropdown notif-wrapper">
+            <a class="nav-link count-indicator notif-bell" id="notifDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="mdi mdi-bell-outline"></i>
+
+              @if($noLeidasNav > 0)
+                <span class="notif-badge">
+                  {{ $noLeidasNav > 99 ? '99+' : $noLeidasNav }}
+                </span>
+              @endif
             </a>
-            <div class="dropdown-menu dropdown-menu-right navbar-dropdown preview-list pb-0" aria-labelledby="notificationDropdown">
-              <a class="dropdown-item py-3 border-bottom" href="#">
-                <p class="mb-0 font-weight-medium float-left">Tienes 4 notificaciones</p>
-                <span class="badge badge-pill badge-primary float-right">Ver todo</span>
-              </a>
-              <a class="dropdown-item preview-item py-3" href="#">
-                <div class="preview-thumbnail"><i class="mdi mdi-alert text-primary"></i></div>
-                <div class="preview-item-content">
-                  <h6 class="preview-subject fw-normal mb-1">Error de aplicación</h6>
-                  <p class="fw-light small-text mb-0">Hace un momento</p>
+
+            <div class="dropdown-menu dropdown-menu-right navbar-dropdown notif-dropdown" aria-labelledby="notifDropdown">
+              <div class="notif-dropdown-header">
+                <div class="notif-header-left">
+                  <i class="mdi mdi-bell-ring-outline"></i>
+                  <div>
+                    <h6>Notificaciones</h6>
+                    <span>
+                      @if($noLeidasNav > 0)
+                        Tienes <strong>{{ $noLeidasNav }}</strong> sin leer
+                      @else
+                        Todo al día
+                      @endif
+                    </span>
+                  </div>
                 </div>
-              </a>
-              <a class="dropdown-item preview-item py-3" href="#">
-                <div class="preview-thumbnail"><i class="mdi mdi-settings text-primary"></i></div>
-                <div class="preview-item-content">
-                  <h6 class="preview-subject fw-normal mb-1">Configuración</h6>
-                  <p class="fw-light small-text mb-0">Mensaje privado</p>
-                </div>
+
+                @if($noLeidasNav > 0)
+                  <form action="{{ route('admin.notificaciones.todas-leidas') }}" method="POST" class="d-inline">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" class="notif-mark-all" title="Marcar todas como leídas">
+                      <i class="mdi mdi-check-all"></i>
+                    </button>
+                  </form>
+                @endif
+              </div>
+
+              <div class="notif-dropdown-list">
+                @forelse($ultimasNotif as $n)
+                  <a href="{{ route('admin.notificaciones.index') }}"
+                     class="notif-dropdown-item {{ $n->leida ? '' : 'is-unread' }}">
+                    <div class="notif-icon-wrap tipo-{{ $n->tipo === 'stock_prestado' ? 'prestado' : 'devuelto' }}">
+                      <i class="mdi {{ $n->tipo === 'stock_prestado' ? 'mdi-arrow-down-bold-circle-outline' : 'mdi-arrow-up-bold-circle-outline' }}"></i>
+                    </div>
+
+                    <div class="notif-content">
+                      <p class="notif-title">{{ $n->titulo }}</p>
+                      <p class="notif-msg">{{ \Illuminate\Support\Str::limit($n->mensaje, 70) }}</p>
+                      <div class="notif-meta-line">
+                        @if($n->fromUser)
+                          <span class="notif-from">
+                            <i class="mdi mdi-account-circle-outline"></i>
+                            {{ $n->fromUser->name }}
+                          </span>
+                        @endif
+                        <span class="notif-time">
+                          <i class="mdi mdi-clock-outline"></i>
+                          {{ $n->created_at->diffForHumans() }}
+                        </span>
+                      </div>
+                    </div>
+
+                    @if(!$n->leida)
+                      <span class="notif-dot"></span>
+                    @endif
+                  </a>
+                @empty
+                  <div class="notif-empty">
+                    <i class="mdi mdi-bell-sleep-outline"></i>
+                    <p class="notif-empty-title">Sin notificaciones</p>
+                    <span class="notif-empty-sub">Cuando otro admin use tu stock, aparecerá aquí.</span>
+                  </div>
+                @endforelse
+              </div>
+
+              <a href="{{ route('admin.notificaciones.index') }}" class="notif-dropdown-footer">
+                Ver todas las notificaciones
+                <i class="mdi mdi-arrow-right"></i>
               </a>
             </div>
           </li>
@@ -1185,7 +1660,6 @@
               <span class="menu-title">Suministros</span>
             </a>
           </li>
-          
 
           <!-- Compras -->
           <li class="nav-item">
@@ -1196,14 +1670,34 @@
             </a>
             <div class="collapse" id="compras">
               <ul class="nav flex-column sub-menu">
+                <li class="nav-item"><a class="nav-link" href="{{ route('admin.compras.index') }}">Órdenes de compra</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ route('admin.compras.create') }}">Nueva compra</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ route('admin.stocks.index') }}">Stock por admin</a></li>
+              </ul>
+            </div>
+          </li>
+
+          <!-- Ventas -->
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="collapse" href="#ventas" aria-expanded="false">
+              <i class="menu-icon mdi mdi-cart-outline"></i>
+              <span class="menu-title">Ventas</span>
+              <i class="menu-arrow"></i>
+            </a>
+            <div class="collapse" id="ventas">
+              <ul class="nav flex-column sub-menu">
+                <li class="nav-item"><a class="nav-link" href="{{ route('admin.ventas.index') }}">Historial de ventas</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ route('admin.ventas.create') }}">Hacer venta</a></li>
                 <li class="nav-item">
-                  <a class="nav-link" href="{{ route('admin.compras.index') }}">Órdenes de compra</a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link" href="{{ route('admin.compras.create') }}">Nueva compra</a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link" href="{{ route('admin.stocks.index') }}">Stock por admin</a>
+                  <a class="nav-link" href="{{ route('admin.notificaciones.index') }}">
+                    Notificaciones
+                    @php
+                      $noLeidas = \App\Models\Notificacion::where('user_id', auth()->id())->where('leida', false)->count();
+                    @endphp
+                    @if($noLeidas > 0)
+                      <span class="badge bg-danger ms-1">{{ $noLeidas }}</span>
+                    @endif
+                  </a>
                 </li>
               </ul>
             </div>
@@ -1286,6 +1780,9 @@
 
   <script>
     (function () {
+      'use strict';
+
+      /* ==================== TEMA ==================== */
       var btn = document.getElementById('ameri-theme-toggle');
       var root = document.documentElement;
 
@@ -1301,7 +1798,7 @@
         });
       }
 
-      /* Link activo automático en el sidebar */
+      /* ==================== LINK ACTIVO SIDEBAR ==================== */
       try {
         var path = window.location.pathname;
         document.querySelectorAll('.sidebar .nav-link').forEach(function (link) {
@@ -1321,6 +1818,226 @@
           } catch (e) {}
         });
       } catch (e) {}
+
+      /* ==================== CALENDARIO CUSTOM ==================== */
+      (function initCalendar() {
+        var btnDate = document.getElementById('navbarDateBtn');
+        var cal     = document.getElementById('customCalendar');
+        var calDays = document.getElementById('calDays');
+        var calMY   = document.getElementById('calMonthYear');
+        var prev    = document.getElementById('calPrev');
+        var next    = document.getElementById('calNext');
+        var today   = document.getElementById('calTodayBtn');
+
+        if (!btnDate || !cal || !calDays || !calMY) return;
+
+        var meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+        var hoy = new Date();
+        var mesActual = hoy.getMonth();
+        var anioActual = hoy.getFullYear();
+
+        function renderMes(mes, anio) {
+          calMY.textContent = meses[mes].charAt(0).toUpperCase() + meses[mes].slice(1) + ' ' + anio;
+
+          calDays.innerHTML = '';
+
+          var primerDia = new Date(anio, mes, 1);
+          // Convertir a lunes = 0
+          var diaSemana = (primerDia.getDay() + 6) % 7;
+          var diasMes = new Date(anio, mes + 1, 0).getDate();
+          var diasMesAnterior = new Date(anio, mes, 0).getDate();
+
+          // Días del mes anterior
+          for (var i = diaSemana - 1; i >= 0; i--) {
+            var d = document.createElement('button');
+            d.type = 'button';
+            d.className = 'cal-day otro-mes';
+            d.textContent = diasMesAnterior - i;
+            calDays.appendChild(d);
+          }
+
+          // Días del mes actual
+          for (var dia = 1; dia <= diasMes; dia++) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cal-day';
+            btn.textContent = dia;
+
+            if (dia === hoy.getDate() && mes === hoy.getMonth() && anio === hoy.getFullYear()) {
+              btn.classList.add('hoy');
+            }
+
+            btn.addEventListener('click', function () {
+              calDays.querySelectorAll('.cal-day').forEach(function (b) {
+                b.classList.remove('seleccionado');
+              });
+              this.classList.add('seleccionado');
+
+              // Actualizar el botón de fecha con el día seleccionado
+              var daySpan = document.querySelector('#navbarDateBtn .date-text .day');
+              if (daySpan) daySpan.textContent = String(this.textContent).padStart(2, '0');
+
+              setTimeout(function () { cal.classList.remove('open'); }, 200);
+            });
+
+            calDays.appendChild(btn);
+          }
+
+          // Completar la última semana
+          var totalCeldas = diaSemana + diasMes;
+          var faltantes = (7 - (totalCeldas % 7)) % 7;
+          for (var k = 1; k <= faltantes; k++) {
+            var dn = document.createElement('button');
+            dn.type = 'button';
+            dn.className = 'cal-day otro-mes';
+            dn.textContent = k;
+            calDays.appendChild(dn);
+          }
+        }
+
+        btnDate.addEventListener('click', function (e) {
+          e.stopPropagation();
+          cal.classList.toggle('open');
+        });
+
+        prev.addEventListener('click', function () {
+          mesActual--;
+          if (mesActual < 0) { mesActual = 11; anioActual--; }
+          renderMes(mesActual, anioActual);
+        });
+
+        next.addEventListener('click', function () {
+          mesActual++;
+          if (mesActual > 11) { mesActual = 0; anioActual++; }
+          renderMes(mesActual, anioActual);
+        });
+
+        today.addEventListener('click', function () {
+          mesActual = hoy.getMonth();
+          anioActual = hoy.getFullYear();
+          renderMes(mesActual, anioActual);
+
+          var daySpan = document.querySelector('#navbarDateBtn .date-text .day');
+          if (daySpan) daySpan.textContent = String(hoy.getDate()).padStart(2, '0');
+        });
+
+        // Cerrar al hacer clic afuera
+        document.addEventListener('click', function (e) {
+          if (!cal.contains(e.target) && e.target !== btnDate && !btnDate.contains(e.target)) {
+            cal.classList.remove('open');
+          }
+        });
+
+        // Render inicial
+        renderMes(mesActual, anioActual);
+      })();
+
+      /* ==================== BUSCADOR FUNCIONAL ==================== */
+      (function initSearch() {
+        var input   = document.getElementById('navbarSearch');
+        var results = document.getElementById('searchResults');
+        var list    = document.getElementById('searchResultsList');
+
+        if (!input || !results || !list) return;
+
+        // Módulos disponibles para buscar
+        var modulos = [
+          { titulo: 'Inicio',                  path: '/dashboard',                     icono: 'mdi-view-dashboard-outline',       keywords: ['inicio','dashboard','panel'] },
+          { titulo: 'Usuarios - Administración', path: '{{ route("admin.users.index") }}', icono: 'mdi-account-multiple-outline',  keywords: ['usuarios','administracion','admin','users'] },
+          { titulo: 'Suministros',             path: '{{ route("admin.suministros.index") }}', icono: 'mdi-truck-delivery-outline', keywords: ['suministros','proveedores','productos'] },
+          { titulo: 'Compras - Órdenes',       path: '{{ route("admin.compras.index") }}', icono: 'mdi-cart-plus', keywords: ['compras','ordenes','comprar'] },
+          { titulo: 'Compras - Nueva',         path: '{{ route("admin.compras.create") }}', icono: 'mdi-plus-circle-outline', keywords: ['nueva compra','crear compra','comprar'] },
+          { titulo: 'Stock por admin',         path: '{{ route("admin.stocks.index") }}', icono: 'mdi-warehouse', keywords: ['stock','inventario','almacen'] },
+          { titulo: 'Ventas - Historial',      path: '{{ route("admin.ventas.index") }}', icono: 'mdi-cart-outline', keywords: ['ventas','historial','vender'] },
+          { titulo: 'Ventas - Nueva',          path: '{{ route("admin.ventas.create") }}', icono: 'mdi-plus-circle-outline', keywords: ['nueva venta','hacer venta','vender'] },
+          { titulo: 'Notificaciones',          path: '{{ route("admin.notificaciones.index") }}', icono: 'mdi-bell-outline', keywords: ['notificaciones','avisos','mensajes'] },
+        ];
+
+        function normalizar(t) {
+          return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        }
+
+        function buscar(termino) {
+          var q = normalizar(termino.trim());
+          if (!q) return [];
+
+          return modulos.filter(function (m) {
+            var enTitulo = normalizar(m.titulo).includes(q);
+            var enKeywords = m.keywords.some(function (k) { return normalizar(k).includes(q); });
+            return enTitulo || enKeywords;
+          });
+        }
+
+        function renderResultados(items, termino) {
+          list.innerHTML = '';
+
+          if (items.length === 0) {
+            list.innerHTML = `
+              <div class="search-empty">
+                <i class="mdi mdi-magnify-close"></i>
+                No se encontró "<strong>${termino}</strong>"
+              </div>`;
+            return;
+          }
+
+          items.forEach(function (m, i) {
+            var a = document.createElement('a');
+            a.href = m.path;
+            a.className = 'search-result-item' + (i === 0 ? ' active' : '');
+            a.innerHTML = `
+              <span class="result-icon"><i class="mdi ${m.icono}"></i></span>
+              <div class="result-info">
+                <p class="result-title">${m.titulo}</p>
+                <p class="result-path">${m.path.replace(/^https?:\/\/[^/]+/, '')}</p>
+              </div>
+              <i class="mdi mdi-arrow-right result-arrow"></i>
+            `;
+            list.appendChild(a);
+          });
+        }
+
+        var timeout;
+        input.addEventListener('input', function () {
+          clearTimeout(timeout);
+          var val = this.value;
+
+          if (!val.trim()) {
+            results.classList.remove('open');
+            return;
+          }
+
+          timeout = setTimeout(function () {
+            var res = buscar(val);
+            renderResultados(res, val.trim());
+            results.classList.add('open');
+          }, 120);
+        });
+
+        input.addEventListener('focus', function () {
+          if (this.value.trim()) results.classList.add('open');
+        });
+
+        // Enter abre el primer resultado
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            var primero = list.querySelector('.search-result-item');
+            if (primero) window.location.href = primero.href;
+          }
+          if (e.key === 'Escape') {
+            results.classList.remove('open');
+            this.blur();
+          }
+        });
+
+        // Cerrar al hacer clic afuera
+        document.addEventListener('click', function (e) {
+          if (!results.contains(e.target) && e.target !== input) {
+            results.classList.remove('open');
+          }
+        });
+      })();
+
     })();
   </script>
 

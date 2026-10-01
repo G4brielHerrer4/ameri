@@ -148,11 +148,23 @@ class CompraController extends Controller
             ->orderBy('nombre')
             ->get();
 
+        // ⬇️ NUEVO: preparar las líneas para el JS
+        $lineasExistentes = $compra->detalles->map(function ($d) {
+            return [
+                'producto_id'          => $d->producto_id,
+                'cantidad'             => (float) $d->cantidad,
+                'unidad_compra'        => $d->unidad_compra,
+                'unidades_por_paquete' => (float) $d->unidades_por_paquete,
+                'precio_unitario'      => (float) $d->precio_unitario,
+            ];
+        })->values();
+
         return view('admin.compras.edit', compact(
             'compra',
             'proveedores',
             'admins',
-            'productos'
+            'productos',
+            'lineasExistentes'  // ⬅️ NUEVO
         ));
     }
 

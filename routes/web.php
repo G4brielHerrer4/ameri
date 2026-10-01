@@ -8,6 +8,8 @@ use App\Http\Controllers\Admin\ProductoController;
 use App\Http\Controllers\Admin\ProveedorController;
 use App\Http\Controllers\Admin\CompraController;
 use App\Http\Controllers\Admin\StockController;
+use App\Http\Controllers\Admin\VentaController;
+use App\Http\Controllers\Admin\NotificacionController;
 use App\Http\Controllers\Vendedor\VendedorController;
 use App\Http\Controllers\Cliente\ClienteController;
 
@@ -108,7 +110,7 @@ Route::middleware([
         });
 
         // ============================================================
-        // COMPRAS  (al mismo nivel que Suministros, dentro de Admin)
+        // COMPRAS
         // ============================================================
         Route::prefix('compras')->name('compras.')->group(function () {
             Route::get('/',        [CompraController::class, 'index'])->name('index');
@@ -122,17 +124,46 @@ Route::middleware([
         });
 
         // ============================================================
-        // STOCK  (al mismo nivel que Compras, dentro de Admin)
+        // STOCK
         // ============================================================
         Route::prefix('stocks')->name('stocks.')->group(function () {
-        Route::get('/', [StockController::class, 'index'])->name('index');
+            Route::get('/', [StockController::class, 'index'])->name('index');
 
-        Route::patch(
-            '/productos/{producto}/limites',
-            [StockController::class, 'actualizarLimites']
-        )->name('limites');
-    });
-    });
+            Route::patch(
+                '/productos/{producto}/limites',
+                [StockController::class, 'actualizarLimites']
+            )->name('limites');
+        });
+
+        // ============================================================
+        // VENTAS
+        // ============================================================
+        Route::prefix('ventas')->name('ventas.')->group(function () {
+            Route::get('/',           [VentaController::class, 'index'])->name('index');
+            Route::get('/create',     [VentaController::class, 'create'])->name('create');
+            Route::post('/',          [VentaController::class, 'store'])->name('store');
+            Route::get('/{venta}',    [VentaController::class, 'show'])->name('show');
+            Route::get('/{venta}/edit',[VentaController::class, 'edit'])->name('edit');
+            Route::put('/{venta}',    [VentaController::class, 'update'])->name('update');
+            Route::patch('/{venta}/confirmar', [VentaController::class, 'confirmar'])->name('confirmar');
+            Route::patch('/{venta}/cancelar',  [VentaController::class, 'cancelar'])->name('cancelar');
+            Route::delete('/{venta}', [VentaController::class, 'destroy'])->name('destroy');
+
+            // AJAX: consultar stock de un producto en todos los admins
+            Route::get('/stock-producto/{producto}', [VentaController::class, 'stockProducto'])->name('stock-producto');
+        });
+
+        // ============================================================
+        // NOTIFICACIONES
+        // ============================================================
+        Route::prefix('notificaciones')->name('notificaciones.')->group(function () {
+            Route::get('/', [NotificacionController::class, 'index'])->name('index');
+            Route::patch('/{notificacion}/leida', [NotificacionController::class, 'marcarLeida'])->name('leida');
+            Route::patch('/todas/leidas', [NotificacionController::class, 'marcarTodasLeidas'])->name('todas-leidas');
+            Route::delete('/{notificacion}', [NotificacionController::class, 'destroy'])->name('destroy');
+        });
+
+    }); // ← cierre del grupo ADMIN
 
     // ============================================================
     // VENDEDOR
