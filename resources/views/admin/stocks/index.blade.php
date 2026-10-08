@@ -1107,7 +1107,15 @@
 
             if (in_array($tipoNombre, ['cerámica','ceramica','porcelanato'])) {
                 $unidadLimite = 'cajas';
-            } elseif (str_contains($tipoNombre, 'cemento cola')) {
+
+            
+
+            } elseif (
+                str_contains($tipoNombre, 'cemento cola')
+                || str_contains($tipoNombre, 'pastina')
+            ) {
+
+
                 $unidadLimite = 'bolsas';
             } else {
                 $unidadLimite = 'piezas';

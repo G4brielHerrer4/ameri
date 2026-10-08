@@ -73,7 +73,8 @@ class Producto extends Model
         return match (true) {
             in_array($tipo, ['cerámica', 'porcelanato']) => 'caja',
             $tipo === 'cemento cola'                     => 'bolsa',
-            in_array($tipo, ['listelo', 'randa decorativa', 'pastinas']) => 'pieza',
+            in_array($tipo, ['listelo', 'randa decorativa']) => 'pieza',
+            $tipo === 'pastinas'                               => 'bolsa',
             in_array($tipo, ['esquinero de aluminio', 'esquinero de goma']) => 'pieza',
             default                                       => 'unidad',
         };
@@ -91,8 +92,11 @@ class Producto extends Model
             in_array($tipo, ['cerámica', 'porcelanato'])
                 => (float) ($this->piezas_por_caja ?? 1),
 
-            in_array($tipo, ['listelo', 'randa decorativa', 'pastinas'])
+           in_array($tipo, ['listelo', 'randa decorativa'])
                 => (float) ($this->piezas_por_caja ?? 1),
+
+            $tipo === 'pastinas'
+                => 1,
 
             in_array($tipo, ['esquinero de aluminio', 'esquinero de goma'])
                 => (float) ($this->piezas_por_caja ?? 1),
@@ -113,7 +117,8 @@ class Producto extends Model
         return match (true) {
             in_array($tipo, ['cerámica', 'porcelanato']) => 'piezas',
             $tipo === 'cemento cola'                     => 'bolsas',
-            in_array($tipo, ['listelo', 'randa decorativa', 'pastinas']) => 'piezas',
+           in_array($tipo, ['listelo', 'randa decorativa']) => 'piezas',
+            $tipo === 'pastinas'                               => 'bolsas',
             in_array($tipo, ['esquinero de aluminio', 'esquinero de goma']) => 'piezas',
             default                                       => 'unidades',
         };

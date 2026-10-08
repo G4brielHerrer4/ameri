@@ -15,12 +15,15 @@ class VentaDetalle extends Model
         'venta_id',
         'producto_id',
         'cantidad',
+        'unidad',
+        'cantidad_stock',
         'precio_unitario',
         'subtotal',
     ];
 
     protected $casts = [
         'cantidad'        => 'decimal:2',
+        'cantidad_stock'  => 'decimal:2',
         'precio_unitario' => 'decimal:2',
         'subtotal'        => 'decimal:2',
     ];

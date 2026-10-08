@@ -1655,7 +1655,9 @@
           </a>
           <div class="collapse" id="grp-usuarios">
             <ul class="sub-menu">
-              <li class="nav-item"><a class="nav-link" href="{{ route('admin.users.index') }}">Administración</a></li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.users.index') }}">Administración</a>
+              </li>
             </ul>
           </div>
         </li>
@@ -1677,9 +1679,15 @@
           </a>
           <div class="collapse" id="grp-compras">
             <ul class="sub-menu">
-              <li class="nav-item"><a class="nav-link" href="{{ route('admin.compras.index') }}">Órdenes de compra</a></li>
-              <li class="nav-item"><a class="nav-link" href="{{ route('admin.compras.create') }}">Nueva compra</a></li>
-              <li class="nav-item"><a class="nav-link" href="{{ route('admin.stocks.index') }}">Stock por admin</a></li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.compras.index') }}">Órdenes de compra</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.compras.create') }}">Nueva compra</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.stocks.index') }}">Stock por admin</a>
+              </li>
             </ul>
           </div>
         </li>
@@ -1692,8 +1700,12 @@
           </a>
           <div class="collapse" id="grp-ventas">
             <ul class="sub-menu">
-              <li class="nav-item"><a class="nav-link" href="{{ route('admin.ventas.index') }}">Historial</a></li>
-              <li class="nav-item"><a class="nav-link" href="{{ route('admin.ventas.create') }}">Hacer venta</a></li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.ventas.index') }}">Historial</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.ventas.create') }}">Hacer venta</a>
+              </li>
               <li class="nav-item">
                 <a class="nav-link" href="{{ route('admin.notificaciones.index') }}">
                   Notificaciones
