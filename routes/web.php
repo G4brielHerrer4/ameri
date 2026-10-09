@@ -130,10 +130,13 @@ Route::middleware([
             Route::get('/', [StockController::class, 'index'])->name('index');
 
             Route::patch(
-                '/productos/{producto}/limites',
-                [StockController::class, 'actualizarLimites']
-            )->name('limites');
+                '/productos/{producto}/limites',[StockController::class, 'actualizarLimites'])->name('limites');
+
+            // Actualizar precios de venta del producto
+            Route::patch(
+                '/productos/{producto}/precios',[StockController::class, 'actualizarPrecios'])->name('precios');
         });
+
 
         // ============================================================
         // VENTAS

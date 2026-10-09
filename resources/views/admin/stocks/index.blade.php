@@ -316,6 +316,47 @@
     font-size: 0.85rem;
     vertical-align: middle;
   }
+  /* Inventario: aprovechar mejor el ancho disponible */
+#tablaStocks {
+    width: 100% !important;
+    font-size: 0.78rem;
+    table-layout: auto;
+}
+
+#tablaStocks th,
+#tablaStocks td {
+    padding: 8px 6px;
+    vertical-align: middle;
+}
+
+#tablaStocks th {
+    white-space: normal;
+    line-height: 1.25;
+}
+
+#tablaStocks td {
+    white-space: normal;
+}
+
+/* Mantener visibles los nombres de los administradores */
+#tablaStocks th.text-end {
+    min-width: 100px;
+}
+
+/* Reducir el espacio que ocupan los stocks */
+#tablaStocks .existencia {
+    min-width: 75px;
+}
+
+#tablaStocks .existencia-linea {
+    gap: 3px;
+}
+
+/* Permitir que el nombre del producto ocupe varias líneas */
+#tablaStocks .cell-product-name {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
 
   /* =====================================================
      FILA CON ESTADO (acento de color dinámico)
@@ -1009,22 +1050,6 @@
     </div>
   </div>
 
-  {{-- ==================== ALERTAS DE SESIÓN ==================== --}}
-  @if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
-      <i class="mdi mdi-check-circle-outline me-2"></i>
-      {{ session('success') }}
-      <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-    </div>
-  @endif
-
-  @if(session('error'))
-    <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-      <i class="mdi mdi-alert-circle-outline me-2"></i>
-      {{ session('error') }}
-      <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-    </div>
-  @endif
 
   {{-- ==================== PANEL DE RESUMEN ==================== --}}
   <div class="alert-panel">
@@ -1079,14 +1104,17 @@
   </div>
 
   {{-- ==================== TABLA ==================== --}}
-  <div class="panel">
+  
+<div class="panel">
     <div class="panel-body">
-      <table id="tablaStocks" class="table dt-responsive nowrap" style="width:100%">
+      <div class="table-responsive">
+        <table id="tablaStocks" class="table table-sm" style="width:100%">
         <thead>
           <tr>
             <th>Producto</th>
             <th>Categoría / Tipo</th>
             <th class="text-end">Existencia total</th>
+            <th class="text-start">Precios</th>
             @foreach($admins as $admin)
               <th class="text-end">{{ $admin->name }}</th>
             @endforeach
@@ -1226,6 +1254,12 @@
                 'm2_total' => $m2Total,
                 'estado' => $estado,
                 'estado_clase' => $estadoClase,
+                'precio_compra' => $item['precio_compra'] ?? null,
+                'unidad_precio_compra' => $item['unidad_precio_compra'] ?? null,
+                'precio_venta_caja' => $producto->precio_venta_caja,
+                'precio_venta_m2' => $producto->precio_venta_m2,
+                'precio_venta_pieza' => $producto->precio_venta_pieza,
+                'precio_venta_bolsa' => $producto->precio_venta_bolsa,
                 'admins' => $detalleAdmins,
             ];
           @endphp
@@ -1291,6 +1325,75 @@
                     <span class="existencia-cantidad">{{ $cantidadFormateada($stockTotal) }}</span>
                     <span class="existencia-unidad">{{ $unidadLimite }}</span>
                   </div>
+                @endif
+              </div>
+            </td>
+
+           
+            {{--  PRECIOS DE VENTA --}}
+            <td>
+              @php
+                $tipoPrecio = mb_strtolower(
+                    trim((string) ($producto->tipoProducto?->nombre ?? '')),
+                    'UTF-8'
+                );
+
+                $esCeramicaPrecio = in_array(
+                    $tipoPrecio,
+                    ['cerámica', 'ceramica', 'porcelanato']
+                );
+
+                $esBolsaPrecio = str_contains($tipoPrecio, 'cemento cola')
+                    || str_contains($tipoPrecio, 'pastina');
+
+                $esPiezaPrecio = in_array(
+                    $tipoPrecio,
+                    ['listelo', 'randa decorativa', 'esquinero de aluminio', 'esquinero de goma']
+                );
+              @endphp
+
+              <div style="min-width:150px;font-size:0.78rem;">
+                @if($esCeramicaPrecio)
+                  <div>
+                    Caja:
+                    <strong>
+                      {{ $producto->precio_venta_caja !== null
+                          ? number_format((float) $producto->precio_venta_caja, 2, ',', '.') . ' Bs'
+                          : 'Sin configurar' }}
+                    </strong>
+                  </div>
+
+                  <div>
+                    Pieza:
+                    <strong>
+                      {{ $producto->precio_venta_pieza !== null
+                          ? number_format((float) $producto->precio_venta_pieza, 2, ',', '.') . ' Bs'
+                          : 'Sin configurar' }}
+                    </strong>
+                  </div>
+
+                @elseif($esBolsaPrecio)
+                  <div>
+                    Bolsa:
+                    <strong>
+                      {{ $producto->precio_venta_bolsa !== null
+                          ? number_format((float) $producto->precio_venta_bolsa, 2, ',', '.') . ' Bs'
+                          : 'Sin configurar' }}
+                    </strong>
+                  </div>
+
+                @elseif($esPiezaPrecio)
+                  <div>
+                    Pieza:
+                    <strong>
+                      {{ $producto->precio_venta_pieza !== null
+                          ? number_format((float) $producto->precio_venta_pieza, 2, ',', '.') . ' Bs'
+                          : 'Sin configurar' }}
+                    </strong>
+                  </div>
+
+                @else
+                  <span style="color:var(--ink-faint);">Revisar tipo de producto</span>
                 @endif
               </div>
             </td>
@@ -1399,12 +1502,32 @@
                 >
                   <i class="mdi mdi-tune-variant"></i>
                 </button>
+
+                <button
+                  type="button"
+                  class="action-btn tune"
+                  title="Configurar precios de venta"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalPrecios"
+                  data-id="{{ $producto->id }}"
+                  data-nombre="{{ $producto->nombre }}"
+                  data-tipo="{{ $tipoNombre }}"
+                  data-caja="{{ $producto->precio_venta_caja }}"
+                  data-m2="{{ $producto->precio_venta_m2 }}"
+                  data-pieza="{{ $producto->precio_venta_pieza }}"
+                  data-bolsa="{{ $producto->precio_venta_bolsa }}"
+                  data-compra="{{ $item['precio_compra'] ?? '' }}"
+                  data-unidad-compra="{{ $item['unidad_precio_compra'] ?? '' }}"
+                >
+                  <i class="mdi mdi-currency-usd"></i>
+                </button>
+
               </div>
             </td>
           </tr>
         @empty
           <tr>
-            <td colspan="{{ 6 + $admins->count() }}" class="text-center py-5">
+            <td colspan="{{ 7 + $admins->count() }}" class="text-center py-5">
               <i class="mdi mdi-warehouse" style="font-size:44px;opacity:0.3;color:var(--ink-faint);"></i>
               <p class="mt-2 mb-0" style="color:var(--ink-muted);">No hay productos registrados.</p>
             </td>
@@ -1414,6 +1537,7 @@
       </table>
     </div>
   </div>
+   </div>
 </div>
 
 
@@ -1575,11 +1699,44 @@
           </div>
         </div>
 
-        <div class="detalle-seccion">
           <div class="detalle-seccion-titulo">
             <i class="mdi mdi-account-group-outline"></i>
             Stock por dueño
           </div>
+
+          {{-- PRECIOS DEL PRODUCTO --}}
+            <div class="detalle-seccion">
+                <div class="detalle-seccion-titulo">
+                    <i class="mdi mdi-currency-usd"></i>
+                    Información de precios
+                </div>
+
+                <div class="detalle-grid">
+                    <div class="detalle-item" id="detalleCampoPrecioCompra">
+                        <span class="detalle-label">Precio de compra (referencia)</span>
+                        <span class="detalle-valor" id="detallePrecioCompra">—</span>
+                    </div>
+
+                    <div class="detalle-item" id="detalleCampoPrecioCaja">
+                        <span class="detalle-label">Precio de venta por caja</span>
+                        <span class="detalle-valor" id="detallePrecioCaja">—</span>
+                    </div>
+
+                    <div class="detalle-item" id="detalleCampoPrecioPieza">
+                        <span class="detalle-label">Precio de venta por pieza</span>
+                        <span class="detalle-valor" id="detallePrecioPieza">—</span>
+                    </div>
+
+                    <div class="detalle-item" id="detalleCampoPrecioBolsa">
+                        <span class="detalle-label">Precio de venta por bolsa</span>
+                        <span class="detalle-valor" id="detallePrecioBolsa">—</span>
+                    </div>
+                </div>
+
+                <small style="display:block;margin-top:12px;color:var(--ink-muted);">
+                    El precio de compra es únicamente informativo. Los precios de venta se configuran desde el botón de precios.
+                </small>
+            </div>
           <div id="detalleStockAdmins"></div>
         </div>
       </div>
@@ -1591,8 +1748,168 @@
   </div>
 </div>
 
-@endsection
+{{-- ================================================================ --}}
+{{-- MODAL PRECIOS DE VENTA                                           --}}
+{{-- ================================================================ --}}
+<div class="modal fade" id="modalPrecios" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="formPrecios" method="POST">
+        @csrf
+        @method('PATCH')
 
+        <div class="modal-header ameri-modal-header">
+          <div class="d-flex align-items-center gap-3">
+            <div class="ameri-modal-icon">
+              <i class="mdi mdi-currency-usd"></i>
+            </div>
+            <div>
+              <h5 class="modal-title">Precios de venta</h5>
+              <p class="ameri-modal-sub">Configura los precios del producto</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white"
+                  data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+
+        <div class="modal-body">
+          <p class="mb-4" style="color:var(--ink-muted);font-size:0.9rem;">
+            Producto:
+            <strong id="preciosNombreProducto" style="color:var(--ink);"></strong>
+          </p>
+
+          {{-- PRECIO DE COMPRA: SOLO REFERENCIA --}}
+          <div class="mb-4 p-3"
+              style="background:var(--bg-2);border:1px solid var(--line);border-radius:12px;">
+
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <i class="mdi mdi-information-outline"
+                style="font-size:1.2rem;color:var(--cyan);"></i>
+
+              <strong style="color:var(--ink);font-size:0.88rem;">
+                Precio de compra
+              </strong>
+            </div>
+
+            <div id="precioCompraReferencia"
+                style="font-size:1.15rem;font-weight:700;color:var(--ink);">
+              Sin registro
+            </div>
+
+            <small style="color:var(--ink-muted);">
+              Este precio es informativo y no se modifica al guardar los precios de venta.
+            </small>
+          </div>
+
+          <p style="color:var(--ink-faint);font-size:0.8rem;">
+            Introduce los precios de venta en bolivianos (Bs), según las unidades
+            permitidas para este producto.
+          </p>
+
+          <div class="mb-3" id="campoPrecioCaja">
+            <label class="form-label" for="precioVentaCaja">Precio por caja (Bs)</label>
+            <input type="number" name="precio_venta_caja" id="precioVentaCaja"
+                   class="form-control" min="0.01" step="0.01" placeholder="Ej. 250.00">
+          </div>
+
+          <div class="mb-3" id="campoPrecioM2">
+            <label class="form-label" for="precioVentaM2">Precio por m² (Bs)</label>
+            <input type="number" name="precio_venta_m2" id="precioVentaM2"
+                   class="form-control" min="0.01" step="0.01" placeholder="Ej. 45.00">
+          </div>
+
+          <div class="mb-3" id="campoPrecioPieza">
+            <label class="form-label" for="precioVentaPieza">Precio por pieza (Bs)</label>
+            <input type="number" name="precio_venta_pieza" id="precioVentaPieza"
+                   class="form-control" min="0.01" step="0.01" placeholder="Ej. 12.00">
+          </div>
+
+          <div class="mb-0" id="campoPrecioBolsa">
+            <label class="form-label" for="precioVentaBolsa">Precio por bolsa (Bs)</label>
+            <input type="number" name="precio_venta_bolsa" id="precioVentaBolsa"
+                   class="form-control" min="0.01" step="0.01" placeholder="Ej. 35.00">
+          </div>
+        </div>
+
+        <div class="modal-footer ameri-modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="mdi mdi-content-save-outline me-1"></i>
+            Guardar precios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{-- MODAL DE CONFIRMACIÓN DE PRECIOS --}}
+<div class="modal fade" id="modalConfirmarPrecios" tabindex="-1"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header ameri-modal-header">
+        <div class="d-flex align-items-center gap-3">
+          <div class="ameri-modal-icon">
+            <i class="mdi mdi-currency-usd"></i>
+          </div>
+          <div>
+            <h5 class="modal-title">Confirmar cambios</h5>
+            <p class="ameri-modal-sub">Actualización de precios</p>
+          </div>
+        </div>
+
+        <button type="button"
+                class="btn-close btn-close-white"
+                data-bs-dismiss="modal"
+                aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body text-center py-4">
+        <div style="font-size:3rem;color:var(--cyan);margin-bottom:1rem;">
+          <i class="mdi mdi-help-circle-outline"></i>
+        </div>
+
+        <h5 style="color:var(--ink);font-weight:700;">
+          ¿Guardar los nuevos precios?
+        </h5>
+
+        <p style="color:var(--ink-muted);margin-bottom:0.5rem;">
+          Estás a punto de actualizar los precios de venta de:
+        </p>
+
+        <p id="confirmarPreciosNombre"
+           style="color:var(--cyan);font-weight:700;font-size:1rem;">
+        </p>
+
+        <p style="color:var(--ink-faint);font-size:0.85rem;margin-bottom:0;">
+          Verifica que los importes sean correctos antes de continuar.
+        </p>
+      </div>
+
+      <div class="modal-footer ameri-modal-footer">
+        <button type="button"
+                class="btn btn-secondary"
+                data-bs-dismiss="modal">
+          <i class="mdi mdi-close me-1"></i>
+          Cancelar
+        </button>
+
+        <button type="button"
+                class="btn btn-primary"
+                id="btnConfirmarGuardarPrecios">
+          <i class="mdi mdi-content-save-outline me-1"></i>
+          Sí, guardar precios
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+@endsection
 
 @push('scripts')
 <script>
@@ -1685,6 +2002,142 @@ document.addEventListener('DOMContentLoaded', function () {
       "{{ url('/admin/stocks/productos') }}/" + id + "/limites";
   });
 
+/* ==================== MODAL PRECIOS ==================== */
+const modalPrecios = document.getElementById('modalPrecios');
+
+modalPrecios.addEventListener('show.bs.modal', function (event) {
+  const button = event.relatedTarget;
+
+  const id = button.getAttribute('data-id');
+  const nombre = button.getAttribute('data-nombre');
+  const tipo = (button.getAttribute('data-tipo') || '')
+    .trim()
+    .toLocaleLowerCase('es');
+
+  document.getElementById('preciosNombreProducto').textContent = nombre;
+  
+  // Mostrar precio de compra únicamente como referencia.
+  const precioCompra = button.getAttribute('data-compra');
+  const unidadCompra = button.getAttribute('data-unidad-compra');
+  const referenciaCompra = document.getElementById('precioCompraReferencia');
+
+  if (precioCompra !== null && precioCompra.trim() !== '') {
+    const importe = Number(precioCompra);
+
+    if (Number.isFinite(importe)) {
+      referenciaCompra.textContent =
+        importe.toLocaleString('es-BO', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }) + ' Bs' +
+        (unidadCompra ? ' por ' + unidadCompra : '');
+    } else {
+      referenciaCompra.textContent = 'Sin registro';
+    }
+  } else {
+    referenciaCompra.textContent = 'Sin registro';
+  }
+
+  const campos = {
+    caja: document.getElementById('campoPrecioCaja'),
+    m2: document.getElementById('campoPrecioM2'),
+    pieza: document.getElementById('campoPrecioPieza'),
+    bolsa: document.getElementById('campoPrecioBolsa'),
+  };
+
+  // Ocultar todos los campos antes de mostrar los que correspondan.
+  Object.entries(campos).forEach(([unidad, campo]) => {
+    campo.style.display = 'none';
+
+    const input = campo.querySelector('input');
+
+    if (input) {
+      input.disabled = true;
+    }
+  });
+  let unidades = [];
+
+  if (['cerámica', 'ceramica', 'porcelanato'].includes(tipo)) {
+  unidades = ['caja', 'pieza'];
+  } else if (tipo.includes('cemento cola') || tipo.includes('pastina')) {
+    unidades = ['bolsa'];
+  } else if (
+    ['listelo', 'randa decorativa', 'esquinero de aluminio', 'esquinero de goma']
+      .includes(tipo)
+  ) {
+    unidades = ['pieza'];
+  }
+
+  unidades.forEach(unidad => {
+    campos[unidad].style.display = 'block';
+
+    const input = campos[unidad].querySelector('input');
+
+    if (input) {
+      input.disabled = false;
+    }
+  });
+
+  document.getElementById('precioVentaCaja').value =
+    button.getAttribute('data-caja') || '';
+
+  document.getElementById('precioVentaM2').value =
+    button.getAttribute('data-m2') || '';
+
+  document.getElementById('precioVentaPieza').value =
+    button.getAttribute('data-pieza') || '';
+
+  document.getElementById('precioVentaBolsa').value =
+    button.getAttribute('data-bolsa') || '';
+
+  document.getElementById('formPrecios').action =
+    "{{ url('/admin/stocks/productos') }}/" + id + "/precios";
+});
+
+
+/* ==================== CONFIRMACIÓN ELEGANTE DE PRECIOS ==================== */
+const formPrecios = document.getElementById('formPrecios');
+const modalConfirmarElemento = document.getElementById('modalConfirmarPrecios');
+const modalConfirmarPrecios = new bootstrap.Modal(modalConfirmarElemento);
+const btnConfirmarGuardar = document.getElementById('btnConfirmarGuardarPrecios');
+
+let preciosEnviando = false;
+
+formPrecios.addEventListener('submit', function (event) {
+  // Evitar el envío inmediato para mostrar nuestra ventana personalizada.
+  if (preciosEnviando) {
+    return;
+  }
+
+  event.preventDefault();
+
+  const nombre = document.getElementById('preciosNombreProducto').textContent;
+
+  document.getElementById('confirmarPreciosNombre').textContent = nombre;
+
+  modalConfirmarPrecios.show();
+});
+
+btnConfirmarGuardar.addEventListener('click', function () {
+  if (preciosEnviando) {
+    return;
+  }
+
+  preciosEnviando = true;
+  btnConfirmarGuardar.disabled = true;
+  btnConfirmarGuardar.innerHTML =
+    '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Guardando...';
+
+  // Cerrar primero la confirmación y enviar el formulario.
+  modalConfirmarElemento.addEventListener('hidden.bs.modal', function enviarFormulario() {
+    modalConfirmarElemento.removeEventListener('hidden.bs.modal', enviarFormulario);
+    formPrecios.submit();
+  });
+
+  modalConfirmarPrecios.hide();
+});
+
+
 
   /* ==================== MODAL DETALLE ==================== */
   const modalDetalleProducto = document.getElementById('modalDetalleProducto');
@@ -1709,6 +2162,7 @@ document.addEventListener('DOMContentLoaded', function () {
         minimumFractionDigits: 0,
         maximumFractionDigits: 2,
       });
+
     };
 
     const texto = function (valor) {
@@ -1727,6 +2181,43 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('detalleColor').textContent = texto(producto.color);
     document.getElementById('detalleAcabado').textContent = texto(producto.acabado);
     document.getElementById('detallePresentacion').textContent = texto(producto.presentacion);
+    
+    /* PRECIOS */
+    const formatoPrecio = function (valor) {
+      if (valor === null || valor === undefined || valor === '') {
+        return 'Sin configurar';
+      }
+
+      const numero = Number(valor);
+
+      if (!Number.isFinite(numero)) {
+        return 'Sin configurar';
+      }
+
+      return numero.toLocaleString('es-BO', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }) + ' Bs';
+    };
+
+    const precioCompraTexto = formatoPrecio(producto.precio_compra);
+    const unidadCompraTexto = producto.unidad_precio_compra
+      ? ' por ' + producto.unidad_precio_compra
+      : '';
+
+    document.getElementById('detallePrecioCompra').textContent =
+      precioCompraTexto === 'Sin configurar'
+        ? precioCompraTexto
+        : precioCompraTexto + unidadCompraTexto;
+
+    document.getElementById('detallePrecioCaja').textContent =
+      formatoPrecio(producto.precio_venta_caja);
+
+    document.getElementById('detallePrecioPieza').textContent =
+      formatoPrecio(producto.precio_venta_pieza);
+
+    document.getElementById('detallePrecioBolsa').textContent =
+      formatoPrecio(producto.precio_venta_bolsa);
 
     /* PESO */
     const pesoContainer = document.getElementById('detallePesoContainer');

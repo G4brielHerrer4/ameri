@@ -93,14 +93,34 @@ class VentaController extends Controller
             });
 
         return response()->json([
+            
             'producto' => [
-                'id'               => $producto->id,
-                'nombre'           => $producto->nombre,
-                'tipo'             => $producto->tipoProducto?->nombre,
-                'unidad_base'      => $producto->unidad_base,
-                'unidades_venta'   => $unidadesVenta,
-                'piezas_por_caja'  => (int) ($producto->piezas_por_caja ?? 0),
-                'm2_por_caja'      => (float) ($producto->m2_por_caja ?? 0),
+                'id'              => $producto->id,
+                'nombre'          => $producto->nombre,
+                'tipo'            => $producto->tipoProducto?->nombre,
+                'unidad_base'     => $producto->unidad_base,
+                'unidades_venta'  => $unidadesVenta,
+                'piezas_por_caja' => (int) ($producto->piezas_por_caja ?? 0),
+                'm2_por_caja'     => (float) ($producto->m2_por_caja ?? 0),
+
+                // Precios configurados en el inventario.
+                'precios_venta' => [
+                    'caja'  => $producto->precio_venta_caja !== null
+                        ? (float) $producto->precio_venta_caja
+                        : null,
+
+                    'm2'    => $producto->precio_venta_m2 !== null
+                        ? (float) $producto->precio_venta_m2
+                        : null,
+
+                    'pieza' => $producto->precio_venta_pieza !== null
+                        ? (float) $producto->precio_venta_pieza
+                        : null,
+
+                    'bolsa' => $producto->precio_venta_bolsa !== null
+                        ? (float) $producto->precio_venta_bolsa
+                        : null,
+                ],
             ],
             'stocks' => $stocks,
         ]);
@@ -124,7 +144,6 @@ class VentaController extends Controller
         DB::beginTransaction();
 
         try {
-
             $venta = Venta::create([
                 'user_id'           => auth()->id(),
                 'numero_venta'      => Venta::generarNumeroVenta(),
@@ -142,72 +161,120 @@ class VentaController extends Controller
             $subtotal = 0;
 
             foreach ($request->items as $item) {
-
                 $producto = Producto::with('tipoProducto')
                     ->findOrFail($item['producto_id']);
 
                 $cantidad = (float) $item['cantidad'];
-                $unidad   = $item['unidad'];
+                $unidad = $item['unidad'];
+
+                $tipo = mb_strtolower(
+                    trim((string) ($producto->tipoProducto?->nombre ?? '')),
+                    'UTF-8'
+                );
+
+                $esCeramica = in_array(
+                    $tipo,
+                    ['cerámica', 'ceramica', 'porcelanato'],
+                    true
+                );
 
                 /*
-                 * El servidor vuelve a calcular la cantidad física
-                 * que realmente debe salir del inventario.
-                 */
+                * Calcular la cantidad física necesaria.
+                */
                 $conversion = $this->calcularCantidadStock(
                     $producto,
                     $cantidad,
                     $unidad
                 );
 
-                $cantidadStock = $conversion['cantidad_stock'];
+                $cantidadStock = (float) $conversion['cantidad_stock'];
 
                 /*
-                 * Verificar que los movimientos enviados
-                 * coincidan exactamente con el stock físico
-                 * necesario.
-                 */
-                $totalMovimientos = collect(
-                    $item['movimientos'] ?? []
-                )->sum(function ($mov) {
-                    return (float) $mov['cantidad'];
-                });
+                * Para cerámica vendida por m², calcular las piezas
+                * enteras que realmente se entregarán.
+                */
+                if ($esCeramica && $unidad === 'm2') {
+                    $m2PorCaja = (float) ($producto->m2_por_caja ?? 0);
+                    $piezasPorCaja = (int) ($producto->piezas_por_caja ?? 0);
 
-                if (abs($totalMovimientos - $cantidadStock) > 0.01) {
-                    throw new \Exception(
-                        'El stock asignado para ' .
-                        $producto->nombre .
-                        ' no coincide con la cantidad física requerida.'
+                    if ($m2PorCaja <= 0 || $piezasPorCaja <= 0) {
+                        throw new \Exception(
+                            'El producto "' . $producto->nombre .
+                            '" debe tener configurados los m² y las piezas por caja.'
+                        );
+                    }
+
+                    $m2PorPieza = $m2PorCaja / $piezasPorCaja;
+
+                    $cantidadStock = (int) ceil(
+                        ($cantidad / $m2PorPieza) - 0.000000001
                     );
                 }
 
-                $precioUnit = (float) $item['precio_unitario'];
+                /*
+                * Los movimientos deben sumar exactamente el stock físico
+                * requerido. Para m² de cerámica, se asignan piezas.
+                */
+                $movimientos = $item['movimientos'] ?? [];
+
+                $totalMovimientos = collect($movimientos)->sum(
+                    function ($mov) {
+                        return (float) ($mov['cantidad'] ?? 0);
+                    }
+                );
+
+                if (abs($totalMovimientos - $cantidadStock) > 0.01) {
+                    throw new \Exception(
+                        'El stock asignado para ' . $producto->nombre .
+                        ' no coincide con la cantidad física requerida. ' .
+                        'Se necesitan ' . $cantidadStock .
+                        ' unidades físicas.'
+                    );
+                }
 
                 /*
-                 * El precio corresponde a la unidad que eligió
-                 * el vendedor:
-                 *
-                 * caja  -> precio por caja
-                 * m2    -> precio por m²
-                 * pieza -> precio por pieza
-                 * bolsa -> precio por bolsa
-                 */
-                $lineSubtotal = $cantidad * $precioUnit;
+                * Calcular precio y subtotal en el servidor.
+                */
+                $calculoPrecio = $this->calcularPrecioLinea(
+                    $producto,
+                    $cantidad,
+                    $unidad
+                );
+
+                $precioUnit = $calculoPrecio['precio_unitario'];
+                $lineSubtotal = $calculoPrecio['subtotal'];
+
+                /*
+                * Conservar la unidad de venta original, excepto cuando
+                * la cerámica se vende por m²: se registra la cantidad
+                * física de piezas entregadas.
+                */
+                $cantidadRegistrada = $cantidad;
+                $unidadRegistrada = $unidad;
+
+                if ($esCeramica && $unidad === 'm2') {
+                    $cantidadRegistrada = $cantidadStock;
+                    $unidadRegistrada = 'pieza';
+                }
 
                 $subtotal += $lineSubtotal;
 
                 $detalle = VentaDetalle::create([
                     'venta_id'        => $venta->id,
                     'producto_id'     => $producto->id,
-                    'cantidad'        => $cantidad,
-                    'unidad'          => $unidad,
+                    'cantidad'        => $cantidadRegistrada,
+                    'unidad'          => $unidadRegistrada,
                     'cantidad_stock'  => $cantidadStock,
                     'precio_unitario' => $precioUnit,
                     'subtotal'        => $lineSubtotal,
                 ]);
 
-                foreach ($item['movimientos'] as $mov) {
-
-                    $cantMov = (float) $mov['cantidad'];
+                /*
+                * Guardar la distribución física entre los dueños.
+                * No se descuenta el inventario en este método.
+                */
+                foreach ($movimientos as $mov) {
+                    $cantMov = (float) ($mov['cantidad'] ?? 0);
 
                     if ($cantMov <= 0) {
                         continue;
@@ -223,9 +290,15 @@ class VentaController extends Controller
 
             $descuento = (float) ($request->descuento ?? 0);
 
+            if ($descuento < 0 || $descuento > $subtotal) {
+                throw new \Exception(
+                    'El descuento no puede ser negativo ni superar el subtotal.'
+                );
+            }
+
             $venta->update([
-                'subtotal' => $subtotal,
-                'total'    => max(0, $subtotal - $descuento),
+                'subtotal' => round($subtotal, 2),
+                'total'    => round(max(0, $subtotal - $descuento), 2),
             ]);
 
             DB::commit();
@@ -238,7 +311,6 @@ class VentaController extends Controller
                 );
 
         } catch (\Throwable $e) {
-
             DB::rollBack();
 
             return redirect()
@@ -250,6 +322,8 @@ class VentaController extends Controller
                 );
         }
     }
+
+
 
     public function show(Venta $venta)
     {
@@ -326,7 +400,6 @@ class VentaController extends Controller
         DB::beginTransaction();
 
         try {
-
             $venta->update([
                 'cliente_nombre'    => $request->cliente_nombre,
                 'cliente_documento' => $request->cliente_documento,
@@ -336,59 +409,127 @@ class VentaController extends Controller
                 'observaciones'     => $request->observaciones,
             ]);
 
+            /*
+            * Eliminar los detalles anteriores de la venta pendiente.
+            */
             $venta->detalles()->delete();
 
             $subtotal = 0;
 
             foreach ($request->items as $item) {
-
                 $producto = Producto::with('tipoProducto')
                     ->findOrFail($item['producto_id']);
 
                 $cantidad = (float) $item['cantidad'];
-                $unidad   = $item['unidad'];
+                $unidad = $item['unidad'];
 
+                $tipo = mb_strtolower(
+                    trim((string) ($producto->tipoProducto?->nombre ?? '')),
+                    'UTF-8'
+                );
+
+                $esCeramica = in_array(
+                    $tipo,
+                    ['cerámica', 'ceramica', 'porcelanato'],
+                    true
+                );
+
+                /*
+                * Calcular la cantidad física necesaria.
+                */
                 $conversion = $this->calcularCantidadStock(
                     $producto,
                     $cantidad,
                     $unidad
                 );
 
-                $cantidadStock = $conversion['cantidad_stock'];
+                $cantidadStock = (float) $conversion['cantidad_stock'];
 
-                $totalMovimientos = collect(
-                    $item['movimientos'] ?? []
-                )->sum(function ($mov) {
-                    return (float) $mov['cantidad'];
-                });
+                /*
+                * Para cerámica vendida por m², calcular las piezas
+                * enteras que realmente se entregarán.
+                */
+                if ($esCeramica && $unidad === 'm2') {
+                    $m2PorCaja = (float) ($producto->m2_por_caja ?? 0);
+                    $piezasPorCaja = (int) ($producto->piezas_por_caja ?? 0);
 
-                if (abs($totalMovimientos - $cantidadStock) > 0.01) {
-                    throw new \Exception(
-                        'El stock asignado para ' .
-                        $producto->nombre .
-                        ' no coincide con la cantidad física requerida.'
+                    if ($m2PorCaja <= 0 || $piezasPorCaja <= 0) {
+                        throw new \Exception(
+                            'El producto "' . $producto->nombre .
+                            '" debe tener configurados los m² y las piezas por caja.'
+                        );
+                    }
+
+                    $m2PorPieza = $m2PorCaja / $piezasPorCaja;
+
+                    $cantidadStock = (int) ceil(
+                        ($cantidad / $m2PorPieza) - 0.000000001
                     );
                 }
 
-                $precioUnit = (float) $item['precio_unitario'];
+                /*
+                * Verificar que las asignaciones entre los dueños
+                * coincidan con las unidades físicas necesarias.
+                */
+                $movimientos = $item['movimientos'] ?? [];
 
-                $lineSubtotal = $cantidad * $precioUnit;
+                $totalMovimientos = collect($movimientos)->sum(
+                    function ($mov) {
+                        return (float) ($mov['cantidad'] ?? 0);
+                    }
+                );
+
+                if (abs($totalMovimientos - $cantidadStock) > 0.01) {
+                    throw new \Exception(
+                        'El stock asignado para ' . $producto->nombre .
+                        ' no coincide con la cantidad física requerida. ' .
+                        'Se necesitan ' . $cantidadStock .
+                        ' unidades físicas.'
+                    );
+                }
+
+                /*
+                * Recalcular el precio desde el servidor.
+                */
+                $calculoPrecio = $this->calcularPrecioLinea(
+                    $producto,
+                    $cantidad,
+                    $unidad
+                );
+
+                $precioUnit = $calculoPrecio['precio_unitario'];
+                $lineSubtotal = $calculoPrecio['subtotal'];
+
+                /*
+                * Guardar piezas físicas cuando la cerámica se vende
+                * por m²; para las demás unidades, conservar la cantidad
+                * y unidad de venta originales.
+                */
+                $cantidadRegistrada = $cantidad;
+                $unidadRegistrada = $unidad;
+
+                if ($esCeramica && $unidad === 'm2') {
+                    $cantidadRegistrada = $cantidadStock;
+                    $unidadRegistrada = 'pieza';
+                }
 
                 $subtotal += $lineSubtotal;
 
                 $detalle = VentaDetalle::create([
                     'venta_id'        => $venta->id,
                     'producto_id'     => $producto->id,
-                    'cantidad'        => $cantidad,
-                    'unidad'          => $unidad,
+                    'cantidad'        => $cantidadRegistrada,
+                    'unidad'          => $unidadRegistrada,
                     'cantidad_stock'  => $cantidadStock,
                     'precio_unitario' => $precioUnit,
                     'subtotal'        => $lineSubtotal,
                 ]);
 
-                foreach ($item['movimientos'] as $mov) {
-
-                    $cantMov = (float) $mov['cantidad'];
+                /*
+                * Reconstruir los movimientos de stock del detalle.
+                */
+                foreach ($movimientos as $mov) {
+                    $cantMov = (float) ($mov['cantidad'] ?? 0);
 
                     if ($cantMov <= 0) {
                         continue;
@@ -404,9 +545,15 @@ class VentaController extends Controller
 
             $descuento = (float) ($request->descuento ?? 0);
 
+            if ($descuento < 0 || $descuento > $subtotal) {
+                throw new \Exception(
+                    'El descuento no puede ser negativo ni superar el subtotal.'
+                );
+            }
+
             $venta->update([
-                'subtotal' => $subtotal,
-                'total'    => max(0, $subtotal - $descuento),
+                'subtotal' => round($subtotal, 2),
+                'total'    => round(max(0, $subtotal - $descuento), 2),
             ]);
 
             DB::commit();
@@ -419,7 +566,6 @@ class VentaController extends Controller
                 );
 
         } catch (\Throwable $e) {
-
             DB::rollBack();
 
             return redirect()
@@ -431,6 +577,8 @@ class VentaController extends Controller
                 );
         }
     }
+
+
 
     public function confirmar(Venta $venta)
     {
@@ -732,6 +880,186 @@ class VentaController extends Controller
             );
     }
 
+
+        
+/**
+ * Calcula el precio de la línea de venta.
+ *
+ * Cerámicas y porcelanatos:
+ * el único precio de referencia es el precio por caja.
+ *
+ * Los demás productos mantienen el precio configurado
+ * para su unidad de venta.
+ */
+    private function calcularPrecioLinea(
+        Producto $producto,
+        float $cantidad,
+        string $unidad
+    ): array {
+        if ($cantidad <= 0) {
+            throw new \Exception(
+                'La cantidad de venta debe ser mayor que cero.'
+            );
+        }
+
+        $tipo = mb_strtolower(
+            trim((string) ($producto->tipoProducto?->nombre ?? '')),
+            'UTF-8'
+        );
+
+        $esCeramica = in_array(
+            $tipo,
+            ['cerámica', 'ceramica', 'porcelanato'],
+            true
+        );
+
+        // Los demás productos mantienen su cálculo actual.
+        if (!$esCeramica) {
+            $precioUnitario = $this->obtenerPrecioVenta(
+                $producto,
+                $unidad
+            );
+
+            return [
+                'precio_unitario' => $precioUnitario,
+                'subtotal' => round(
+                    $cantidad * $precioUnitario,
+                    2
+                ),
+            ];
+        }
+
+        // Para cerámicas y porcelanatos se utiliza el precio por caja.
+        $precioCaja = (float) (
+            $producto->precio_venta_caja ?? 0
+        );
+
+        if ($precioCaja <= 0) {
+            throw new \Exception(
+                'El producto "' . $producto->nombre .
+                '" no tiene un precio de venta por caja válido. ' .
+                'Configúralo en el inventario.'
+            );
+        }
+
+        switch ($unidad) {
+            case 'caja':
+                if (floor($cantidad) != $cantidad) {
+                    throw new \Exception(
+                        'La cantidad de cajas debe ser un número entero.'
+                    );
+                }
+
+                $precioUnitario = $precioCaja;
+                $subtotalLinea = $cantidad * $precioCaja;
+                break;
+
+            case 'm2':
+                $m2PorCaja = (float) (
+                    $producto->m2_por_caja ?? 0
+                );
+
+                $piezasPorCaja = (int) (
+                    $producto->piezas_por_caja ?? 0
+                );
+
+                if ($m2PorCaja <= 0) {
+                    throw new \Exception(
+                        'El producto "' . $producto->nombre .
+                        '" no tiene configurados los m² por caja.'
+                    );
+                }
+
+                if ($piezasPorCaja <= 0) {
+                    throw new \Exception(
+                        'El producto "' . $producto->nombre .
+                        '" no tiene configuradas las piezas por caja.'
+                    );
+                }
+
+                // Calcular los m² que cubre una pieza.
+                $m2PorPieza = $m2PorCaja / $piezasPorCaja;
+
+                // Redondear hacia arriba para entregar piezas enteras.
+                $piezasNecesarias = (int) ceil(
+                    ($cantidad / $m2PorPieza) - 0.000000001
+                );
+
+                // Precio proporcional por pieza.
+                $precioUnitario = $precioCaja / $piezasPorCaja;
+
+                // Cobrar únicamente las piezas necesarias.
+                $subtotalLinea =
+                    $piezasNecesarias * $precioUnitario;
+                break;
+
+            case 'pieza':
+                $piezasPorCaja = (int) (
+                    $producto->piezas_por_caja ?? 0
+                );
+
+                if ($piezasPorCaja <= 0) {
+                    throw new \Exception(
+                        'El producto "' . $producto->nombre .
+                        '" no tiene configuradas las piezas por caja.'
+                    );
+                }
+
+                $precioUnitario = $precioCaja / $piezasPorCaja;
+
+                $subtotalLinea =
+                    $cantidad * $precioUnitario;
+                break;
+
+            default:
+                throw new \Exception(
+                    'La unidad seleccionada no es válida para el producto "' .
+                    $producto->nombre . '".'
+                );
+        }
+
+        return [
+            'precio_unitario' => round($precioUnitario, 2),
+            'subtotal' => round($subtotalLinea, 2),
+        ];
+    }
+
+    /**
+     * Obtiene el precio configurado para la unidad seleccionada.
+     * El precio se consulta directamente desde la base de datos.
+     */
+    private function obtenerPrecioVenta(
+        Producto $producto,
+        string $unidad
+    ): float {
+        $campoPrecio = match ($unidad) {
+            'caja'  => 'precio_venta_caja',
+            'm2'    => 'precio_venta_m2',
+            'pieza' => 'precio_venta_pieza',
+            'bolsa' => 'precio_venta_bolsa',
+            default => null,
+        };
+
+        if ($campoPrecio === null) {
+            throw new \Exception(
+                'La unidad de venta seleccionada no es válida.'
+            );
+        }
+
+        $precio = $producto->{$campoPrecio};
+
+        if ($precio === null || (float) $precio <= 0) {
+            throw new \Exception(
+                'El producto "' . $producto->nombre .
+                '" no tiene un precio de venta válido para ' .
+                $unidad . '. Configura su precio en el inventario.'
+            );
+        }
+
+        return round((float) $precio, 2);
+    }
+
+
     /*
     |--------------------------------------------------------------------------
     | UNIDADES DE VENTA
@@ -740,23 +1068,24 @@ class VentaController extends Controller
 
     private function unidadesVenta(Producto $producto): array
     {
-        $tipo = strtolower(
-            trim($producto->tipoProducto?->nombre ?? '')
+        $tipo = mb_strtolower(
+            trim((string) ($producto->tipoProducto?->nombre ?? '')),
+            'UTF-8'
         );
 
         return match (true) {
 
             in_array(
                 $tipo,
-                ['cerámica', 'porcelanato']
-            )
-                => ['caja', 'm2', 'pieza'],
+                ['cerámica', 'ceramica', 'porcelanato'],
+                true
+            ) => ['caja', 'm2', 'pieza'],
 
-            $tipo === 'cemento cola'
-                => ['bolsa'],
-
-            $tipo === 'pastinas'
-                => ['bolsa'],
+            in_array(
+                $tipo,
+                ['cemento cola', 'pastinas'],
+                true
+            ) => ['bolsa'],
 
             in_array(
                 $tipo,
@@ -764,15 +1093,15 @@ class VentaController extends Controller
                     'listelo',
                     'randa decorativa',
                     'esquinero de aluminio',
-                    'esquinero de goma'
-                ]
-            )
-                => ['pieza'],
+                    'esquinero de goma',
+                ],
+                true
+            ) => ['pieza'],
 
-            default
-                => ['pieza'],
+            default => ['pieza'],
         };
     }
+
 
     /*
     |--------------------------------------------------------------------------
@@ -802,15 +1131,14 @@ class VentaController extends Controller
         string $unidad
     ): array {
 
-        $tipo = strtolower(
-            trim($producto->tipoProducto?->nombre ?? '')
+        $tipo = mb_strtolower(
+            trim((string) ($producto->tipoProducto?->nombre ?? '')),
+            'UTF-8'
         );
 
-        $unidadesPermitidas =
-            $this->unidadesVenta($producto);
+        $unidadesPermitidas = $this->unidadesVenta($producto);
 
-        if (!in_array($unidad, $unidadesPermitidas)) {
-
+        if (!in_array($unidad, $unidadesPermitidas, true)) {
             throw new \Exception(
                 'La unidad seleccionada no es válida para el producto ' .
                 $producto->nombre . '.'
@@ -818,135 +1146,172 @@ class VentaController extends Controller
         }
 
         if ($cantidad <= 0) {
-
             throw new \Exception(
                 'La cantidad debe ser mayor a cero.'
             );
         }
 
         /*
-         * CERÁMICA / PORCELANATO
-         */
+        * CERÁMICA / PORCELANATO
+        */
         if (
             in_array(
                 $tipo,
-                ['cerámica', 'porcelanato']
+                ['cerámica', 'ceramica', 'porcelanato'],
+                true
             )
         ) {
 
-            $piezasPorCaja =
-                (int) ($producto->piezas_por_caja ?? 0);
+            $piezasPorCaja = (int) (
+                $producto->piezas_por_caja ?? 0
+            );
 
-            $m2PorCaja =
-                (float) ($producto->m2_por_caja ?? 0);
+            $m2PorCaja = (float) (
+                $producto->m2_por_caja ?? 0
+            );
 
-            if (
-                $piezasPorCaja <= 0 ||
-                $m2PorCaja <= 0
-            ) {
-
+            if ($piezasPorCaja <= 0 || $m2PorCaja <= 0) {
                 throw new \Exception(
-                    'El producto ' .
-                    $producto->nombre .
+                    'El producto ' . $producto->nombre .
                     ' no tiene configuradas correctamente las piezas o los m² por caja.'
                 );
             }
 
             /*
-             * VENTA POR CAJAS
-             */
+            * VENTA POR CAJAS
+            * El inventario se controla en piezas.
+            */
             if ($unidad === 'caja') {
 
                 if (floor($cantidad) != $cantidad) {
-
                     throw new \Exception(
                         'La cantidad de cajas debe ser un número entero.'
                     );
                 }
 
                 $cajas = (int) $cantidad;
+                $piezas = $cajas * $piezasPorCaja;
 
                 return [
-                    'cantidad_stock' =>
-                        $cajas * $piezasPorCaja,
-
-                    'cajas' =>
-                        $cajas,
-
-                    'm2_reales' =>
-                        $cajas * $m2PorCaja,
+                    'cantidad_stock' => $piezas,
+                    'cajas'          => $cajas,
+                    'piezas'         => $piezas,
+                    'm2_reales'      => $cajas * $m2PorCaja,
                 ];
             }
 
             /*
-             * VENTA POR METROS CUADRADOS
-             *
-             * Se utilizan cajas completas.
-             */
+            * VENTA POR METROS CUADRADOS
+            * Se calculan las piezas enteras necesarias.
+            * No se redondea a cajas completas.
+            */
             if ($unidad === 'm2') {
 
-                $cajas = (int) ceil(
-                    $cantidad / $m2PorCaja
+                $m2PorPieza = $m2PorCaja / $piezasPorCaja;
+
+                $piezas = (int) ceil(
+                    ($cantidad / $m2PorPieza) - 0.000000001
                 );
 
+                $cajasCompletas = intdiv(
+                    $piezas,
+                    $piezasPorCaja
+                );
+
+                $piezasSueltas = $piezas % $piezasPorCaja;
+
                 return [
-                    'cantidad_stock' =>
-                        $cajas * $piezasPorCaja,
-
-                    'cajas' =>
-                        $cajas,
-
-                    'm2_reales' =>
-                        $cajas * $m2PorCaja,
+                    'cantidad_stock' => $piezas,
+                    'cajas'          => $cajasCompletas,
+                    'piezas'         => $piezas,
+                    'piezas_sueltas' => $piezasSueltas,
+                    'm2_reales'      => $piezas * $m2PorPieza,
                 ];
             }
 
             /*
-             * VENTA POR PIEZAS
-             *
-             * Aquí no redondeamos a cajas.
-             * Si se venden 30 piezas, se descuentan
-             * exactamente 30 piezas.
-             */
+            * VENTA POR PIEZAS
+            * Se descuentan exactamente las piezas vendidas.
+            */
             if ($unidad === 'pieza') {
 
+                if (floor($cantidad) != $cantidad) {
+                    throw new \Exception(
+                        'La cantidad de piezas debe ser un número entero.'
+                    );
+                }
+
+                $piezas = (int) $cantidad;
+
                 return [
-                    'cantidad_stock' =>
-                        $cantidad,
-
-                    'cajas' =>
-                        $cantidad / $piezasPorCaja,
-
-                    'm2_reales' =>
-                        (
-                            $cantidad /
-                            $piezasPorCaja
-                        ) * $m2PorCaja,
+                    'cantidad_stock' => $piezas,
+                    'cajas'          => intdiv(
+                        $piezas,
+                        $piezasPorCaja
+                    ),
+                    'piezas'         => $piezas,
+                    'piezas_sueltas' => $piezas % $piezasPorCaja,
+                    'm2_reales'      => $piezas *
+                        ($m2PorCaja / $piezasPorCaja),
                 ];
             }
+
+            throw new \Exception(
+                'La unidad de venta no está implementada para cerámica o porcelanato.'
+            );
         }
 
         /*
-         * CEMENTO COLA / PASTINAS
-         */
+        * CEMENTO COLA / PASTINAS
+        * Se conserva la cantidad en bolsas.
+        */
         if (
-            $tipo === 'cemento cola' ||
-            $tipo === 'pastinas'
+            in_array(
+                $tipo,
+                ['cemento cola', 'pastinas'],
+                true
+            )
         ) {
+            if ($unidad !== 'bolsa') {
+                throw new \Exception(
+                    'Este producto debe venderse por bolsas.'
+                );
+            }
+
+            if (floor($cantidad) != $cantidad) {
+                throw new \Exception(
+                    'La cantidad de bolsas debe ser un número entero.'
+                );
+            }
 
             return [
                 'cantidad_stock' => $cantidad,
                 'cajas'          => 0,
+                'piezas'         => 0,
                 'm2_reales'      => 0,
             ];
         }
 
         /*
-         * LISTELO / RANDA / ESQUINERO
-         */
+        * LISTELO / RANDA / ESQUINERO
+        * Se conserva la venta por piezas.
+        */
+        if ($unidad !== 'pieza') {
+            throw new \Exception(
+                'Este producto debe venderse por piezas.'
+            );
+        }
+
+        if (floor($cantidad) != $cantidad) {
+            throw new \Exception(
+                'La cantidad de piezas debe ser un número entero.'
+            );
+        }
+
         return [
             'cantidad_stock' => $cantidad,
             'cajas'          => 0,
+            'piezas'         => $cantidad,
             'm2_reales'      => 0,
         ];
     }
@@ -1020,11 +1385,6 @@ class VentaController extends Controller
                 'in:caja,m2,pieza,bolsa'
             ],
 
-            'items.*.precio_unitario' => [
-                'required',
-                'numeric',
-                'min:0.01'
-            ],
 
             'items.*.movimientos' => [
                 'required',
@@ -1082,12 +1442,6 @@ class VentaController extends Controller
 
             'items.*.unidad.in' =>
                 'La unidad de venta seleccionada no es válida.',
-
-            'items.*.precio_unitario.required' =>
-                'El precio unitario es obligatorio.',
-
-            'items.*.precio_unitario.min' =>
-                'El precio unitario debe ser mayor a 0.',
 
             'items.*.movimientos.required' =>
                 'Debes especificar de qué admin(es) se tomará el stock.',

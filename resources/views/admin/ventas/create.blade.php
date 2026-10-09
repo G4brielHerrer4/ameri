@@ -630,15 +630,24 @@
           Precio por unidad <span class="required">*</span>
         </label>
 
+        
         <input
           type="number"
           class="form-control precio-input"
           min="0.01"
           step="0.01"
           required
-          placeholder="0.00"
+          placeholder="Selecciona un producto"
+          readonly
           disabled
         >
+
+        <small
+          class="precio-ayuda text-muted"
+          style="display:block;margin-top:0.25rem;font-size:0.72rem;"
+        >
+          El precio se obtiene del inventario.
+        </small>
 
       </div>
 
@@ -737,7 +746,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   let numLinea = 0;
 
-
   /* ============================================================
    * FORMATO MONEDA
    * ============================================================ */
@@ -748,7 +756,94 @@ document.addEventListener('DOMContentLoaded', function () {
       .toFixed(2)
       .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
+  
+/* ============================================================
+ * PRECIO DE VENTA SEGÚN PRODUCTO Y UNIDAD
+ * ============================================================ */
+  
+  function actualizarPrecio(linea) {
+    const precioInput = linea.querySelector('.precio-input');
+    const ayuda = linea.querySelector('.precio-ayuda');
+    const unidad = linea.querySelector('.unidad-select').value;
+    const producto = linea._producto;
 
+    if (!producto || !unidad) {
+      precioInput.value = '';
+      precioInput.disabled = true;
+      ayuda.textContent = 'Selecciona un producto y una unidad.';
+      recalcular();
+      return;
+    }
+
+    const precios = producto.precios_venta || {};
+    const tipo = String(producto.tipo || '')
+      .trim()
+      .toLocaleLowerCase('es');
+
+    const esCeramicaProducto = [
+      'cerámica',
+      'ceramica',
+      'porcelanato'
+    ].includes(tipo);
+
+    let precio = null;
+
+    if (esCeramicaProducto) {
+      const precioCaja = Number(precios.caja || 0);
+      const m2PorCaja = Number(producto.m2_por_caja || 0);
+      const piezasPorCaja = Number(producto.piezas_por_caja || 0);
+
+      if (precioCaja <= 0) {
+        precioInput.value = '';
+        precioInput.disabled = true;
+        ayuda.textContent =
+          'Configura el precio por caja en el inventario.';
+        recalcular();
+        return;
+      }
+
+      if (unidad === 'caja') {
+        precio = precioCaja;
+      } else if (
+        (unidad === 'm2' || unidad === 'pieza') &&
+        m2PorCaja > 0 &&
+        piezasPorCaja > 0
+      ) {
+        // Para m² se muestra el precio proporcional por pieza,
+        // porque el total se calcula según las piezas necesarias.
+        precio = precioCaja / piezasPorCaja;
+      }
+    } else {
+      precio = precios[unidad];
+    }
+
+    if (
+      precio === null ||
+      precio === undefined ||
+      precio === '' ||
+      !Number.isFinite(Number(precio)) ||
+      Number(precio) <= 0
+    ) {
+      precioInput.value = '';
+      precioInput.disabled = true;
+      ayuda.textContent =
+        'No hay un precio válido configurado para esta unidad.';
+    } else {
+      precioInput.value = Number(precio).toFixed(2);
+      precioInput.disabled = false;
+
+      if (esCeramicaProducto) {
+        ayuda.textContent = unidad === 'caja'
+          ? 'Precio de venta por caja.'
+          : 'Precio proporcional por pieza, calculado desde el precio por caja.';
+      } else {
+        ayuda.textContent =
+          'Precio configurado en el inventario: ' + fmt(Number(precio));
+      }
+    }
+
+    recalcular();
+  }
 
   /* ============================================================
    * NOMBRE DE UNIDAD
@@ -790,21 +885,21 @@ document.addEventListener('DOMContentLoaded', function () {
    * DETECTAR SI ES CERÁMICA / PORCELANATO
    * ============================================================ */
 
+  
   function esCeramica(producto) {
-
     if (!producto) {
       return false;
     }
 
-    const tipo =
-      String(producto.tipo || '')
-        .trim()
-        .toLowerCase();
+    const tipo = String(producto.tipo || '')
+      .trim()
+      .toLocaleLowerCase('es');
 
-    return (
-      tipo === 'cerámica' ||
-      tipo === 'porcelanato'
-    );
+    return [
+      'cerámica',
+      'ceramica',
+      'porcelanato'
+    ].includes(tipo);
   }
 
 
@@ -988,34 +1083,27 @@ document.addEventListener('DOMContentLoaded', function () {
       /* ------------------------------------------------------
        * VENTA POR METROS CUADRADOS
        * ------------------------------------------------------ */
+      
+    if (unidad === 'm2') {
+      const m2PorPieza = m2PorCaja / piezasPorCaja;
 
-      if (unidad === 'm2') {
+      const piezas = Math.ceil(
+        (cantidad / m2PorPieza) - 0.000000001
+      );
 
-        const cajas =
-          Math.ceil(
-            cantidad / m2PorCaja
-          );
+      const cajas = Math.floor(piezas / piezasPorCaja);
+      const piezasSueltas = piezas % piezasPorCaja;
+      const m2Reales = piezas * m2PorPieza;
 
-        const piezas =
-          cajas * piezasPorCaja;
-
-        const m2Reales =
-          cajas * m2PorCaja;
-
-        return {
-
-          cantidadStock: piezas,
-
-          cajas: cajas,
-
-          piezas: piezas,
-
-          m2Reales: m2Reales,
-
-          m2Solicitados: cantidad
-        };
-      }
-
+      return {
+        cantidadStock: piezas,
+        cajas: cajas,
+        piezas: piezas,
+        piezasSueltas: piezasSueltas,
+        m2Reales: m2Reales,
+        m2Solicitados: cantidad
+      };
+    }
 
       /* ------------------------------------------------------
        * VENTA POR PIEZAS
@@ -1198,10 +1286,9 @@ document.addEventListener('DOMContentLoaded', function () {
        * M²
        * ------------------------------------------------------ */
 
+      
       else if (unidad === 'm2') {
-
         texto.innerHTML = `
-
           <span class="conversion-badge">
             📐 ${cantidad.toFixed(2)} m² solicitados
           </span>
@@ -1209,13 +1296,19 @@ document.addEventListener('DOMContentLoaded', function () {
           <span>→</span>
 
           <span class="conversion-badge">
-             ${conversion.cajas} cajas
+            ${conversion.cajas} cajas completas
+          </span>
+
+          <span>+</span>
+
+          <span class="conversion-badge">
+            ${conversion.piezasSueltas} piezas sueltas
           </span>
 
           <span>→</span>
 
           <span class="conversion-badge">
-             ${conversion.piezas} piezas
+            ${conversion.piezas} piezas en total
           </span>
 
           <span>→</span>
@@ -1223,7 +1316,6 @@ document.addEventListener('DOMContentLoaded', function () {
           <span class="conversion-badge">
             📐 ${conversion.m2Reales.toFixed(2)} m² reales
           </span>
-
         `;
       }
 
@@ -1282,7 +1374,7 @@ document.addEventListener('DOMContentLoaded', function () {
       texto.innerHTML = `
 
         <span class="conversion-badge">
-          🛍️ ${cantidad} ${cantidad === 1 ? 'bolsa' : 'bolsas'}
+           ${cantidad} ${cantidad === 1 ? 'bolsa' : 'bolsas'}
         </span>
 
         <span>
@@ -1360,48 +1452,20 @@ document.addEventListener('DOMContentLoaded', function () {
    * Pero después lo convertimos a stock físico.
    * ============================================================ */
 
+  
   function obtenerCantidadAsignacion(linea) {
+    const unidad = linea.querySelector('.unidad-select').value;
+    const conversion = calcularConversion(linea);
 
-    const unidad =
-      linea.querySelector('.unidad-select').value;
-
-    const conversion =
-      calcularConversion(linea);
-
-    if (
-      esCeramica(linea._producto)
-    ) {
-
-      /*
-       * Caja:
-       * se asignan cajas.
-       */
-
+    if (esCeramica(linea._producto)) {
       if (unidad === 'caja') {
         return conversion.cajas;
       }
 
-
-      /*
-       * m²:
-       * se asignan cajas completas.
-       */
-
-      if (unidad === 'm2') {
-        return conversion.cajas;
-      }
-
-
-      /*
-       * Piezas:
-       * se asignan piezas.
-       */
-
-      if (unidad === 'pieza') {
+      if (unidad === 'm2' || unidad === 'pieza') {
         return conversion.piezas;
       }
     }
-
 
     return conversion.cantidadStock;
   }
@@ -1411,66 +1475,30 @@ document.addEventListener('DOMContentLoaded', function () {
    * STOCK DISPONIBLE PARA UN ADMIN
    * ============================================================ */
 
-  function obtenerMaximoOrigen(
-    linea,
-    stock
-  ) {
-
-    const producto =
-      linea._producto;
-
-    const unidad =
-      linea.querySelector('.unidad-select').value;
-
+  function obtenerMaximoOrigen(linea, stock) {
+    const producto = linea._producto;
+    const unidad = linea.querySelector('.unidad-select').value;
 
     if (!producto) {
       return 0;
     }
 
-
-    /* CERÁMICA / PORCELANATO */
-
     if (esCeramica(producto)) {
-
       const piezasPorCaja =
-        parseInt(
-          producto.piezas_por_caja
-        ) || 1;
+        parseInt(producto.piezas_por_caja) || 1;
 
-
-      /*
-       * Si vendemos por caja o m²,
-       * solamente podemos tomar cajas completas.
-       */
-
-      if (
-        unidad === 'caja' ||
-        unidad === 'm2'
-      ) {
-
-        return Math.floor(
-          stock.cantidad /
-          piezasPorCaja
-        );
+      // Solo las ventas por caja se asignan en cajas.
+      if (unidad === 'caja') {
+        return Math.floor(Number(stock.cantidad) / piezasPorCaja);
       }
 
-
-      /*
-       * Si vendemos por pieza,
-       * podemos tomar piezas.
-       */
-
-      if (unidad === 'pieza') {
-        return stock.cantidad;
+      // Para m² y piezas, el stock disponible se expresa en piezas.
+      if (unidad === 'm2' || unidad === 'pieza') {
+        return Number(stock.cantidad);
       }
     }
 
-
-    /*
-     * BOLSAS / PIEZAS
-     */
-
-    return stock.cantidad;
+    return Number(stock.cantidad);
   }
 
 
@@ -1627,14 +1655,21 @@ document.addEventListener('DOMContentLoaded', function () {
       unidadSelect.disabled =
         true;
 
-      cantidadInput.disabled =
-        true;
+      cantidadInput.disabled = true;
 
-      precioInput.disabled =
-        true;
+      precioInput.disabled = true;
+      precioInput.value = '';
 
-      linea._producto =
-        null;
+      const ayudaPrecio = linea.querySelector('.precio-ayuda');
+
+      if (ayudaPrecio) {
+        ayudaPrecio.textContent =
+          'Selecciona un producto y una unidad.';
+      }
+
+      linea._producto = null;
+
+      actualizarPrecio(linea);
 
       return;
     }
@@ -1717,12 +1752,12 @@ document.addEventListener('DOMContentLoaded', function () {
         unidades.length === 0;
 
 
-      cantidadInput.disabled =
-        unidades.length === 0;
+     cantidadInput.disabled = unidades.length === 0;
 
-      precioInput.disabled =
-        unidades.length === 0;
-
+      // El precio se habilitará únicamente si existe
+      // un precio válido para la unidad seleccionada.
+      precioInput.disabled = true;
+      precioInput.value = '';
 
       /*
        * Para cerámica comenzamos
@@ -1745,6 +1780,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
       configurarCantidad(linea);
+      actualizarPrecio(linea);
 
 
       /* ======================================================
@@ -1814,40 +1850,16 @@ document.addEventListener('DOMContentLoaded', function () {
             linea,
             stock
           );
-
-
+       
         let etiquetaAsignacion;
 
-
-        if (
-          esCeramica(data.producto)
-        ) {
-
-          if (
-            unidad === 'pieza'
-          ) {
-
-            etiquetaAsignacion =
-              'piezas';
-
-          } else {
-
-            etiquetaAsignacion =
-              'cajas';
-
-          }
-
-        }
-
-        else {
-
+        if (esCeramica(data.producto)) {
           etiquetaAsignacion =
-            unidad === 'bolsa'
-              ? 'bolsas'
-              : 'piezas';
-
+            unidad === 'caja' ? 'cajas' : 'piezas';
+        } else {
+          etiquetaAsignacion =
+            unidad === 'bolsa' ? 'bolsas' : 'piezas';
         }
-
 
         item.innerHTML = `
 
@@ -2070,31 +2082,31 @@ document.addEventListener('DOMContentLoaded', function () {
                 esCeramica(
                   linea._producto
                 )
-              ) {
+              ) 
 
+              if (esCeramica(linea._producto)) {
                 etiqueta.textContent =
-                  this.value === 'pieza'
-                    ? 'Tomar piezas'
-                    : 'Tomar cajas';
-
+                  this.value === 'caja'
+                    ? 'Tomar cajas'
+                    : 'Tomar piezas';
               } else {
-
                 etiqueta.textContent =
                   this.value === 'bolsa'
                     ? 'Tomar bolsas'
                     : 'Tomar piezas';
-
               }
             }
           );
 
 
+          actualizarPrecio(linea);
           actualizarConversion(linea);
           validarOrigenes(linea);
           recalcular();
         };
 
 
+      actualizarPrecio(linea);
       actualizarConversion(linea);
       validarOrigenes(linea);
       recalcular();
@@ -2203,9 +2215,9 @@ document.addEventListener('DOMContentLoaded', function () {
     ) {
 
       textoUnidad =
-        unidad === 'pieza'
-          ? 'piezas'
-          : 'cajas';
+        unidad === 'cajas'
+          ? 'cajas'
+          : 'pieza';
 
     } else {
 
@@ -2351,93 +2363,101 @@ document.addEventListener('DOMContentLoaded', function () {
   /* ============================================================
    * RECALCULAR TOTALES
    * ============================================================ */
-
+  
   function recalcular() {
-
-    let subtotal =
-      0;
-
+    let subtotal = 0;
 
     contenedor
-      .querySelectorAll(
-        '.linea-venta'
-      )
-      .forEach(
-        linea => {
+      .querySelectorAll('.linea-venta')
+      .forEach(linea => {
+        const producto = linea._producto;
+        const unidad = linea.querySelector('.unidad-select').value;
 
-          const cantidad =
-            parseFloat(
-              linea.querySelector(
-                '.cantidad-input'
-              ).value
-            ) || 0;
+        const cantidad = parseFloat(
+          linea.querySelector('.cantidad-input').value
+        ) || 0;
 
+        const precio = parseFloat(
+          linea.querySelector('.precio-input').value
+        ) || 0;
 
-          const precio =
-            parseFloat(
-              linea.querySelector(
-                '.precio-input'
-              ).value
-            ) || 0;
+        let subtotalLinea = 0;
 
-
-          const subtotalLinea =
-            cantidad *
-            precio;
-
-
-          subtotal +=
-            subtotalLinea;
-
-
-          linea
-            .querySelector(
-              '.linea-subtotal'
-            )
-            .textContent =
-            fmt(
-              subtotalLinea
+        if (producto && cantidad > 0 && precio > 0) {
+          if (esCeramica(producto)) {
+            const precioCaja = Number(
+              producto.precios_venta?.caja || 0
             );
 
+            const m2PorCaja = Number(
+              producto.m2_por_caja || 0
+            );
 
-          actualizarConversion(
-            linea
-          );
+            const piezasPorCaja = Number(
+              producto.piezas_por_caja || 0
+            );
 
+            if (
+              precioCaja > 0 &&
+              m2PorCaja > 0 &&
+              piezasPorCaja > 0
+            ) {
+              if (unidad === 'caja') {
+                subtotalLinea = cantidad * precioCaja;
+              } else if (unidad === 'm2') {
+                const m2PorPieza = m2PorCaja / piezasPorCaja;
 
-          validarOrigenes(
-            linea
-          );
+                const piezasNecesarias = Math.ceil(
+                  (cantidad / m2PorPieza) - 0.000000001
+                );
 
+                subtotalLinea =
+                  piezasNecesarias * (precioCaja / piezasPorCaja);
+              } else if (unidad === 'pieza') {
+                const piezasNecesarias = Math.ceil(cantidad);
+
+                subtotalLinea =
+                  piezasNecesarias * (precioCaja / piezasPorCaja);
+              }
+            }
+          } else {
+            subtotalLinea = cantidad * precio;
+          }
         }
-      );
 
+        subtotalLinea = Math.round(
+          (subtotalLinea + Number.EPSILON) * 100
+        ) / 100;
 
-    const descuento =
-      parseFloat(
-        inputDesc.value
-      ) || 0;
+        subtotal += subtotalLinea;
 
+        linea.querySelector('.linea-subtotal').textContent =
+          fmt(subtotalLinea);
 
-    const total =
-      Math.max(
-        0,
-        subtotal - descuento
-      );
+        actualizarConversion(linea);
+        validarOrigenes(linea);
+      });
 
+    subtotal = Math.round(
+      (subtotal + Number.EPSILON) * 100
+    ) / 100;
 
-    txtSubtotal.textContent =
-      fmt(subtotal);
+    const descuento = Math.max(
+      0,
+      parseFloat(inputDesc.value) || 0
+    );
 
+    const total = Math.max(
+      0,
+      Math.round(
+        (subtotal - descuento + Number.EPSILON) * 100
+      ) / 100
+    );
 
-    txtDesc.textContent =
-      fmt(descuento);
-
-
-    txtTotal.textContent =
-      fmt(total);
+    txtSubtotal.textContent = fmt(subtotal);
+    txtDesc.textContent = fmt(descuento);
+    txtTotal.textContent = fmt(total);
   }
-
 
   /* ============================================================
    * AGREGAR LÍNEA
@@ -2724,6 +2744,26 @@ document.addEventListener('DOMContentLoaded', function () {
                 mensajeError =
                   `Línea ${index + 1}: ` +
                   `la cantidad debe ser mayor a 0.`;
+
+                return;
+              }
+              
+              /* PRECIO CONFIGURADO */
+
+              const precioUnitario = Number(
+                linea.querySelector('.precio-input').value
+              );
+
+              if (
+                !Number.isFinite(precioUnitario) ||
+                precioUnitario <= 0
+              ) {
+                hayErrores = true;
+
+                mensajeError =
+                  `Línea ${index + 1}: ` +
+                  'el producto no tiene un precio de venta configurado ' +
+                  'para la unidad seleccionada.';
 
                 return;
               }
@@ -3078,16 +3118,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         ) || 1;
 
 
-                      if (
-                        unidadVenta === 'caja' ||
-                        unidadVenta === 'm2'
-                      ) {
-
-                        cantidadFisica =
-                          cantidadOrigen *
-                          piezasPorCaja;
-
-                      }
+                     if (unidadVenta === 'caja') {
+                      cantidadFisica =
+                        cantidadOrigen * piezasPorCaja;
+                    }
 
                     }
 
@@ -3250,7 +3284,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
       }
     );
-
 
 });
 </script>

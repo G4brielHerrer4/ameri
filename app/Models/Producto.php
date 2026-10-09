@@ -26,6 +26,10 @@ class Producto extends Model
         'presentacion',
         'stock_minimo',
         'stock_maximo',
+        'precio_venta_caja',
+        'precio_venta_m2',
+        'precio_venta_pieza',
+        'precio_venta_bolsa',
     ];
 
         protected $casts = [
@@ -34,6 +38,10 @@ class Producto extends Model
         'peso' => 'decimal:2',
         'stock_minimo' => 'decimal:2',
         'stock_maximo' => 'decimal:2',
+        'precio_venta_caja'   => 'decimal:2',
+        'precio_venta_m2'     => 'decimal:2',
+        'precio_venta_pieza'  => 'decimal:2',
+        'precio_venta_bolsa'  => 'decimal:2',
     ];
 
     /* ============================================================
