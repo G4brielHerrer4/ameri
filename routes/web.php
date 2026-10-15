@@ -168,12 +168,48 @@ Route::middleware([
 
     }); // ← cierre del grupo ADMIN
 
-    // ============================================================
+        // ============================================================
     // VENDEDOR
     // ============================================================
-    Route::middleware(['role:vendedor'])->prefix('vendedor')->name('vendedor.')->group(function () {
-        Route::get('/dashboard', [VendedorController::class, 'index'])->name('dashboard');
-    });
+    Route::middleware(['role:vendedor'])
+        ->prefix('vendedor')
+        ->name('vendedor.')
+        ->group(function () {
+
+            Route::get('/dashboard', [VendedorController::class, 'index'])
+                ->name('dashboard');
+
+            // Ventas del vendedor
+            Route::get('/ventas', [VentaController::class, 'index'])
+                ->name('ventas.index');
+
+            Route::get('/ventas/create', [VentaController::class, 'create'])
+                ->name('ventas.create');
+
+            Route::post('/ventas', [VentaController::class, 'store'])
+                ->name('ventas.store');
+
+            Route::get('/ventas/stock-producto/{producto}', [VentaController::class, 'stockProducto'])
+                ->name('vendedor.ventas.stock-producto');
+
+            Route::get('/ventas/{venta}/edit', [VentaController::class, 'edit'])
+                ->name('ventas.edit');
+
+            Route::put('/ventas/{venta}', [VentaController::class, 'update'])
+                ->name('ventas.update');
+
+            Route::get('/ventas/{venta}', [VentaController::class, 'show'])
+                ->name('ventas.show');
+
+            Route::patch('/ventas/{venta}/confirmar', [VentaController::class, 'confirmar'])
+                ->name('ventas.confirmar');
+
+            Route::patch('/ventas/{venta}/cancelar', [VentaController::class, 'cancelar'])
+                ->name('ventas.cancelar');
+
+            Route::delete('/ventas/{venta}', [VentaController::class, 'destroy'])
+                ->name('ventas.destroy');
+        });
 
     // ============================================================
     // CLIENTE

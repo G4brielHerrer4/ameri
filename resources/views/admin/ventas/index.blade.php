@@ -372,7 +372,17 @@
                 data-es-mia="{{ $venta->user_id === auth()->id() ? '1' : '0' }}">
               <td>{{ $venta->id }}</td>
               <td><span class="cell-code">{{ $venta->numero_venta }}</span></td>
-              <td><span class="cell-muted">{{ $venta->fecha_venta->format('d/m/Y') }}</span></td>
+              <td>
+                <span class="cell-muted">
+                  <i class="mdi mdi-calendar" style="color:var(--cyan);"></i>
+                  {{ $venta->fecha_venta->format('d/m/Y') }}
+                </span>
+                <br>
+                <small class="cell-muted">
+                  <i class="mdi mdi-clock-outline" style="color:var(--cyan);"></i>
+                  {{ $venta->created_at ? $venta->created_at->format('H:i') : '—' }}
+                </small>
+              </td>
               <td>
                 <span class="cell-strong">{{ $venta->cliente_nombre }}</span>
                 <br>
@@ -380,6 +390,7 @@
               </td>
               <td>
                 <span class="cell-muted">{{ $venta->user->name ?? '—' }}</span>
+                
                 @if($venta->user_id === auth()->id())
                   <span class="badge" style="background:var(--glow-soft);color:var(--cyan);font-size:0.6rem;padding:0.15rem 0.4rem;border-radius:var(--r-pill);margin-left:0.25rem;">Tú</span>
                 @endif
@@ -437,19 +448,27 @@
                     </button>
                   @endif
 
-                  @if($venta->estado !== 'vendida' && $venta->user_id === auth()->id())
-                    <form id="form-delete-{{ $venta->id }}"
-                          action="{{ route('admin.ventas.destroy', $venta) }}"
-                          method="POST" class="d-none">
-                      @csrf @method('DELETE')
-                    </form>
-                    <button type="button" class="action-btn delete" title="Eliminar"
-                            onclick='eliminarVenta({
-                              numero: @json($venta->numero_venta),
-                              url: "form-delete-{{ $venta->id }}"
-                            })'>
-                      <i class="mdi mdi-delete"></i>
-                    </button>
+                  @if(
+                      $venta->estado !== 'vendida' &&
+                      (
+                          (int) $venta->user_id === (int) auth()->id() ||
+                          $venta->user?->role?->slug === 'vendedor'
+                      )
+                  )
+                      <form id="form-delete-{{ $venta->id }}"
+                            action="{{ route('admin.ventas.destroy', $venta) }}"
+                            method="POST" class="d-none">
+                          @csrf
+                          @method('DELETE')
+                      </form>
+
+                      <button type="button" class="action-btn delete" title="Eliminar"
+                              onclick='eliminarVenta({
+                                  numero: @json($venta->numero_venta),
+                                  url: "form-delete-{{ $venta->id }}"
+                              })'>
+                          <i class="mdi mdi-delete"></i>
+                      </button>
                   @endif
                 </div>
               </td>

@@ -1603,7 +1603,6 @@ document.addEventListener('DOMContentLoaded', function () {
     `;
   }
 
-
   /* ============================================================
    * CARGAR STOCK DEL PRODUCTO
    * ============================================================ */

@@ -3,7 +3,7 @@
 @section('title', 'Editar Venta')
 
 @push('styles')
-@include('admin.ventas._styles_create')
+@include('admin.ventas.styles_create')
 @endpush
 
 @section('content')

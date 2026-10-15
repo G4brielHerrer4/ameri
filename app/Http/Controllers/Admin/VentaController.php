@@ -17,21 +17,48 @@ class VentaController extends Controller
 {
     public function index()
     {
-        $ventas = Venta::with(['user', 'detalles'])
-            ->orderBy('id', 'desc')
-            ->get();
+        $consulta = Venta::with(['user', 'detalles']);
+
+        // El vendedor solo debe ver sus propias ventas.
+        if (auth()->user()->role?->slug === 'vendedor') {
+            $consulta->where('user_id', auth()->id());
+        }
+
+        $ventas = $consulta->orderBy('id', 'desc')->get();
+
+        if (auth()->user()->role?->slug === 'vendedor') {
+            return view('vendedor.ventas.index', compact('ventas'));
+        }
 
         return view('admin.ventas.index', compact('ventas'));
     }
 
+    
     public function create()
     {
         $stocks = Stock::with(['producto.tipoProducto.categoria'])
             ->where('cantidad', '>', 0)
+            ->whereHas('user.role', function ($q) {
+                $q->where('slug', 'administrador');
+            })
             ->get()
             ->filter(fn($s) => $s->producto !== null)
-            ->unique('producto_id')
+            ->groupBy('producto_id')
+            ->map(function ($grupo) {
+                $primero = $grupo->first();
+
+                // Sumar las existencias de todos los administradores.
+                $primero->cantidad = $grupo->sum(
+                    fn($stock) => (float) $stock->cantidad
+                );
+
+                return $primero;
+            })
             ->values();
+
+        if (auth()->user()->role?->slug === 'vendedor') {
+            return view('vendedor.ventas.create', compact('stocks'));
+        }
 
         return view('admin.ventas.create', compact('stocks'));
     }
@@ -47,25 +74,30 @@ class VentaController extends Controller
 
         $unidadesVenta = $this->unidadesVenta($producto);
 
+        $esVendedor = auth()->user()->role?->slug === 'vendedor';
+
         $stocks = Stock::with('user')
             ->where('producto_id', $producto->id)
             ->where('cantidad', '>', 0)
-            ->whereHas('user.role', fn($q) => $q->where('slug', 'administrador'))
+            ->whereHas('user.role', function ($q) {
+                $q->where('slug', 'administrador');
+            })
             ->orderBy('cantidad', 'desc')
             ->get()
-            ->map(function ($s) use ($producto, $unidadesVenta) {
+            ->map(function ($s) use ($producto, $unidadesVenta, $esVendedor) {
 
                 $cantidadFisica = (float) $s->cantidad;
 
                 $cajasDisponibles = null;
                 $m2Disponibles = null;
 
-                $tipo = strtolower(
-                    trim($producto->tipoProducto?->nombre ?? '')
+                $tipo = mb_strtolower(
+                    trim($producto->tipoProducto?->nombre ?? ''),
+                    'UTF-8'
                 );
 
                 if (
-                    in_array($tipo, ['cerámica', 'porcelanato']) &&
+                    in_array($tipo, ['cerámica', 'ceramica', 'porcelanato'], true) &&
                     (int) $producto->piezas_por_caja > 0
                 ) {
                     $piezasPorCaja = (int) $producto->piezas_por_caja;
@@ -82,18 +114,20 @@ class VentaController extends Controller
                 }
 
                 return [
-                    'user_id'          => $s->user_id,
-                    'user_name'        => $s->user->name ?? 'Admin',
-                    'cantidad'         => $cantidadFisica,
-                    'unidad_stock'     => $producto->unidad_base,
-                    'cajas_disponibles'=> $cajasDisponibles,
-                    'm2_disponibles'   => $m2Disponibles,
-                    'es_propio'        => $s->user_id === auth()->id(),
+                    'user_id'           => $s->user_id,
+                    'user_name'         => $s->user->name ?? 'Administrador',
+                    'cantidad'          => $cantidadFisica,
+                    'unidad_stock'      => $producto->unidad_base,
+                    'cajas_disponibles' => $cajasDisponibles,
+                    'm2_disponibles'    => $m2Disponibles,
+
+                    // El vendedor no tiene stock propio.
+                    'es_propio' => !$esVendedor
+                        && (int) $s->user_id === (int) auth()->id(),
                 ];
             });
 
         return response()->json([
-            
             'producto' => [
                 'id'              => $producto->id,
                 'nombre'          => $producto->nombre,
@@ -103,13 +137,12 @@ class VentaController extends Controller
                 'piezas_por_caja' => (int) ($producto->piezas_por_caja ?? 0),
                 'm2_por_caja'     => (float) ($producto->m2_por_caja ?? 0),
 
-                // Precios configurados en el inventario.
                 'precios_venta' => [
-                    'caja'  => $producto->precio_venta_caja !== null
+                    'caja' => $producto->precio_venta_caja !== null
                         ? (float) $producto->precio_venta_caja
                         : null,
 
-                    'm2'    => $producto->precio_venta_m2 !== null
+                    'm2' => $producto->precio_venta_m2 !== null
                         ? (float) $producto->precio_venta_m2
                         : null,
 
@@ -217,6 +250,37 @@ class VentaController extends Controller
                 */
                 $movimientos = $item['movimientos'] ?? [];
 
+                // Verificar que cada origen de stock sea de un administrador
+                // y que corresponda al producto seleccionado.
+                foreach ($movimientos as $mov) {
+                    $stockUsuario = Stock::where(
+                        'user_id',
+                        $mov['stock_user_id']
+                    )
+                        ->where('producto_id', $producto->id)
+                        ->whereHas('user.role', function ($q) {
+                            $q->where('slug', 'administrador');
+                        })
+                        ->first();
+
+                    if (!$stockUsuario) {
+                        throw new \Exception(
+                            'El origen de stock seleccionado no es válido para el producto ' .
+                            $producto->nombre . '.'
+                        );
+                    }
+
+                    if ((float) $stockUsuario->cantidad < (float) $mov['cantidad']) {
+                        throw new \Exception(
+                            'El administrador ' .
+                            ($stockUsuario->user->name ?? '') .
+                            ' no tiene suficiente stock disponible de ' .
+                            $producto->nombre . '.'
+                        );
+                    }
+                }
+
+
                 $totalMovimientos = collect($movimientos)->sum(
                     function ($mov) {
                         return (float) ($mov['cantidad'] ?? 0);
@@ -304,7 +368,7 @@ class VentaController extends Controller
             DB::commit();
 
             return redirect()
-                ->route('admin.ventas.index')
+                ->route($this->rutaVentas('index'))
                 ->with(
                     'success',
                     'Venta registrada como pendiente. Revísala y confírmala para descontar stock.'
@@ -314,66 +378,100 @@ class VentaController extends Controller
             DB::rollBack();
 
             return redirect()
-                ->route('admin.ventas.create')
+                ->route($this->rutaVentas('create'))
                 ->withInput()
                 ->with(
                     'error',
                     'Error al registrar la venta: ' . $e->getMessage()
                 );
         }
+        
     }
-
-
 
     public function show(Venta $venta)
     {
+        $rol = auth()->user()->role?->slug;
+
+        // El vendedor solo puede consultar sus propias ventas.
+        if (
+            $rol === 'vendedor' &&
+            (int) $venta->user_id !== (int) auth()->id()
+        ) {
+            abort(403, 'No puedes consultar ventas de otros vendedores.');
+        }
+
+        // El administrador puede consultar todas las ventas.
         $venta->load([
             'user',
             'detalles.producto.tipoProducto.categoria',
             'detalles.movimientos.stockUser',
         ]);
 
-        return view('admin.ventas.show', compact('venta'));
+        $vista = $rol === 'vendedor'
+            ? 'vendedor.ventas.show'
+            : 'admin.ventas.show';
+
+        return view($vista, compact('venta'));
     }
 
     public function edit(Venta $venta)
     {
-        if ($venta->estado !== 'pendiente') {
-            return redirect()
-                ->route('admin.ventas.index')
-                ->with(
-                    'error',
-                    'Solo se pueden editar ventas en estado pendiente.'
-                );
-        }
-
-        if ($venta->user_id !== auth()->id()) {
-            abort(
-                403,
-                'No puedes editar ventas de otros administradores.'
-            );
-        }
-
         $venta->load('detalles.movimientos');
 
-        $stocks = Stock::with(['producto.tipoProducto.categoria'])
+        $stocks = Stock::with([
+                'producto.tipoProducto.categoria'
+            ])
             ->where('cantidad', '>', 0)
+            ->whereHas('user.role', function ($q) {
+                $q->where('slug', 'administrador');
+            })
             ->get()
             ->filter(fn($s) => $s->producto !== null)
-            ->unique('producto_id')
+            ->groupBy('producto_id')
+            ->map(function ($grupo) {
+                $primero = $grupo->first();
+
+                // Stock total de todos los administradores.
+                $primero->cantidad = $grupo->sum(
+                    fn($stock) => (float) $stock->cantidad
+                );
+
+                return $primero;
+            })
             ->values();
 
-        return view(
-            'admin.ventas.edit',
-            compact('venta', 'stocks')
-        );
+        $lineasExistentes = $venta->detalles->map(function ($detalle) {
+            return [
+                'producto_id' => (int) $detalle->producto_id,
+                'cantidad' => (float) $detalle->cantidad,
+                'unidad' => $detalle->unidad,
+                'precio_unitario' => (float) $detalle->precio_unitario,
+
+                'movimientos' => $detalle->movimientos->map(function ($mov) {
+                    return [
+                        'stock_user_id' => (int) $mov->stock_user_id,
+                        'cantidad' => (float) $mov->cantidad,
+                    ];
+                })->values()->all(),
+            ];
+        })->values()->all();
+
+        $vista = auth()->user()->role?->slug === 'vendedor'
+            ? 'vendedor.ventas.edit'
+            : 'admin.ventas.edit';
+
+        return view($vista, compact(
+            'venta',
+            'stocks',
+            'lineasExistentes'
+        ));
     }
 
     public function update(Request $request, Venta $venta)
     {
         if ($venta->estado !== 'pendiente') {
             return redirect()
-                ->route('admin.ventas.index')
+                ->route($this->rutaVentas('index'))
                 ->with(
                     'error',
                     'Solo se pueden editar ventas en estado pendiente.'
@@ -392,7 +490,7 @@ class VentaController extends Controller
 
         if ($validator->fails()) {
             return redirect()
-                ->route('admin.ventas.edit', $venta)
+                ->route($this->rutaVentas('edit'), $venta)
                 ->withErrors($validator)
                 ->withInput();
         }
@@ -472,6 +570,34 @@ class VentaController extends Controller
                 * coincidan con las unidades físicas necesarias.
                 */
                 $movimientos = $item['movimientos'] ?? [];
+
+                // Validar que cada movimiento use stock real de un administrador.
+                foreach ($movimientos as $mov) {
+                    $stockUsuario = Stock::with('user')
+                        ->where('user_id', $mov['stock_user_id'])
+                        ->where('producto_id', $producto->id)
+                        ->whereHas('user.role', function ($q) {
+                            $q->where('slug', 'administrador');
+                        })
+                        ->first();
+
+                    if (!$stockUsuario) {
+                        throw new \Exception(
+                            'El origen de stock seleccionado no es válido para ' .
+                            $producto->nombre . '.'
+                        );
+                    }
+
+                    if ((float) $stockUsuario->cantidad < (float) $mov['cantidad']) {
+                        throw new \Exception(
+                            'El administrador ' .
+                            ($stockUsuario->user->name ?? '') .
+                            ' no tiene suficiente stock disponible de ' .
+                            $producto->nombre . '.'
+                        );
+                    }
+                }
+
 
                 $totalMovimientos = collect($movimientos)->sum(
                     function ($mov) {
@@ -559,7 +685,7 @@ class VentaController extends Controller
             DB::commit();
 
             return redirect()
-                ->route('admin.ventas.index')
+                ->route($this->rutaVentas('index'))
                 ->with(
                     'success',
                     'Venta actualizada correctamente.'
@@ -569,7 +695,7 @@ class VentaController extends Controller
             DB::rollBack();
 
             return redirect()
-                ->route('admin.ventas.edit', $venta)
+                ->route($this->rutaVentas('edit'), $venta)
                 ->withInput()
                 ->with(
                     'error',
@@ -577,8 +703,6 @@ class VentaController extends Controller
                 );
         }
     }
-
-
 
     public function confirmar(Venta $venta)
     {
@@ -662,10 +786,9 @@ class VentaController extends Controller
                     /*
                      * Notificar si se utilizó stock de otro admin.
                      */
-                    if (
-                        $mov->stock_user_id !==
-                        $venta->user_id
-                    ) {
+                  $esVendedor = auth()->user()->role?->slug === 'vendedor';
+
+                    if ($esVendedor || (int) $mov->stock_user_id !== (int) $venta->user_id) {
 
                         $key =
                             $mov->stock_user_id .
@@ -720,7 +843,7 @@ class VentaController extends Controller
             DB::commit();
 
             return redirect()
-                ->route('admin.ventas.index')
+                ->route($this->rutaVentas('index'))
                 ->with(
                     'success',
                     'Venta confirmada. El stock fue descontado correctamente.'
@@ -777,10 +900,9 @@ class VentaController extends Controller
                             (float) $mov->cantidad
                         );
 
-                        if (
-                            $mov->stock_user_id !==
-                            $venta->user_id
-                        ) {
+                        $esVendedor = auth()->user()->role?->slug === 'vendedor';
+
+                        if ($esVendedor || (int) $mov->stock_user_id !== (int) $venta->user_id) {
 
                             $key =
                                 $mov->stock_user_id .
@@ -839,7 +961,7 @@ class VentaController extends Controller
                 : 'Venta cancelada.';
 
             return redirect()
-                ->route('admin.ventas.index')
+                ->route($this->rutaVentas('index'))
                 ->with('success', $mensaje);
 
         } catch (\Throwable $e) {
@@ -857,30 +979,43 @@ class VentaController extends Controller
 
     public function destroy(Venta $venta)
     {
-        if ($venta->estado === 'vendida') {
-            return redirect()
-                ->route('admin.ventas.index')
-                ->with(
-                    'error',
-                    'No se puede eliminar una venta ya confirmada. Cancélala primero.'
-                );
+        $rol = auth()->user()->role?->slug;
+
+        // El vendedor solo puede eliminar sus propias ventas.
+        if (
+            $rol === 'vendedor' &&
+            (int) $venta->user_id !== (int) auth()->id()
+        ) {
+            abort(403, 'No puedes eliminar ventas de otros usuarios.');
         }
 
-        if ($venta->user_id !== auth()->id()) {
-            abort(403);
+        // Un administrador puede eliminar sus ventas y las de los vendedores,
+        // pero no las ventas creadas por otro administrador.
+        if ($rol === 'administrador') {
+            $creador = \App\Models\User::with('role')
+                ->findOrFail($venta->user_id);
+
+            if (
+                $creador->role?->slug === 'administrador' &&
+                (int) $venta->user_id !== (int) auth()->id()
+            ) {
+                abort(403, 'No puedes eliminar ventas de otro administrador.');
+            }
+        }
+
+        // No se permite eliminar ventas confirmadas.
+        if ($venta->estado === 'vendida') {
+            return redirect()
+                ->route($this->rutaVentas('index'))
+                ->with('error', 'No se pueden eliminar ventas confirmadas.');
         }
 
         $venta->delete();
 
         return redirect()
-            ->route('admin.ventas.index')
-            ->with(
-                'success',
-                'Venta eliminada correctamente.'
-            );
+            ->route($this->rutaVentas('index'))
+            ->with('success', 'Venta eliminada correctamente.');
     }
-
-
         
 /**
  * Calcula el precio de la línea de venta.
@@ -1450,4 +1585,16 @@ class VentaController extends Controller
                 'Debes especificar al menos un origen de stock.',
         ];
     }
+    /**
+     * Obtiene el nombre de la ruta de ventas según el rol actual.
+     */
+    private function rutaVentas(string $accion): string
+    {
+        $prefijo = auth()->user()->role?->slug === 'vendedor'
+            ? 'vendedor.ventas.'
+            : 'admin.ventas.';
+
+        return $prefijo . $accion;
+    }
+
 }

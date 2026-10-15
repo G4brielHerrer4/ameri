@@ -155,8 +155,21 @@
         <div class="info-value code">{{ $venta->numero_venta }}</div>
       </div>
       <div>
-        <div class="info-label"><i class="mdi mdi-calendar"></i> Fecha</div>
-        <div class="info-value">{{ $venta->fecha_venta->format('d/m/Y') }}</div>
+        <div class="info-label">
+          <i class="mdi mdi-calendar"></i> Fecha de venta
+        </div>
+        <div class="info-value">
+          {{ $venta->fecha_venta->format('d/m/Y') }}
+        </div>
+      </div>
+
+      <div>
+        <div class="info-label">
+          <i class="mdi mdi-clock-outline"></i> Hora de registro
+        </div>
+        <div class="info-value">
+          {{ $venta->created_at ? $venta->created_at->format('H:i:s') : '—' }}
+        </div>
       </div>
       <div>
         <div class="info-label"><i class="mdi mdi-account"></i> Vendedor</div>
