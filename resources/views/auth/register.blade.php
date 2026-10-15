@@ -891,6 +891,69 @@
                             </div>
                         @enderror
                     </div>
+                    
+                    <!-- Teléfono -->
+                    <div class="form-group">
+                        <label class="form-label" for="telefono">
+                            <span class="mdi mdi-phone-outline"></span>
+                            Teléfono
+                        </label>
+
+                        <div class="input-wrapper">
+                            <input
+                                type="tel"
+                                id="telefono"
+                                name="telefono"
+                                maxlength="30"
+                                class="form-input @error('telefono') input-error @enderror"
+                                value="{{ old('telefono') }}"
+                                autocomplete="tel"
+                                placeholder="Ej. 70012345"
+                            >
+
+                            <span class="input-icon">
+                                <span class="mdi mdi-phone-outline"></span>
+                            </span>
+                        </div>
+
+                        @error('telefono')
+                            <div class="error-message">
+                                {{ $message }}
+                            </div>
+                        @enderror
+                    </div>
+
+                    <!-- Dirección -->
+                    <div class="form-group">
+                        <label class="form-label" for="direccion">
+                            <span class="mdi mdi-map-marker-outline"></span>
+                            Dirección
+                        </label>
+
+                        <div class="input-wrapper">
+                            <input
+                                type="text"
+                                id="direccion"
+                                name="direccion"
+                                maxlength="255"
+                                class="form-input @error('direccion') input-error @enderror"
+                                value="{{ old('direccion') }}"
+                                autocomplete="street-address"
+                                placeholder="Ej. Av. Principal, zona Central"
+                            >
+
+                            <span class="input-icon">
+                                <span class="mdi mdi-map-marker-outline"></span>
+                            </span>
+                        </div>
+
+                        @error('direccion')
+                            <div class="error-message">
+                                {{ $message }}
+                            </div>
+                        @enderror
+                    </div>
+
 
                     <!-- Role (full width) -->
                     <div class="form-group full">

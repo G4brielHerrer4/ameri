@@ -13,6 +13,40 @@ use App\Http\Controllers\Admin\NotificacionController;
 use App\Http\Controllers\Vendedor\VendedorController;
 use App\Http\Controllers\Cliente\ClienteController;
 
+use App\Http\Controllers\Auth\PasswordResetCodeController;
+
+// Recuperación de contraseña mediante código
+Route::get('/forgot-password', [
+    PasswordResetCodeController::class,
+    'showRequestForm'
+])->middleware('guest')->name('password.request');
+
+Route::post('/forgot-password', [
+    PasswordResetCodeController::class,
+    'sendCode'
+])->middleware(['guest', 'throttle:3,1'])->name('password.email');
+
+Route::get('/verify-reset-code', [
+    PasswordResetCodeController::class,
+    'showVerifyForm'
+])->middleware('guest')->name('password.code.form');
+
+Route::post('/verify-reset-code', [
+    PasswordResetCodeController::class,
+    'verifyCode'
+])->middleware(['guest', 'throttle:5,1'])->name('password.code.verify');
+
+Route::get('/reset-password', [
+    PasswordResetCodeController::class,
+    'showResetForm'
+])->middleware('guest')->name('password.code.reset');
+
+Route::post('/reset-password', [
+    PasswordResetCodeController::class,
+    'resetPassword'
+])->middleware(['guest', 'throttle:5,1'])->name('password.code.update');
+
+
 Route::get('/', function () {
     return view('welcome');
 });
@@ -21,6 +55,7 @@ Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
     'verified',
+    \App\Http\Middleware\VerificarEstadoUsuario::class,
 ])->group(function () {
 
     // ============================================================
@@ -62,6 +97,7 @@ Route::middleware([
             Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
             Route::put('/{user}',  [UserController::class, 'update'])->name('update');
             Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+            Route::patch('/{user}/estado', [UserController::class, 'cambiarEstado'])->name('estado');
         });
 
         // ============================================================

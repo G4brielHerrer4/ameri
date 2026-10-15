@@ -16,23 +16,27 @@ class CreateNewUser implements CreatesNewUsers
     /**
      * Validate and create a newly registered user.
      *
-     * @param  array<string, string>  $input
+     * @param array<string, string> $input
      */
     public function create(array $input): User
     {
         Validator::make($input, [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'telefono' => ['nullable', 'string', 'max:30'],
+            'direccion' => ['nullable', 'string', 'max:255'],
             'password' => $this->passwordRules(),
-            'role_id' => ['nullable', 'exists:roles,id'], 
-            'terms' => Jetstream::hasTermsAndPrivacyPolicyFeature() ? ['accepted', 'required'] : '',
+            'role_id' => ['nullable', 'exists:roles,id'],
+            'terms' => Jetstream::hasTermsAndPrivacyPolicyFeature()
+                ? ['accepted', 'required']
+                : '',
         ])->validate();
 
-        // Si se envió un role_id, usar ese, sino asignar 'cliente' por defecto
+        // Si se envió un role_id, usar ese; si no, asignar 'cliente' por defecto.
         if (isset($input['role_id']) && $input['role_id']) {
             $roleId = $input['role_id'];
         } else {
-            // Obtener el rol de Cliente (slug = 'cliente')
+            // Obtener el rol de Cliente (slug = 'cliente').
             $clienteRole = Role::where('slug', 'cliente')->first();
             $roleId = $clienteRole ? $clienteRole->id : null;
         }
@@ -40,6 +44,8 @@ class CreateNewUser implements CreatesNewUsers
         return User::create([
             'name' => $input['name'],
             'email' => $input['email'],
+            'telefono' => $input['telefono'] ?? null,
+            'direccion' => $input['direccion'] ?? null,
             'password' => Hash::make($input['password']),
             'role_id' => $roleId,
         ]);

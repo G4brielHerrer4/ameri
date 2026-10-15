@@ -15,6 +15,8 @@ use Illuminate\Support\Str;
 use Laravel\Fortify\Actions\RedirectIfTwoFactorAuthenticatable;
 use Laravel\Fortify\Fortify;
 use App\Http\Responses\LoginResponse;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -25,6 +27,20 @@ class FortifyServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+
+        Fortify::authenticateUsing(function (Request $request) {
+            $user = User::where('email', $request->input('email'))->first();
+
+            if (
+                $user &&
+                $user->estado &&
+                Hash::check($request->input('password'), $user->password)
+            ) {
+                return $user;
+            }
+
+            return null;
+        });
         Fortify::createUsersUsing(CreateNewUser::class);
         Fortify::updateUserProfileInformationUsing(UpdateUserProfileInformation::class);
         Fortify::updateUserPasswordsUsing(UpdateUserPassword::class);

@@ -40,6 +40,7 @@ class UserController extends Controller
     /**
      * Validaciones para crear usuario
      */
+   
     private function validateCreate(Request $request)
     {
         return Validator::make($request->all(), [
@@ -68,9 +69,18 @@ class UserController extends Controller
                 'required',
                 'integer',
                 'exists:roles,id'
-            ]
+            ],
+            'telefono' => [
+                'nullable',
+                'string',
+                'max:30'
+            ],
+            'direccion' => [
+                'nullable',
+                'string',
+                'max:255'
+            ],
         ], [
-            // Mensajes personalizados
             'name.required' => 'El nombre es obligatorio.',
             'name.min' => 'El nombre debe tener al menos 3 caracteres.',
             'name.regex' => 'El nombre solo puede contener letras y espacios.',
@@ -83,13 +93,16 @@ class UserController extends Controller
             'password.confirmed' => 'Las contraseñas no coinciden.',
             'password.regex' => 'La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial.',
             'role_id.required' => 'Debe seleccionar un rol.',
-            'role_id.exists' => 'El rol seleccionado no es válido.'
+            'role_id.exists' => 'El rol seleccionado no es válido.',
+            'telefono.max' => 'El teléfono no puede superar los 30 caracteres.',
+            'direccion.max' => 'La dirección no puede superar los 255 caracteres.',
         ]);
     }
 
     /**
      * Validaciones para actualizar usuario
      */
+    
     private function validateUpdate(Request $request, User $user)
     {
         $rules = [
@@ -111,10 +124,20 @@ class UserController extends Controller
                 'required',
                 'integer',
                 'exists:roles,id'
-            ]
+            ],
+            'telefono' => [
+                'nullable',
+                'string',
+                'max:30'
+            ],
+            'direccion' => [
+                'nullable',
+                'string',
+                'max:255'
+            ],
         ];
 
-        // Si se proporciona contraseña, validarla
+        // Si se proporciona contraseña, validarla.
         if ($request->filled('password')) {
             $rules['password'] = [
                 'string',
@@ -136,7 +159,9 @@ class UserController extends Controller
             'role_id.exists' => 'El rol seleccionado no es válido.',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
             'password.confirmed' => 'Las contraseñas no coinciden.',
-            'password.regex' => 'La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial.'
+            'password.regex' => 'La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial.',
+            'telefono.max' => 'El teléfono no puede superar los 30 caracteres.',
+            'direccion.max' => 'La dirección no puede superar los 255 caracteres.',
         ];
 
         return Validator::make($request->all(), $rules, $messages);
@@ -145,11 +170,12 @@ class UserController extends Controller
     /**
      * Almacenar un nuevo usuario
      */
+    
     public function store(Request $request)
     {
         // Validar los datos
         $validator = $this->validateCreate($request);
-        
+
         if ($validator->fails()) {
             if ($request->ajax()) {
                 return response()->json([
@@ -157,6 +183,7 @@ class UserController extends Controller
                     'errors' => $validator->errors()
                 ], 422);
             }
+
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
@@ -168,6 +195,8 @@ class UserController extends Controller
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'role_id' => $request->role_id,
+                'telefono' => $request->telefono,
+                'direccion' => $request->direccion,
             ]);
 
             if ($request->ajax()) {
@@ -207,11 +236,12 @@ class UserController extends Controller
     /**
      * Actualizar un usuario existente
      */
+    
     public function update(Request $request, User $user)
     {
         // Validar los datos
         $validator = $this->validateUpdate($request, $user);
-        
+
         if ($validator->fails()) {
             if ($request->ajax()) {
                 return response()->json([
@@ -219,6 +249,7 @@ class UserController extends Controller
                     'errors' => $validator->errors()
                 ], 422);
             }
+
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
@@ -229,6 +260,8 @@ class UserController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'role_id' => $request->role_id,
+                'telefono' => $request->telefono,
+                'direccion' => $request->direccion,
             ];
 
             // Solo actualizar contraseña si se proporcionó
@@ -346,6 +379,29 @@ class UserController extends Controller
         return response()->json([
             'success' => true,
             'data' => $users
+        ]);
+    }
+
+    public function cambiarEstado(\App\Models\User $user)
+    {
+        // Evitar que el administrador desactive su propia cuenta.
+        if ($user->id === \Illuminate\Support\Facades\Auth::id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No puedes cambiar el estado de tu propia cuenta.',
+            ], 403);
+        }
+
+        // Cambiar entre activo e inactivo.
+        $user->estado = !$user->estado;
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $user->estado
+                ? 'Usuario activado correctamente.'
+                : 'Usuario inactivado correctamente.',
+            'estado' => (bool) $user->estado,
         ]);
     }
 
