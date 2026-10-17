@@ -1720,19 +1720,17 @@
 
         <li class="nav-category">Análisis</li>
 
-        <li class="nav-item">
-          <a class="nav-link" data-bs-toggle="collapse" href="#grp-reportes" aria-expanded="false">
-            <i class="mdi mdi-chart-box-outline menu-icon"></i>
-            <span class="menu-title">Reportes</span>
-            <i class="mdi mdi-chevron-right menu-arrow"></i>
-          </a>
-          <div class="collapse" id="grp-reportes">
-            <ul class="sub-menu">
-              <li class="nav-item"><a class="nav-link" href="#">Ver reportes</a></li>
-              <li class="nav-item"><a class="nav-link" href="#">Exportar datos</a></li>
-            </ul>
-          </div>
-        </li>
+        <ul class="sub-menu">
+          <li class="nav-item">
+            <a class="nav-link" href="{{ route('admin.reportes.index') }}">Ventas</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">Inventario</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">Exportar datos</a>
+          </li>
+        </ul>
 
         <li class="nav-category">Sistema</li>
 

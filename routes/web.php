@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\ProveedorController;
 use App\Http\Controllers\Admin\CompraController;
 use App\Http\Controllers\Admin\StockController;
 use App\Http\Controllers\Admin\VentaController;
+use App\Http\Controllers\Admin\ReporteController;
 use App\Http\Controllers\Admin\NotificacionController;
 use App\Http\Controllers\Vendedor\VendedorController;
 use App\Http\Controllers\Cliente\ClienteController;
@@ -200,6 +201,14 @@ Route::middleware([
             Route::patch('/{notificacion}/leida', [NotificacionController::class, 'marcarLeida'])->name('leida');
             Route::patch('/todas/leidas', [NotificacionController::class, 'marcarTodasLeidas'])->name('todas-leidas');
             Route::delete('/{notificacion}', [NotificacionController::class, 'destroy'])->name('destroy');
+        });
+
+        // ============================================================
+        // REPORTES
+        // ============================================================
+        Route::prefix('reportes')->name('reportes.')->group(function () {
+            Route::get('/', [ReporteController::class, 'index'])->name('index');
+            Route::get('/exportar-pdf', [ReporteController::class, 'exportarPdf'])->name('exportar-pdf');
         });
 
     }); // ← cierre del grupo ADMIN
