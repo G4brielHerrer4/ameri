@@ -1,4 +1,4 @@
-{{-- resources/views/layouts/plantilla_maestra.blade.php --}}
+={{-- resources/views/layouts/plantilla_maestra.blade.php --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="dark">
 <head>
@@ -13,30 +13,20 @@
   <link rel="preconnect" href="https://fonts.bunny.net">
   <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700|space-grotesk:500,600,700" rel="stylesheet" />
 
-  <!-- Template base CSS -->
   <link rel="stylesheet" href="{{ asset('template/vendors/feather/feather.css') }}">
   <link rel="stylesheet" href="{{ asset('template/vendors/ti-icons/css/themify-icons.css') }}">
   <link rel="stylesheet" href="{{ asset('template/vendors/typicons/typicons.css') }}">
   <link rel="stylesheet" href="{{ asset('template/vendors/simple-line-icons/css/simple-line-icons.css') }}">
   <link rel="stylesheet" href="{{ asset('template/vendors/css/vendor.bundle.base.css') }}">
 
-  <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-  <!-- MDI -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.2.96/css/materialdesignicons.min.css">
-
-  <!-- DataTables -->
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
-
-  <!-- Toastr / SweetAlert2 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
-  <!-- ⚠️ TEMPLATE CSS — VA PRIMERO para que tu CSS pueda pisarlo -->
   <link rel="stylesheet" href="{{ asset('template/css/vertical-layout-light/style.css') }}">
-
   <link rel="shortcut icon" href="{{ asset('template/images/favicon.png') }}" />
 
   <script>
@@ -54,9 +44,6 @@
   </script>
 
   <style>
-    /* =====================================================
-       1. TOKENS
-       ===================================================== */
     :root {
       --bg: #0a1013;
       --bg-1: #0f171b;
@@ -65,35 +52,28 @@
       --ink: #e6eff1;
       --ink-muted: #92a7ad;
       --ink-faint: #5f767d;
-
       --cyan: #00fff0;
       --cyan-2: #00d9cc;
       --cyan-dim: #00a89e;
       --cyan-ink: #00201e;
-
       --line: rgba(255, 255, 255, 0.07);
       --line-strong: rgba(0, 255, 240, 0.35);
       --glow: rgba(0, 255, 240, 0.30);
       --glow-soft: rgba(0, 255, 240, 0.14);
       --shadow: rgba(0, 0, 0, 0.45);
       --surface-alpha: rgba(255, 255, 255, 0.04);
-
       --error: #f2667b;
       --success: #2dd4c4;
       --warning: #f5b04c;
-
       --font-display: 'Space Grotesk', 'Instrument Sans', system-ui, sans-serif;
       --font-body: 'Instrument Sans', system-ui, sans-serif;
-
       --r-sm: 8px;
       --r-md: 10px;
       --r-lg: 14px;
       --r-pill: 999px;
-
       --navbar-h: 64px;
       --sidebar-w: 248px;
       --sidebar-w-min: 72px;
-
       --ease: cubic-bezier(0.4, 0, 0.2, 1);
       --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
       --t: 0.18s;
@@ -107,124 +87,62 @@
       --ink: #0f1f24;
       --ink-muted: #52666d;
       --ink-faint: #81959b;
-
       --cyan: #0d9488;
       --cyan-2: #0f766e;
       --cyan-dim: #115e59;
       --cyan-ink: #ffffff;
-
       --line: rgba(15, 40, 48, 0.10);
       --line-strong: rgba(13, 148, 136, 0.40);
       --glow: rgba(13, 148, 136, 0.25);
       --glow-soft: rgba(13, 148, 136, 0.12);
       --shadow: rgba(15, 40, 48, 0.10);
       --surface-alpha: rgba(15, 40, 48, 0.04);
-
       --error: #d63a52;
       --success: #0d9488;
       --warning: #c77700;
     }
 
-    /* =====================================================
-       1.5 OVERRIDE TOTAL DEL TEMPLATE
-       (Rompe el CSS del template que fuerza fondo blanco)
-       ===================================================== */
-    html,
-    body,
-    .container-scroller,
-    .page-body-wrapper,
-    .main-panel,
-    .content-wrapper {
+    html, body, .container-scroller, .page-body-wrapper, .main-panel, .content-wrapper {
       background: var(--bg) !important;
       background-color: var(--bg) !important;
       color: var(--ink) !important;
     }
-
-    .card,
-    .navbar,
-    .navbar.default-layout,
-    .sidebar,
-    .footer {
+    .card, .navbar, .navbar.default-layout, .sidebar, .footer {
       background: var(--bg-1) !important;
       background-color: var(--bg-1) !important;
       color: var(--ink) !important;
     }
-
-    /* El navbar con transparencia */
-    .app-navbar,
-    .navbar.default-layout {
+    .app-navbar, .navbar.default-layout {
       background: color-mix(in srgb, var(--bg) 88%, transparent) !important;
       background-color: color-mix(in srgb, var(--bg) 88%, transparent) !important;
     }
-
-    /* Cualquier wrapper interno que pinte blanco */
-    .container-scroller > *,
-    .page-body-wrapper > *,
-    .main-panel > * {
+    .container-scroller > *, .page-body-wrapper > *, .main-panel > * {
       background-color: transparent !important;
     }
-
-    /* Textos */
-    h1, h2, h3, h4, h5, h6 {
-      color: var(--ink) !important;
-    }
-
-    p, span, small, label, div, li, a {
-      color: inherit;
-    }
-
-    .text-muted {
-      color: var(--ink-muted) !important;
-    }
-
-    /* Inputs por si el template los fuerza */
-    input,
-    select,
-    textarea,
-    .form-control,
-    .form-select {
+    h1, h2, h3, h4, h5, h6 { color: var(--ink) !important; }
+    p, span, small, label, div, li, a { color: inherit; }
+    .text-muted { color: var(--ink-muted) !important; }
+    input, select, textarea, .form-control, .form-select {
       background-color: var(--bg-2) !important;
       color: var(--ink) !important;
       border-color: var(--line) !important;
     }
-
-    /* Tablas */
-    .table {
-      color: var(--ink) !important;
-      background-color: transparent !important;
-    }
-
-    .table thead th,
-    .table tbody td {
+    .table { color: var(--ink) !important; background-color: transparent !important; }
+    .table thead th, .table tbody td {
       background-color: transparent !important;
       color: var(--ink) !important;
       border-color: var(--line) !important;
     }
-
-    /* Dropdowns */
     .dropdown-menu {
       background-color: var(--bg-1) !important;
       border-color: var(--line) !important;
       color: var(--ink) !important;
     }
+    .dropdown-item { color: var(--ink) !important; }
+    .page-body-wrapper::before, .page-body-wrapper::after,
+    .main-panel::before, .main-panel::after,
+    .container-scroller::before, .container-scroller::after { display: none !important; }
 
-    .dropdown-item {
-      color: var(--ink) !important;
-    }
-
-    /* Mata los pseudo-elementos del template */
-    .page-body-wrapper::before,
-    .page-body-wrapper::after,
-    .main-panel::before,
-    .main-panel::after,
-    .container-scroller::before,
-    .container-scroller::after {
-      display: none !important;
-    }
-
-    /* =====================================================
-       2. BASE
-       ===================================================== */
     * { box-sizing: border-box; }
     html, body { height: 100%; }
 
@@ -254,9 +172,6 @@
       }
     }
 
-    /* =====================================================
-       3. LAYOUT
-       ===================================================== */
     .app-shell {
       display: grid;
       grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
@@ -268,18 +183,13 @@
       transition: grid-template-columns var(--t) var(--ease);
       background-color: var(--bg) !important;
     }
-
     .app-shell.sidebar-collapsed {
       grid-template-columns: var(--sidebar-w-min) minmax(0, 1fr);
     }
-
     .app-navbar  { grid-area: navbar; }
     .app-sidebar { grid-area: sidebar; }
     .app-main    { grid-area: main; min-width: 0; display: flex; flex-direction: column; background-color: transparent !important; }
 
-    /* =====================================================
-       4. NAVBAR
-       ===================================================== */
     .app-navbar {
       position: sticky;
       top: 0;
@@ -293,7 +203,6 @@
       z-index: 1040;
       min-width: 0;
     }
-
     .navbar-brand-wrapper {
       width: var(--sidebar-w);
       flex-shrink: 0;
@@ -311,7 +220,6 @@
       justify-content: center;
       padding: 0 0.5rem;
     }
-
     .navbar-brand {
       display: inline-flex;
       align-items: center;
@@ -325,7 +233,6 @@
       object-fit: contain;
       display: block;
     }
-
     .navbar-menu-wrapper {
       flex: 1 1 auto;
       min-width: 0;
@@ -336,7 +243,6 @@
       overflow: visible;
       background-color: transparent !important;
     }
-
     .navbar-toggler,
     .ameri-theme-toggle,
     .nav-link.count-indicator {
@@ -385,7 +291,6 @@
       text-overflow: ellipsis;
     }
     .navbar-welcome .welcome-text .highlight { color: var(--cyan); }
-
     .navbar-menu-wrapper > .navbar-nav {
       display: flex;
       flex-direction: row;
@@ -397,7 +302,6 @@
       gap: 0.15rem;
     }
     .navbar-menu-wrapper > .navbar-nav.ms-auto { margin-left: auto; }
-
     .app-navbar .nav-item {
       display: flex;
       align-items: center;
@@ -405,7 +309,6 @@
       margin: 0;
       position: relative;
     }
-
     .app-navbar .nav-link {
       display: inline-flex;
       align-items: center;
@@ -417,7 +320,6 @@
       cursor: pointer;
     }
     .app-navbar .nav-link::after { display: none !important; }
-
     .app-navbar .dropdown-menu {
       position: absolute !important;
       top: 100% !important;
@@ -426,7 +328,6 @@
       margin-top: 0.25rem !important;
     }
 
-    /* Fecha */
     .navbar-date-wrapper { position: relative; display: inline-flex; align-items: center; }
     .navbar-date-btn {
       display: inline-flex;
@@ -448,7 +349,6 @@
     .navbar-date-btn[aria-expanded="true"] { border-color: var(--line-strong); }
     .navbar-date-btn .mdi { color: var(--cyan); font-size: 1.05rem; }
 
-    /* Paneles flotantes */
     .custom-calendar,
     .search-results {
       position: absolute;
@@ -473,7 +373,6 @@
       pointer-events: auto;
     }
 
-    /* Calendario */
     .custom-calendar { padding: 0.85rem; width: 292px; }
     .cal-header {
       display: flex;
@@ -553,7 +452,6 @@
     }
     .cal-today-btn:hover { background: var(--glow-soft); }
 
-    /* Buscador */
     .navbar-search-wrapper { position: relative; display: flex; align-items: center; height: 38px; }
     .navbar-search-wrapper .search-form { position: relative; display: flex; align-items: center; margin: 0; }
     .navbar-search-wrapper .icon-search {
@@ -650,9 +548,6 @@
     .search-empty { padding: 1.5rem 1rem; text-align: center; color: var(--ink-muted); font-size: 0.85rem; }
     .search-empty .mdi { display: block; font-size: 1.8rem; color: var(--ink-faint); margin-bottom: 0.25rem; }
 
-    /* =====================================================
-       5. NOTIFICACIONES
-       ===================================================== */
     .notif-bell { position: relative; }
     .notif-bell .mdi { font-size: 1.3rem; line-height: 1; display: block; }
     .notif-badge {
@@ -834,9 +729,6 @@
     .notif-dropdown-footer:hover { background: var(--surface-alpha) !important; }
     .notif-dropdown-footer .mdi { color: var(--cyan) !important; }
 
-    /* =====================================================
-       6. TEMA + USUARIO
-       ===================================================== */
     .ameri-theme-toggle svg { width: 18px; height: 18px; display: block; }
     .ameri-theme-toggle .icon-sun { display: none; }
     html[data-theme="light"] .ameri-theme-toggle .icon-moon { display: none; }
@@ -859,7 +751,6 @@
     }
     .user-dropdown .nav-link:hover img.img-xs,
     .user-dropdown .nav-link[aria-expanded="true"] img.img-xs { border-color: var(--cyan); }
-
     .user-dropdown .dropdown-header {
       padding: 0.5rem 0.5rem 1rem !important;
       margin-bottom: 0.35rem;
@@ -871,9 +762,6 @@
       font-size: 0.9rem;
     }
 
-    /* =====================================================
-       7. SIDEBAR
-       ===================================================== */
     .app-sidebar {
       background: var(--bg-1) !important;
       border-right: 1px solid var(--line);
@@ -896,7 +784,6 @@
       flex-direction: column;
       gap: 0.15rem;
     }
-
     .app-sidebar .nav-category {
       position: relative;
       display: flex;
@@ -1063,6 +950,38 @@
     .app-shell.sidebar-collapsed .app-sidebar .nav-item .nav-link.active::before { display: none; }
     .app-shell.sidebar-collapsed .app-sidebar .sub-menu { display: none !important; }
 
+    /* =====================================================
+       SUBMENÚS — SISTEMA PROPIO (sin Bootstrap Collapse)
+       Usamos la clase .is-open como única fuente de verdad.
+       La animación es CSS puro con grid-template-rows.
+       ===================================================== */
+    .app-sidebar .submenu-wrapper {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+    }
+    .app-sidebar .submenu-wrapper > .sub-menu {
+      min-height: 0;
+    }
+    .app-sidebar .nav-item.is-open > .submenu-wrapper {
+      grid-template-rows: 1fr;
+    }
+    .app-sidebar .nav-item.is-open > .nav-link .menu-arrow {
+      transform: rotate(90deg);
+      color: var(--cyan);
+    }
+    .app-sidebar .nav-item.is-open > .nav-link {
+      color: var(--ink) !important;
+    }
+    .app-sidebar .nav-item.is-open > .nav-link .menu-icon {
+      color: var(--cyan);
+    }
+
+    /* Neutralizar estilos del template sobre .collapse dentro del sidebar */
+    .app-sidebar .collapse,
+    .app-sidebar .collapsing { display: block !important; }
+
     .sidebar-backdrop {
       position: fixed;
       inset: var(--navbar-h) 0 0 0;
@@ -1074,9 +993,6 @@
     }
     .sidebar-backdrop.show { opacity: 1; visibility: visible; }
 
-    /* =====================================================
-       8. CONTENIDO + FOOTER
-       ===================================================== */
     .content-wrapper {
       flex: 1 1 auto;
       padding: clamp(1rem, 2vw, 1.75rem) clamp(0.75rem, 2vw, 1.75rem) 2rem;
@@ -1100,9 +1016,6 @@
       align-items: center;
     }
 
-    /* =====================================================
-       9. COMPONENTES
-       ===================================================== */
     .card {
       background: var(--bg-1) !important;
       border: 1px solid var(--line) !important;
@@ -1301,21 +1214,16 @@
     .bg-light { background: var(--bg-2) !important; }
     .bg-white { background: var(--bg-1) !important; color: var(--ink) !important; }
 
-    /* =====================================================
-       10. RESPONSIVE
-       ===================================================== */
     @media (max-width: 1399.98px) {
       .navbar-search-wrapper .form-control { width: 180px; }
       .navbar-search-wrapper .form-control:focus { width: 240px; }
     }
-
     @media (max-width: 1199.98px) {
       .navbar-welcome { display: none; }
       .navbar-search-wrapper .form-control { width: 150px; }
       .navbar-search-wrapper .form-control:focus { width: 210px; }
       .search-kbd { display: none; }
     }
-
     @media (max-width: 991.98px) {
       .app-shell {
         grid-template-columns: minmax(0, 1fr);
@@ -1324,7 +1232,6 @@
           "main";
       }
       .app-shell.sidebar-collapsed { grid-template-columns: minmax(0, 1fr); }
-
       .navbar-brand-wrapper {
         width: auto;
         min-width: 0;
@@ -1333,7 +1240,6 @@
         gap: 0;
       }
       .navbar-brand { display: none !important; }
-
       .app-sidebar {
         position: fixed;
         top: var(--navbar-h);
@@ -1347,7 +1253,6 @@
         box-shadow: 16px 0 40px -16px var(--shadow);
       }
       .app-sidebar.open { transform: translateX(0); }
-
       .app-shell.sidebar-collapsed .app-sidebar .menu-title,
       .app-shell.sidebar-collapsed .app-sidebar .menu-arrow { display: inline; }
       .app-shell.sidebar-collapsed .app-sidebar .nav-category {
@@ -1364,16 +1269,13 @@
       }
       .app-shell.sidebar-collapsed .app-sidebar .nav-item .nav-link.active::before { display: block; }
       .app-shell.sidebar-collapsed .app-sidebar .sub-menu { display: block !important; }
-
       .navbar-date-wrapper { display: none; }
       .navbar-menu-wrapper { padding: 0 0.5rem; gap: 0.25rem; }
     }
-
     @media (max-width: 767.98px) {
       .navbar-search-wrapper { display: none; }
       .notif-dropdown { min-width: 320px !important; }
     }
-
     @media (max-width: 575.98px) {
       .navbar-toggler,
       .ameri-theme-toggle,
@@ -1381,11 +1283,9 @@
       .app-navbar .nav-link { padding: 0.25rem; }
       .user-dropdown .nav-link { width: 34px !important; height: 34px !important; }
       .user-dropdown .nav-link img.img-xs { width: 32px; height: 32px; }
-
       .content-wrapper { padding: 1rem 0.75rem 1.5rem; }
       .card { border-radius: var(--r-md); }
       .footer .footer-inner { justify-content: center; text-align: center; }
-
       .navbar-dropdown.show {
         position: fixed !important;
         top: var(--navbar-h) !important;
@@ -1416,20 +1316,17 @@
 
   <div class="app-shell" id="appShell">
 
-    <!-- ==================== NAVBAR ==================== -->
     <nav class="app-navbar">
       <div class="navbar-brand-wrapper">
         <button class="navbar-toggler" id="sidebarToggle" type="button" aria-label="Alternar menú">
           <span class="mdi mdi-menu"></span>
         </button>
-
         <a class="navbar-brand" href="{{ url('/dashboard') }}">
           <img src="{{ asset('img/logo.png') }}" alt="AMERI">
         </a>
       </div>
 
       <div class="navbar-menu-wrapper">
-
         <div class="navbar-welcome">
           <h1 class="welcome-text">
             Bienvenido, <span class="highlight">{{ Auth::user()->name ?? 'AMERI SRL' }}</span>
@@ -1437,8 +1334,6 @@
         </div>
 
         <ul class="navbar-nav ms-auto">
-
-          {{-- CALENDARIO --}}
           <li class="nav-item">
             <div class="navbar-date-wrapper">
               <button type="button" class="navbar-date-btn" id="navbarDateBtn" aria-label="Ver calendario" aria-expanded="false" aria-controls="customCalendar">
@@ -1463,20 +1358,13 @@
             </div>
           </li>
 
-          {{-- BUSCADOR --}}
           <li class="nav-item">
             <div class="navbar-search-wrapper">
               <form class="search-form" action="#" onsubmit="return false;" autocomplete="off" role="search">
                 <i class="icon-search"></i>
-                <input type="search"
-                       class="form-control"
-                       id="navbarSearch"
-                       placeholder="Buscar módulo..."
-                       aria-label="Buscar módulo"
-                       autocomplete="off">
+                <input type="search" class="form-control" id="navbarSearch" placeholder="Buscar módulo..." aria-label="Buscar módulo" autocomplete="off">
                 <span class="search-kbd">Ctrl K</span>
               </form>
-
               <div class="search-results" id="searchResults">
                 <div class="search-results-header">Resultados</div>
                 <div id="searchResultsList"></div>
@@ -1484,16 +1372,11 @@
             </div>
           </li>
 
-          {{-- NOTIFICACIONES --}}
           <li class="nav-item dropdown">
             <a class="nav-link count-indicator notif-bell"
-               id="notifDropdown"
-               href="#"
-               role="button"
-               data-bs-toggle="dropdown"
-               data-bs-display="static"
-               aria-expanded="false"
-               aria-label="Notificaciones"
+               id="notifDropdown" href="#" role="button"
+               data-bs-toggle="dropdown" data-bs-display="static"
+               aria-expanded="false" aria-label="Notificaciones"
                onclick="event.preventDefault(); event.stopPropagation();">
               <i class="mdi mdi-bell-outline"></i>
               @if($noLeidasNav > 0)
@@ -1518,7 +1401,6 @@
                     </span>
                   </div>
                 </div>
-
                 @if($noLeidasNav > 0)
                   <form action="{{ route('admin.notificaciones.todas-leidas') }}" method="POST" class="d-inline">
                     @csrf
@@ -1537,7 +1419,6 @@
                     <div class="notif-icon-wrap tipo-{{ $n->tipo === 'stock_prestado' ? 'prestado' : 'devuelto' }}">
                       <i class="mdi {{ $n->tipo === 'stock_prestado' ? 'mdi-arrow-down-bold-circle-outline' : 'mdi-arrow-up-bold-circle-outline' }}"></i>
                     </div>
-
                     <div class="notif-content">
                       <p class="notif-title">{{ $n->titulo }}</p>
                       <p class="notif-msg">{{ \Illuminate\Support\Str::limit($n->mensaje, 70) }}</p>
@@ -1554,7 +1435,6 @@
                         </span>
                       </div>
                     </div>
-
                     @if(!$n->leida)
                       <span class="notif-dot" aria-label="Sin leer"></span>
                     @endif
@@ -1575,7 +1455,6 @@
             </div>
           </li>
 
-          {{-- TEMA --}}
           <li class="nav-item">
             <button id="ameri-theme-toggle" class="ameri-theme-toggle" aria-label="Cambiar tema" type="button">
               <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1588,20 +1467,14 @@
             </button>
           </li>
 
-          {{-- USUARIO --}}
           <li class="nav-item dropdown user-dropdown">
             <a class="nav-link"
-               id="UserDropdown"
-               href="#"
-               role="button"
-               data-bs-toggle="dropdown"
-               data-bs-display="static"
-               aria-expanded="false"
-               aria-label="Menú de usuario"
+               id="UserDropdown" href="#" role="button"
+               data-bs-toggle="dropdown" data-bs-display="static"
+               aria-expanded="false" aria-label="Menú de usuario"
                onclick="event.preventDefault(); event.stopPropagation();">
               <img class="img-xs rounded-circle" src="{{ asset('template/images/faces/face8.jpg') }}" alt="Avatar">
             </a>
-
             <div class="dropdown-menu dropdown-menu-end navbar-dropdown"
                  aria-labelledby="UserDropdown"
                  onclick="event.stopPropagation();">
@@ -1610,23 +1483,12 @@
                 <p class="mb-1 mt-3 font-weight-semibold">{{ Auth::user()->name ?? 'Usuario AMERI' }}</p>
                 <p class="fw-light text-muted mb-0">{{ Auth::user()->email ?? 'usuario@ameri.com' }}</p>
               </div>
-
-              <a class="dropdown-item" href="#">
-                <i class="dropdown-item-icon mdi mdi-account-outline me-2"></i>
-                Mi perfil
-              </a>
-
-              <a class="dropdown-item" href="#">
-                <i class="dropdown-item-icon mdi mdi-message-text-outline me-2"></i>
-                Mensajes
-              </a>
-
+              <a class="dropdown-item" href="#"><i class="dropdown-item-icon mdi mdi-account-outline me-2"></i>Mi perfil</a>
+              <a class="dropdown-item" href="#"><i class="dropdown-item-icon mdi mdi-message-text-outline me-2"></i>Mensajes</a>
               <a class="dropdown-item" href="{{ route('logout') }}"
                  onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                <i class="dropdown-item-icon mdi mdi-power me-2"></i>
-                Cerrar sesión
+                <i class="dropdown-item-icon mdi mdi-power me-2"></i>Cerrar sesión
               </a>
-
               <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">@csrf</form>
             </div>
           </li>
@@ -1634,10 +1496,8 @@
       </div>
     </nav>
 
-    <!-- ==================== SIDEBAR ==================== -->
     <aside class="app-sidebar" id="sidebar" aria-label="Navegación principal">
       <ul class="nav">
-
         <li class="nav-item">
           <a class="nav-link" href="{{ url('/dashboard') }}">
             <i class="mdi mdi-view-dashboard-outline menu-icon"></i>
@@ -1647,13 +1507,13 @@
 
         <li class="nav-category">Gestión</li>
 
-        <li class="nav-item">
-          <a class="nav-link" data-bs-toggle="collapse" href="#grp-usuarios" aria-expanded="false">
+        <li class="nav-item" data-menu-group="usuarios">
+          <a class="nav-link" href="#" data-menu-toggle aria-expanded="false">
             <i class="mdi mdi-account-multiple-outline menu-icon"></i>
             <span class="menu-title">Usuarios</span>
             <i class="mdi mdi-chevron-right menu-arrow"></i>
           </a>
-          <div class="collapse" id="grp-usuarios">
+          <div class="submenu-wrapper">
             <ul class="sub-menu">
               <li class="nav-item">
                 <a class="nav-link" href="{{ route('admin.users.index') }}">Administración</a>
@@ -1671,41 +1531,31 @@
 
         <li class="nav-category">Operaciones</li>
 
-        <li class="nav-item">
-          <a class="nav-link" data-bs-toggle="collapse" href="#grp-compras" aria-expanded="false">
+        <li class="nav-item" data-menu-group="compras">
+          <a class="nav-link" href="#" data-menu-toggle aria-expanded="false">
             <i class="mdi mdi-cart-plus menu-icon"></i>
             <span class="menu-title">Compras</span>
             <i class="mdi mdi-chevron-right menu-arrow"></i>
           </a>
-          <div class="collapse" id="grp-compras">
+          <div class="submenu-wrapper">
             <ul class="sub-menu">
-              <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.compras.index') }}">Órdenes de compra</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.compras.create') }}">Nueva compra</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.stocks.index') }}">Stock por admin</a>
-              </li>
+              <li class="nav-item"><a class="nav-link" href="{{ route('admin.compras.index') }}">Órdenes de compra</a></li>
+              <li class="nav-item"><a class="nav-link" href="{{ route('admin.compras.create') }}">Nueva compra</a></li>
+              <li class="nav-item"><a class="nav-link" href="{{ route('admin.stocks.index') }}">Stock por admin</a></li>
             </ul>
           </div>
         </li>
 
-        <li class="nav-item">
-          <a class="nav-link" data-bs-toggle="collapse" href="#grp-ventas" aria-expanded="false">
+        <li class="nav-item" data-menu-group="ventas">
+          <a class="nav-link" href="#" data-menu-toggle aria-expanded="false">
             <i class="mdi mdi-cart-outline menu-icon"></i>
             <span class="menu-title">Ventas</span>
             <i class="mdi mdi-chevron-right menu-arrow"></i>
           </a>
-          <div class="collapse" id="grp-ventas">
+          <div class="submenu-wrapper">
             <ul class="sub-menu">
-              <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.ventas.index') }}">Historial</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.ventas.create') }}">Hacer venta</a>
-              </li>
+              <li class="nav-item"><a class="nav-link" href="{{ route('admin.ventas.index') }}">Historial</a></li>
+              <li class="nav-item"><a class="nav-link" href="{{ route('admin.ventas.create') }}">Hacer venta</a></li>
               <li class="nav-item">
                 <a class="nav-link" href="{{ route('admin.notificaciones.index') }}">
                   Notificaciones
@@ -1720,45 +1570,37 @@
 
         <li class="nav-category">Análisis</li>
 
-        <ul class="sub-menu">
-          <li class="nav-item">
-            <a class="nav-link" href="{{ route('admin.reportes.index') }}">Ventas</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#">Inventario</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#">Exportar datos</a>
-          </li>
-        </ul>
+        <li class="nav-item">
+          <a class="nav-link" href="{{ route('admin.reportes.index') }}">
+            <i class="mdi mdi-chart-box-outline menu-icon"></i>
+            <span class="menu-title">Filtrar reportes</span>
+          </a>
+        </li>
 
         <li class="nav-category">Sistema</li>
 
-        <li class="nav-item">
-          <a class="nav-link" data-bs-toggle="collapse" href="#grp-config" aria-expanded="false">
+        <li class="nav-item" data-menu-group="config">
+          <a class="nav-link" href="#" data-menu-toggle aria-expanded="false">
             <i class="mdi mdi-cog-outline menu-icon"></i>
             <span class="menu-title">Configuración</span>
             <i class="mdi mdi-chevron-right menu-arrow"></i>
           </a>
-          <div class="collapse" id="grp-config">
+          <div class="submenu-wrapper">
             <ul class="sub-menu">
               <li class="nav-item"><a class="nav-link" href="#">Ajustes generales</a></li>
               <li class="nav-item"><a class="nav-link" href="#">Roles y permisos</a></li>
             </ul>
           </div>
         </li>
-
       </ul>
     </aside>
 
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
-    <!-- ==================== MAIN ==================== -->
     <main class="app-main">
       <div class="content-wrapper">
         @yield('content')
       </div>
-
       <footer class="footer">
         <div class="footer-inner">
           <span class="text-muted">© {{ date('Y') }} AMERI · Cerámicos y Cemento Cola</span>
@@ -1768,11 +1610,11 @@
     </main>
   </div>
 
-  <!-- ==================== SCRIPTS ==================== -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="{{ asset('template/vendors/js/vendor.bundle.base.js') }}"></script>
-  <script src="{{ asset('template/js/off-canvas.js') }}"></script>
-  <script src="{{ asset('template/js/hoverable-collapse.js') }}"></script>
+  {{-- Los scripts del template que rompen el sidebar: comentados --}}
+  {{-- <script src="{{ asset('template/js/off-canvas.js') }}"></script> --}}
+  {{-- <script src="{{ asset('template/js/hoverable-collapse.js') }}"></script> --}}
   <script src="{{ asset('template/js/template.js') }}"></script>
   <script src="{{ asset('template/js/settings.js') }}"></script>
   <script src="{{ asset('template/js/todolist.js') }}"></script>
@@ -1789,8 +1631,7 @@
 
   <script>
     /* ============================================================
-       FORZAR COLORES — aplicar inline al cargar
-       (Por si el template pisa con estilos dinámicos)
+       FORZAR COLORES
        ============================================================ */
     (function forzarColores() {
       function aplicar() {
@@ -1826,28 +1667,105 @@
         aplicar();
       }
 
-      // Reaplicar cuando cambia el tema
       window.addEventListener('ameri:theme-change', aplicar);
     })();
 
     /* ============================================================
-       FIX DROPDOWNS
+       DROPDOWNS (Bootstrap 5 puro) — sin cambios
        ============================================================ */
-    (function fixDropdowns() {
+    (function initDropdowns() {
       function init() {
         if (typeof bootstrap === 'undefined' || !bootstrap.Dropdown) {
           setTimeout(init, 50);
           return;
         }
-
-        var toggles = document.querySelectorAll('[data-bs-toggle="dropdown"]');
-        toggles.forEach(function (toggle) {
+        document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(function (toggle) {
           var clone = toggle.cloneNode(true);
           toggle.parentNode.replaceChild(clone, toggle);
           new bootstrap.Dropdown(clone);
           clone.addEventListener('click', function (e) {
             e.stopImmediatePropagation();
           }, true);
+        });
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+
+    /* ============================================================
+       SUBMENÚS DEL SIDEBAR — SISTEMA PROPIO
+       Sin Bootstrap Collapse. Sin conflictos. Estado en .is-open.
+       - Clic en un grupo cerrado → abre y cierra los demás.
+       - Clic en el grupo abierto  → cierra ESE.
+       - Clic rápido → alterna sin rebote.
+       ============================================================ */
+    (function initSidebarMenus() {
+      function init() {
+        var sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+
+        var groups = sidebar.querySelectorAll('.nav-item[data-menu-group]');
+
+        groups.forEach(function (group) {
+          var toggle = group.querySelector('[data-menu-toggle]');
+          if (!toggle) return;
+
+          toggle.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            var estabaAbierto = group.classList.contains('is-open');
+
+            if (estabaAbierto) {
+              // Cerrar este mismo
+              group.classList.remove('is-open');
+              toggle.setAttribute('aria-expanded', 'false');
+            } else {
+              // Cerrar los demás y abrir este
+              groups.forEach(function (other) {
+                if (other === group) return;
+                if (other.classList.contains('is-open')) {
+                  other.classList.remove('is-open');
+                  var otherToggle = other.querySelector('[data-menu-toggle]');
+                  if (otherToggle) otherToggle.setAttribute('aria-expanded', 'false');
+                }
+              });
+              group.classList.add('is-open');
+              toggle.setAttribute('aria-expanded', 'true');
+            }
+          });
+        });
+
+        // Marcar enlace activo y abrir su grupo si corresponde
+        var path = window.location.pathname;
+        sidebar.querySelectorAll('.sub-menu .nav-link').forEach(function (link) {
+          var href = link.getAttribute('href');
+          if (!href || href.charAt(0) === '#') return;
+          try {
+            if (new URL(link.href, window.location.origin).pathname === path) {
+              link.classList.add('active');
+              var parentGroup = link.closest('.nav-item[data-menu-group]');
+              if (parentGroup) {
+                parentGroup.classList.add('is-open');
+                var t = parentGroup.querySelector('[data-menu-toggle]');
+                if (t) t.setAttribute('aria-expanded', 'true');
+              }
+            }
+          } catch (e) {}
+        });
+
+        // Marcar enlace activo simple (no submenú)
+        sidebar.querySelectorAll('.nav-item:not([data-menu-group]) > .nav-link').forEach(function (link) {
+          var href = link.getAttribute('href');
+          if (!href || href.charAt(0) === '#') return;
+          try {
+            if (new URL(link.href, window.location.origin).pathname === path) {
+              link.classList.add('active');
+            }
+          } catch (e) {}
         });
       }
 
@@ -1870,8 +1788,6 @@
         root.setAttribute('data-theme', theme);
         if (meta) meta.setAttribute('content', theme === 'light' ? '#f3f6f7' : '#0a1013');
         try { localStorage.setItem('ameri-theme', theme); } catch (e) {}
-
-        // Disparar evento para reaplicar colores
         window.dispatchEvent(new Event('ameri:theme-change'));
       }
 
@@ -1883,7 +1799,7 @@
     })();
 
     /* ============================================================
-       SIDEBAR
+       SIDEBAR (colapsar/expandir global)
        ============================================================ */
     (function initSidebar() {
       var shell    = document.getElementById('appShell');
@@ -1898,6 +1814,13 @@
         toggle.addEventListener('click', function () {
           if (isDesktop()) {
             shell.classList.toggle('sidebar-collapsed');
+            if (shell.classList.contains('sidebar-collapsed') && sidebar) {
+              sidebar.querySelectorAll('.nav-item.is-open').forEach(function (g) {
+                g.classList.remove('is-open');
+                var t = g.querySelector('[data-menu-toggle]');
+                if (t) t.setAttribute('aria-expanded', 'false');
+              });
+            }
             try {
               localStorage.setItem('ameri-sidebar',
                 shell.classList.contains('sidebar-collapsed') ? '1' : '0');
@@ -1942,27 +1865,6 @@
     })();
 
     /* ============================================================
-       ENLACE ACTIVO EN SIDEBAR
-       ============================================================ */
-    (function markActiveLink() {
-      var path = window.location.pathname;
-      document.querySelectorAll('.app-sidebar .nav-link').forEach(function (link) {
-        var href = link.getAttribute('href');
-        if (!href || href.charAt(0) === '#' || href.indexOf('javascript') === 0) return;
-        try {
-          if (new URL(link.href, window.location.origin).pathname !== path) return;
-          link.classList.add('active');
-          var collapse = link.closest('.collapse');
-          if (collapse) {
-            collapse.classList.add('show');
-            var toggler = document.querySelector('[href="#' + collapse.id + '"]');
-            if (toggler) toggler.setAttribute('aria-expanded', 'true');
-          }
-        } catch (e) {}
-      });
-    })();
-
-    /* ============================================================
        CALENDARIO
        ============================================================ */
     (function initCalendar() {
@@ -1991,13 +1893,11 @@
       function render() {
         calMY.textContent = meses[mes] + ' ' + anio;
         calDays.innerHTML = '';
-
         var offset = (new Date(anio, mes, 1).getDay() + 6) % 7;
         var diasMes = new Date(anio, mes + 1, 0).getDate();
         var diasPrev = new Date(anio, mes, 0).getDate();
 
         for (var i = offset - 1; i >= 0; i--) calDays.appendChild(celda(diasPrev - i, 'otro-mes'));
-
         for (var d = 1; d <= diasMes; d++) {
           var esHoy = d === hoy.getDate() && mes === hoy.getMonth() && anio === hoy.getFullYear();
           var c = celda(d, esHoy ? 'hoy' : '');
@@ -2007,7 +1907,6 @@
           });
           calDays.appendChild(c);
         }
-
         var faltan = (7 - ((offset + diasMes) % 7)) % 7;
         for (var k = 1; k <= faltan; k++) calDays.appendChild(celda(k, 'otro-mes'));
       }
@@ -2063,13 +1962,11 @@
       function normalizar(t) {
         return String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       }
-
       function escapar(t) {
         var d = document.createElement('div');
         d.textContent = t;
         return d.innerHTML;
       }
-
       function buscar(termino) {
         var q = normalizar(termino.trim());
         if (!q) return [];
@@ -2078,9 +1975,7 @@
                  m.keywords.some(function (k) { return normalizar(k).indexOf(q) !== -1; });
         });
       }
-
       function items() { return Array.prototype.slice.call(list.querySelectorAll('.search-result-item')); }
-
       function marcar(idx) {
         var els = items();
         if (!els.length) return;
@@ -2088,21 +1983,17 @@
         els.forEach(function (el, i) { el.classList.toggle('active', i === idx); });
         els[idx].scrollIntoView({ block: 'nearest' });
       }
-
       function render(encontrados, termino) {
         list.innerHTML = '';
         if (!encontrados.length) {
-          list.innerHTML =
-            '<div class="search-empty"><i class="mdi mdi-magnify-close"></i>' +
-            'No hay módulos que coincidan con "<strong>' + escapar(termino) + '</strong>"</div>';
+          list.innerHTML = '<div class="search-empty"><i class="mdi mdi-magnify-close"></i>No hay módulos que coincidan con "<strong>' + escapar(termino) + '</strong>"</div>';
           return;
         }
         encontrados.forEach(function (m, i) {
           var a = document.createElement('a');
           a.href = m.path;
           a.className = 'search-result-item' + (i === 0 ? ' active' : '');
-          a.innerHTML =
-            '<span class="result-icon"><i class="mdi ' + m.icono + '"></i></span>' +
+          a.innerHTML = '<span class="result-icon"><i class="mdi ' + m.icono + '"></i></span>' +
             '<div class="result-info"><p class="result-title">' + escapar(m.titulo) + '</p>' +
             '<p class="result-path">' + escapar(m.path.replace(/^https?:\/\/[^/]+/, '')) + '</p></div>';
           list.appendChild(a);
@@ -2119,13 +2010,10 @@
           results.classList.add('open');
         }, 100);
       });
-
       input.addEventListener('focus', function () { if (this.value.trim()) results.classList.add('open'); });
-
       input.addEventListener('keydown', function (e) {
         var els = items();
         var actual = els.findIndex(function (el) { return el.classList.contains('active'); });
-
         if (e.key === 'ArrowDown') { e.preventDefault(); marcar(actual + 1); }
         else if (e.key === 'ArrowUp') { e.preventDefault(); marcar(actual - 1); }
         else if (e.key === 'Enter') {
@@ -2137,7 +2025,6 @@
           this.blur();
         }
       });
-
       document.addEventListener('keydown', function (e) {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
           e.preventDefault();
@@ -2145,7 +2032,6 @@
           input.select();
         }
       });
-
       document.addEventListener('click', function (e) {
         if (results.contains(e.target)) return;
         if (e.target === input) return;
