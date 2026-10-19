@@ -1391,7 +1391,7 @@
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 2l3 7h7l-5.5 4.5L18.5 21 12 16.5 5.5 21l2-7.5L2 9h7z"/></svg>
                         </div>
                         <div class="product-info">
-                            <h3>Adhesivos especiales</h3>
+                            <h3>Decorativos</h3>
                             <p>Soluciones específicas para cerámica, porcelanato y piedra.</p>
                             <a href="" class="product-link">Ver productos <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
                         </div>
@@ -1427,7 +1427,7 @@
                             </div>
                             <div class="contact-text">
                                 <h4>Dirección</h4>
-                                <p>Av. Principal #123, Zona Industrial, La Paz - Bolivia</p>
+                                <p>Av. Alfredo Franco Valle, Calle 8, El Alto - Bolivia</p>
                             </div>
                         </div>
                         <div class="contact-item">
@@ -1436,7 +1436,7 @@
                             </div>
                             <div class="contact-text">
                                 <h4>Teléfono</h4>
-                                <p>+591 77743260</p>
+                                <p>+591 77513891</p>
                             </div>
                         </div>
                         <div class="contact-item">
@@ -1445,7 +1445,7 @@
                             </div>
                             <div class="contact-text">
                                 <h4>Email</h4>
-                                <p>info@ameri.com.bo</p>
+                                <p>Fsalexander70@gmail.com</p>
                             </div>
                         </div>
                     </div>
@@ -1491,16 +1491,14 @@
                     </div>
                     <div class="footer-col reveal" data-delay="2">
                         <h3>Horario</h3>
-                        <p>Lunes a viernes: 8:00 - 18:00</p>
-                        <p>Sábados: 9:00 - 13:00</p>
+                        <p>Lunes a viernes: 8:30 - 19:30</p>
+                        <p>Sábados: 9:00 - 15:00</p>
                         <p>Domingos: cerrado</p>
                     </div>
                     <div class="footer-col reveal" data-delay="3">
                         <h3>Síguenos</h3>
                         <div class="social-links">
-                            <a href="#" aria-label="Facebook"><svg fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879v-6.99h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.99C18.343 21.128 22 16.991 22 12z"/></svg></a>
-                            <a href="#" aria-label="Twitter"><svg fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 0021.968-11.446c0-.278-.016-.553-.045-.827a10.056 10.056 0 002.46-2.55z"/></svg></a>
-                            <a href="#" aria-label="Instagram"><svg fill="currentColor" viewBox="0 0 24 24"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/></svg></a>
+                            <a href="https://www.tiktok.com/@la.mansion.ceramics?_r=1&_t=ZS-9Aezb3LS3Xx" aria-label="Facebook"><svg fill="currentColor" viewBox="0 0 24 24"><path d="M16.6 5.82A4.48 4.48 0 0 1 15.54 3h-3.09v12.4a2.59 2.59 0 1 1-2.59-2.59c.27 0 .53.04.78.12V9.8a5.7 5.7 0 0 0-.78-.05 5.65 5.65 0 1 0 5.65 5.65V9.11a7.56 7.56 0 0 0 4.43 1.42V6.02a4.48 4.48 0 0 1-3.34-.2z"/></svg></a>
                         </div>
                     </div>
                 </div>
