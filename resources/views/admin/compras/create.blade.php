@@ -124,6 +124,50 @@
   }
 
   /* =====================================================
+     TOGGLE "MISMO DEPÓSITO"
+     ===================================================== */
+  .deposito-toggle-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, var(--cyan) 4%, transparent);
+    margin-bottom: 1rem;
+    transition: all 0.3s var(--ease);
+  }
+  .deposito-toggle-card:hover {
+    background: color-mix(in srgb, var(--cyan) 8%, transparent);
+  }
+  .deposito-toggle-card .form-check-input {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    cursor: pointer;
+    accent-color: var(--cyan);
+    flex-shrink: 0;
+  }
+  .deposito-toggle-card .form-check-label {
+    cursor: pointer;
+    margin: 0;
+  }
+  .deposito-toggle-card .toggle-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--ink);
+    display: block;
+    margin-bottom: 0.15rem;
+  }
+  .deposito-toggle-card .toggle-hint {
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  /* =====================================================
      TABLA DE LÍNEAS
      ===================================================== */
   .lineas-tabla {
@@ -135,11 +179,11 @@
     background: color-mix(in srgb, var(--bg-2) 60%, transparent);
     color: var(--ink-muted);
     font-family: var(--font-display);
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    padding: 0.65rem 0.55rem;
+    padding: 0.65rem 0.5rem;
     border-bottom: 1px solid var(--line);
     text-align: left;
     white-space: nowrap;
@@ -154,8 +198,13 @@
   }
   .lineas-tabla .input-cell .form-control,
   .lineas-tabla .input-cell .form-select {
-    padding: 0.55rem 0.7rem;
-    font-size: 0.85rem;
+    padding: 0.5rem 0.65rem;
+    font-size: 0.82rem;
+  }
+  .lineas-tabla .form-select:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: color-mix(in srgb, var(--bg-2) 80%, transparent);
   }
 
   .linea-subtotal {
@@ -470,7 +519,6 @@
     .compra-header .icon-wrap { width: 40px; height: 40px; font-size: 1.2rem; }
     .compra-header h3 { font-size: 1.1rem; }
 
-    /* Tabla de líneas: ocultar cabeceras y convertir en tarjetas */
     .lineas-tabla thead { display: none; }
     .lineas-tabla,
     .lineas-tabla tbody,
@@ -536,8 +584,15 @@
 
   @if($errors->any())
     <div class="alert alert-danger mb-3">
-      <i class="mdi mdi-alert-circle me-1"></i>
-      Corrige los errores marcados abajo.
+      <div>
+        <i class="mdi mdi-alert-circle me-1"></i>
+        Corrige los errores marcados abajo.
+      </div>
+      <ul class="mb-0 mt-2" style="font-size:0.82rem;padding-left:1.1rem;">
+        @foreach($errors->all() as $error)
+          <li>{{ $error }}</li>
+        @endforeach
+      </ul>
     </div>
   @endif
 
@@ -621,6 +676,7 @@
                    value="{{ old('descuento', 0) }}">
           </div>
 
+          {{-- Observaciones (full width) --}}
           <div class="col-12 mb-0">
             <label class="form-label">Observaciones</label>
             <textarea name="observaciones"
@@ -647,17 +703,35 @@
           <div class="alert alert-danger mb-3">{{ $message }}</div>
         @enderror
 
+        {{-- Toggle: mismo depósito para todas las líneas --}}
+        <div class="deposito-toggle-card" id="depositoToggleCard">
+          <input class="form-check-input"
+                 type="checkbox"
+                 id="checkMismoDeposito"
+                 name="mismo_deposito"
+                 value="1"
+                 {{ old('mismo_deposito') ? 'checked' : '' }}>
+          <label class="form-check-label" for="checkMismoDeposito">
+            <span class="toggle-title">Usar el mismo depósito para todas las líneas</span>
+            <p class="toggle-hint">
+              Marca esta opción si toda la compra ingresa al mismo depósito.
+              Luego podrás cambiar el depósito de cada producto de forma individual.
+            </p>
+          </label>
+        </div>
+
         <div class="table-responsive mb-3">
           <table class="lineas-tabla" id="tablaLineas">
             <thead>
               <tr>
-                <th style="width: 28%;">Producto</th>
-                <th style="width: 11%;">Unidad</th>
-                <th style="width: 11%;">Cantidad</th>
-                <th style="width: 14%;">Precio Unit.</th>
-                <th style="width: 14%;">Total base</th>
-                <th style="width: 15%;">Subtotal</th>
-                <th style="width: 7%;"></th>
+                <th style="width: 24%;">Producto</th>
+                <th style="width: 18%;">Depósito destino</th>
+                <th style="width: 10%;">Unidad</th>
+                <th style="width: 10%;">Cantidad</th>
+                <th style="width: 12%;">Precio Unit.</th>
+                <th style="width: 11%;">Total base</th>
+                <th style="width: 12%;">Subtotal</th>
+                <th style="width: 3%;"></th>
               </tr>
             </thead>
             <tbody id="cuerpoLineas">
@@ -726,6 +800,15 @@
         @endforeach
       </select>
       <small class="detalle-linea"></small>
+    </td>
+
+    <td class="input-cell" data-label="Depósito destino">
+      <select name="items[__IDX__][deposito_id]" class="form-select deposito-linea-select" required>
+        <option value="">Seleccione...</option>
+        @foreach($depositos as $dep)
+          <option value="{{ $dep->id }}">{{ $dep->nombre }}</option>
+        @endforeach
+      </select>
     </td>
 
     <td class="input-cell" data-label="Unidad">
@@ -806,13 +889,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
   /* ==================== REFERENCIAS ==================== */
-  const cuerpo      = document.getElementById('cuerpoLineas');
-  const template    = document.getElementById('templateLinea');
-  const btnAgregar  = document.getElementById('btnAgregarLinea');
-  const inputDesc   = document.getElementById('inputDescuento');
-  const txtSubtotal = document.getElementById('txtSubtotal');
-  const txtDesc     = document.getElementById('txtDescuento');
-  const txtTotal    = document.getElementById('txtTotal');
+  const cuerpo       = document.getElementById('cuerpoLineas');
+  const template     = document.getElementById('templateLinea');
+  const btnAgregar   = document.getElementById('btnAgregarLinea');
+  const inputDesc    = document.getElementById('inputDescuento');
+  const txtSubtotal  = document.getElementById('txtSubtotal');
+  const txtDesc      = document.getElementById('txtDescuento');
+  const txtTotal     = document.getElementById('txtTotal');
+  const checkMismo   = document.getElementById('checkMismoDeposito');
 
   let idx = 0;
 
@@ -832,6 +916,37 @@ document.addEventListener('DOMContentLoaded', function () {
       const totalStr = total % 1 === 0 ? total : total.toFixed(2);
       span.textContent = totalStr + ' ' + (unidadBase || 'unidad');
     }
+  }
+
+
+  /* ==================== TOGGLE MISMO DEPÓSITO ==================== */
+  function sincronizarDepositos() {
+    const filas = cuerpo.querySelectorAll('.linea');
+    if (filas.length === 0) return;
+
+    const depositos = [...filas].map(f =>
+      f.querySelector('.deposito-linea-select')
+    );
+
+    if (checkMismo && checkMismo.checked) {
+      // Buscar el primer depósito seleccionado
+      const primeroConValor = depositos.find(s => s.value);
+
+      if (primeroConValor) {
+        depositos.forEach(s => {
+          s.value = primeroConValor.value;
+          s.disabled = true;
+        });
+      } else {
+        depositos.forEach(s => s.disabled = true);
+      }
+    } else {
+      depositos.forEach(s => { s.disabled = false; });
+    }
+  }
+
+  if (checkMismo) {
+    checkMismo.addEventListener('change', sincronizarDepositos);
   }
 
 
@@ -896,13 +1011,25 @@ document.addEventListener('DOMContentLoaded', function () {
     fila.querySelector('.precio-input').addEventListener('input', recalcular);
     fila.querySelector('.unidad-select').addEventListener('change', recalcular);
 
+    // Depósito: al cambiar, sincroniza si el check está activo
+    fila.querySelector('.deposito-linea-select').addEventListener('change', function () {
+      if (checkMismo && checkMismo.checked) {
+        const valor = this.value;
+        cuerpo.querySelectorAll('.deposito-linea-select').forEach(s => {
+          s.value = valor;
+        });
+      }
+    });
+
     fila.querySelector('.btn-remove-line').addEventListener('click', function () {
       fila.remove();
       recalcular();
+      sincronizarDepositos();
     });
 
     cuerpo.appendChild(fila);
     recalcular();
+    sincronizarDepositos();
   }
 
   btnAgregar.addEventListener('click', agregarLinea);
@@ -917,8 +1044,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
     e.preventDefault();
 
+    // Validar que cada línea tenga depósito
+    const filas = cuerpo.querySelectorAll('.linea');
+    let faltan = 0;
+
+    filas.forEach(fila => {
+      const sel = fila.querySelector('.deposito-linea-select');
+      if (!sel.value) faltan++;
+    });
+
+    if (faltan > 0) {
+      toastr.warning(
+        faltan === 1
+          ? 'Hay una línea sin depósito seleccionado.'
+          : `Hay ${faltan} líneas sin depósito seleccionado.`,
+        'Falta depósito'
+      );
+      const primeraSinDeposito = [...filas].find(f => !f.querySelector('.deposito-linea-select').value);
+      if (primeraSinDeposito) {
+        primeraSinDeposito.querySelector('.deposito-linea-select').focus();
+      }
+      return;
+    }
+
     const total    = txtTotal.textContent;
-    const cantidad = cuerpo.querySelectorAll('.linea').length;
+    const cantidad = filas.length;
 
     Swal.fire({
       title: '¿Registrar compra?',

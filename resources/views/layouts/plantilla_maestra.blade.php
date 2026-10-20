@@ -1547,26 +1547,38 @@
         </li>
 
         <li class="nav-item" data-menu-group="ventas">
-          <a class="nav-link" href="#" data-menu-toggle aria-expanded="false">
-            <i class="mdi mdi-cart-outline menu-icon"></i>
-            <span class="menu-title">Ventas</span>
-            <i class="mdi mdi-chevron-right menu-arrow"></i>
-          </a>
-          <div class="submenu-wrapper">
-            <ul class="sub-menu">
-              <li class="nav-item"><a class="nav-link" href="{{ route('admin.ventas.index') }}">Historial</a></li>
-              <li class="nav-item"><a class="nav-link" href="{{ route('admin.ventas.create') }}">Hacer venta</a></li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{ route('admin.notificaciones.index') }}">
-                  Notificaciones
-                  @if($noLeidasNav > 0)
-                    <span class="badge badge-danger ms-1">{{ $noLeidasNav }}</span>
-                  @endif
-                </a>
-              </li>
-            </ul>
-          </div>
-        </li>
+  <a class="nav-link" href="#" data-menu-toggle aria-expanded="false">
+    <i class="mdi mdi-cart-outline menu-icon"></i>
+    <span class="menu-title">Ventas</span>
+    <i class="mdi mdi-chevron-right menu-arrow"></i>
+  </a>
+  <div class="submenu-wrapper">
+    <ul class="sub-menu">
+      <li class="nav-item">
+        <a class="nav-link" href="{{ route('admin.ventas.index') }}">Historial</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ route('admin.ventas.create') }}">Hacer venta</a>
+      </li>
+      
+      {{-- 🔥 NUEVA OPCIÓN: VENTAS INTERNAS --}}
+      <li class="nav-item">
+        <a class="nav-link" href="{{ route('admin.solicitudes.index') }}">
+          Ventas Internas
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a class="nav-link" href="{{ route('admin.notificaciones.index') }}">
+          Notificaciones
+          @if($noLeidasNav > 0)
+            <span class="badge badge-danger ms-1">{{ $noLeidasNav }}</span>
+          @endif
+        </a>
+      </li>
+    </ul>
+  </div>
+</li>
 
         <li class="nav-category">Análisis</li>
 

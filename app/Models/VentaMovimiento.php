@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class VentaMovimiento extends Model
 {
@@ -14,6 +15,7 @@ class VentaMovimiento extends Model
     protected $fillable = [
         'venta_detalle_id',
         'stock_user_id',
+        'deposito_id',
         'cantidad',
     ];
 
@@ -29,5 +31,9 @@ class VentaMovimiento extends Model
     public function stockUser()
     {
         return $this->belongsTo(User::class, 'stock_user_id');
+    }
+    public function deposito(): BelongsTo
+    {
+        return $this->belongsTo(Deposito::class, 'deposito_id');
     }
 }
