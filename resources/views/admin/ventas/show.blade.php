@@ -69,21 +69,27 @@
   .table-detalle tbody tr:last-child td { border-bottom: none; }
   .table-detalle .text-end { text-align: right; }
 
+  /* Estilos para los movimientos */
   .movimiento-item {
-    display: flex; align-items: center; gap: 0.5rem;
-    font-size: 0.78rem; padding: 0.3rem 0.6rem;
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-size: 0.75rem; padding: 0.3rem 0.6rem;
     background: var(--surface-alpha);
     border: 1px solid var(--line);
     border-radius: var(--r-pill);
     margin-bottom: 0.3rem;
-    width: fit-content;
   }
   .movimiento-item.es-propio {
     background: color-mix(in srgb, var(--cyan) 8%, transparent);
     border-color: var(--line-strong);
   }
-  .movimiento-item .mdi { color: var(--cyan); font-size: 0.9rem; }
+  .movimiento-item .mdi { color: var(--cyan); font-size: 0.85rem; }
   .movimiento-item strong { color: var(--ink); font-family: var(--font-display); }
+  .movimiento-item .tienda-tag {
+    display: inline-flex; align-items: center; gap: 0.2rem;
+    background: var(--bg-1); padding: 0.1rem 0.4rem;
+    border-radius: var(--r-sm); border: 1px solid var(--line);
+    color: var(--ink-muted); font-size: 0.68rem; font-weight: 600;
+  }
 
   .totales-box {
     max-width: 340px; margin-left: auto; margin-top: 1rem;
@@ -241,7 +247,7 @@
               </td>
               <td class="text-end">
                 {{ rtrim(rtrim(number_format($d->cantidad, 2, '.', ''), '0'), '.') }}
-                <small style="color:var(--ink-muted);">{{ $d->producto->unidad_base ?? 'unidades' }}</small>
+                <small style="color:var(--ink-muted);">{{ $d->unidad ?? 'unidad' }}</small>
               </td>
               <td class="text-end">Bs. {{ number_format($d->precio_unitario, 2) }}</td>
               <td class="text-end"><strong>Bs. {{ number_format($d->subtotal, 2) }}</strong></td>
@@ -251,6 +257,13 @@
                     <i class="mdi mdi-account"></i>
                     <span>{{ $mov->stockUser->name ?? '—' }}</span>
                     <strong>× {{ rtrim(rtrim(number_format($mov->cantidad, 2, '.', ''), '0'), '.') }}</strong>
+                    
+                    {{-- 🔥 MOSTRAMOS LA TIENDA DE ORIGEN 🔥 --}}
+                    @if($mov->deposito)
+                      <span class="tienda-tag">
+                        <i class="mdi mdi-storefront"></i> {{ $mov->deposito->nombre }}
+                      </span>
+                    @endif
                   </div>
                 @endforeach
               </td>

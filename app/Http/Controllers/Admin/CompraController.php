@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Compra;
 use App\Models\CompraDetalle;
+use App\Models\Deposito;
 use App\Models\Producto;
 use App\Models\Proveedor;
 use App\Models\Stock;
@@ -17,7 +18,11 @@ class CompraController extends Controller
 {
     public function index()
     {
-        $compras = Compra::with(['user', 'proveedor'])
+        $compras = Compra::with([
+            'user',
+            'proveedor',
+            'detalles.deposito',
+        ])
             ->orderBy('id', 'desc')
             ->get();
 
@@ -26,22 +31,21 @@ class CompraController extends Controller
 
     public function create()
     {
-        $proveedores = Proveedor::where('estado', true)
-            ->orderBy('nombre')
-            ->get();
+        $proveedores = Proveedor::where('estado', true)->orderBy('nombre')->get();
 
         $admins = User::whereHas('role', function ($q) {
             $q->where('slug', 'administrador');
         })->orderBy('name')->get();
 
-        $productos = Producto::with(['tipoProducto.categoria'])
-            ->orderBy('nombre')
-            ->get();
+        $productos = Producto::with(['tipoProducto.categoria'])->orderBy('nombre')->get();
+
+        $depositos = Deposito::where('estado', true)->orderBy('nombre')->get();
 
         return view('admin.compras.create', compact(
             'proveedores',
             'admins',
-            'productos'
+            'productos',
+            'depositos'
         ));
     }
 
@@ -85,6 +89,7 @@ class CompraController extends Controller
                 CompraDetalle::create([
                     'compra_id'            => $compra->id,
                     'producto_id'          => $item['producto_id'],
+                    'deposito_id'          => $item['deposito_id'] ?? $request->deposito_id,
                     'cantidad'             => $cantidad,
                     'unidad_compra'        => $unidadCompra,
                     'unidades_por_paquete' => $upp,
@@ -121,6 +126,7 @@ class CompraController extends Controller
             'user',
             'proveedor',
             'detalles.producto.tipoProducto.categoria',
+            'detalles.deposito',
         ]);
 
         return view('admin.compras.show', compact('compra'));
@@ -136,22 +142,20 @@ class CompraController extends Controller
 
         $compra->load('detalles');
 
-        $proveedores = Proveedor::where('estado', true)
-            ->orderBy('nombre')
-            ->get();
+        $proveedores = Proveedor::where('estado', true)->orderBy('nombre')->get();
 
         $admins = User::whereHas('role', function ($q) {
             $q->where('slug', 'administrador');
         })->orderBy('name')->get();
 
-        $productos = Producto::with(['tipoProducto.categoria'])
-            ->orderBy('nombre')
-            ->get();
+        $productos = Producto::with(['tipoProducto.categoria'])->orderBy('nombre')->get();
 
-        // ⬇️ NUEVO: preparar las líneas para el JS
+        $depositos = Deposito::where('estado', true)->orderBy('nombre')->get();
+
         $lineasExistentes = $compra->detalles->map(function ($d) {
             return [
                 'producto_id'          => $d->producto_id,
+                'deposito_id'          => $d->deposito_id,
                 'cantidad'             => (float) $d->cantidad,
                 'unidad_compra'        => $d->unidad_compra,
                 'unidades_por_paquete' => (float) $d->unidades_por_paquete,
@@ -159,12 +163,20 @@ class CompraController extends Controller
             ];
         })->values();
 
+        // Detectar si todas las líneas comparten el mismo depósito
+        $depositosUnicos = $compra->detalles->pluck('deposito_id')->unique();
+        $todosMismoDeposito = $depositosUnicos->count() === 1;
+        $depositoComun = $todosMismoDeposito ? $depositosUnicos->first() : null;
+
         return view('admin.compras.edit', compact(
             'compra',
             'proveedores',
             'admins',
             'productos',
-            'lineasExistentes'  // ⬅️ NUEVO
+            'depositos',
+            'lineasExistentes',
+            'todosMismoDeposito',
+            'depositoComun'
         ));
     }
 
@@ -188,6 +200,7 @@ class CompraController extends Controller
         DB::beginTransaction();
 
         try {
+            // NOTA: no tocamos 'estado' → se mantiene en 'pendiente'
             $compra->update([
                 'user_id'       => $request->user_id,
                 'proveedor_id'  => $request->proveedor_id,
@@ -196,7 +209,6 @@ class CompraController extends Controller
                 'observaciones' => $request->observaciones,
             ]);
 
-            // Borrar detalles previos y recrear
             $compra->detalles()->delete();
 
             $subtotal = 0;
@@ -213,6 +225,7 @@ class CompraController extends Controller
                 CompraDetalle::create([
                     'compra_id'            => $compra->id,
                     'producto_id'          => $item['producto_id'],
+                    'deposito_id'          => $item['deposito_id'] ?? $request->deposito_id,
                     'cantidad'             => $cantidad,
                     'unidad_compra'        => $unidadCompra,
                     'unidades_por_paquete' => $upp,
@@ -255,24 +268,24 @@ class CompraController extends Controller
                 return back()->with('error', 'Estado no válido.');
             }
 
-            // Si estaba recibida y sale de recibida → restar stock
             if ($estadoAnterior === 'recibida' && $nuevoEstado !== 'recibida') {
                 foreach ($compra->detalles as $detalle) {
                     Stock::decrementar(
                         $compra->user_id,
                         $detalle->producto_id,
-                        (float) $detalle->cantidad_total
+                        (float) $detalle->cantidad_total,
+                        $detalle->deposito_id
                     );
                 }
             }
 
-            // Si no estaba recibida y ahora sí → sumar stock
             if ($estadoAnterior !== 'recibida' && $nuevoEstado === 'recibida') {
                 foreach ($compra->detalles as $detalle) {
                     Stock::incrementar(
                         $compra->user_id,
                         $detalle->producto_id,
-                        (float) $detalle->cantidad_total
+                        (float) $detalle->cantidad_total,
+                        $detalle->deposito_id
                     );
                 }
             }
@@ -320,6 +333,7 @@ class CompraController extends Controller
 
             'items'                          => ['required', 'array', 'min:1'],
             'items.*.producto_id'            => ['required', 'integer', 'exists:productos,id'],
+            'items.*.deposito_id'            => ['required', 'integer', 'exists:depositos,id'],
             'items.*.cantidad'               => ['required', 'numeric', 'min:0.01'],
             'items.*.unidad_compra'          => ['required', 'string', 'in:caja,bolsa,pieza,unidad,kg,m2'],
             'items.*.unidades_por_paquete'   => ['required', 'numeric', 'min:0.01'],
@@ -342,6 +356,9 @@ class CompraController extends Controller
 
             'items.*.producto_id.required' => 'Selecciona un producto en cada línea.',
             'items.*.producto_id.exists'   => 'El producto seleccionado no es válido.',
+
+            'items.*.deposito_id.required' => 'Selecciona el depósito destino en cada línea.',
+            'items.*.deposito_id.exists'   => 'El depósito seleccionado no es válido.',
 
             'items.*.cantidad.required' => 'La cantidad es obligatoria en cada línea.',
             'items.*.cantidad.min'      => 'La cantidad debe ser mayor a 0.',

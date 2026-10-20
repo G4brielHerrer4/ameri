@@ -60,12 +60,41 @@
   }
   .invalid-feedback { color: var(--error); font-size: 0.78rem; margin-top: 0.35rem; display: block; }
 
+  /* TOGGLE MISMO DEPÓSITO */
+  .deposito-toggle-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, var(--cyan) 4%, transparent);
+    margin-bottom: 1rem;
+    transition: all 0.3s var(--ease);
+  }
+  .deposito-toggle-card:hover {
+    background: color-mix(in srgb, var(--cyan) 8%, transparent);
+  }
+  .deposito-toggle-card .form-check-input {
+    width: 18px; height: 18px; margin-top: 2px;
+    cursor: pointer; accent-color: var(--cyan); flex-shrink: 0;
+  }
+  .deposito-toggle-card .form-check-label { cursor: pointer; margin: 0; }
+  .deposito-toggle-card .toggle-title {
+    font-family: var(--font-display); font-weight: 600;
+    font-size: 0.88rem; color: var(--ink);
+    display: block; margin-bottom: 0.15rem;
+  }
+  .deposito-toggle-card .toggle-hint {
+    font-size: 0.78rem; color: var(--ink-muted); margin: 0; line-height: 1.4;
+  }
+
   /* LÍNEAS */
   .lineas-tabla { width: 100%; border-collapse: separate; border-spacing: 0; }
   .lineas-tabla thead th {
     background: color-mix(in srgb, var(--bg-2) 60%, transparent);
     color: var(--ink-muted); font-family: var(--font-display);
-    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;
+    font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em;
     text-transform: uppercase; padding: 0.6rem 0.5rem;
     border-bottom: 1px solid var(--line); text-align: left;
     white-space: nowrap;
@@ -77,7 +106,12 @@
   .lineas-tabla tbody tr:last-child td { border-bottom: none; }
   .lineas-tabla .input-cell .form-control,
   .lineas-tabla .input-cell .form-select {
-    padding: 0.55rem 0.7rem; font-size: 0.85rem;
+    padding: 0.5rem 0.65rem; font-size: 0.82rem;
+  }
+  .lineas-tabla .form-select:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: color-mix(in srgb, var(--bg-2) 80%, transparent);
   }
   .linea-subtotal {
     font-family: var(--font-display); font-weight: 700;
@@ -212,8 +246,15 @@
 
   @if($errors->any())
     <div class="alert alert-danger mb-3">
-      <i class="mdi mdi-alert-circle me-1"></i>
-      Corrige los errores marcados abajo.
+      <div>
+        <i class="mdi mdi-alert-circle me-1"></i>
+        Corrige los errores marcados abajo.
+      </div>
+      <ul class="mb-0 mt-2" style="font-size:0.82rem;padding-left:1.1rem;">
+        @foreach($errors->all() as $error)
+          <li>{{ $error }}</li>
+        @endforeach
+      </ul>
     </div>
   @endif
 
@@ -273,7 +314,7 @@
                    class="form-control" value="{{ old('descuento', $compra->descuento) }}">
           </div>
 
-          <div class="col-12 mb-3">
+          <div class="col-12 mb-0">
             <label class="form-label">Observaciones</label>
             <textarea name="observaciones" rows="2" class="form-control"
                       placeholder="Notas internas sobre esta compra...">{{ old('observaciones', $compra->observaciones) }}</textarea>
@@ -291,17 +332,35 @@
 
         @error('items') <div class="alert alert-danger mb-3">{{ $message }}</div> @enderror
 
+        {{-- Toggle mismo depósito --}}
+        <div class="deposito-toggle-card" id="depositoToggleCard">
+          <input class="form-check-input"
+                 type="checkbox"
+                 id="checkMismoDeposito"
+                 name="mismo_deposito"
+                 value="1"
+                 {{ old('mismo_deposito', $todosMismoDeposito ?? false) ? 'checked' : '' }}>
+          <label class="form-check-label" for="checkMismoDeposito">
+            <span class="toggle-title">Usar el mismo depósito para todas las líneas</span>
+            <p class="toggle-hint">
+              Marca esta opción si toda la compra ingresa al mismo depósito.
+              Luego podrás cambiar el depósito de cada producto de forma individual.
+            </p>
+          </label>
+        </div>
+
         <div class="table-responsive mb-3">
           <table class="lineas-tabla" id="tablaLineas">
             <thead>
               <tr>
-                <th style="width: 28%;">Producto</th>
-                <th style="width: 11%;">Unidad</th>
-                <th style="width: 11%;">Cantidad</th>
-                <th style="width: 14%;">Precio Unit.</th>
-                <th style="width: 14%;">Total base</th>
-                <th style="width: 15%;">Subtotal</th>
-                <th style="width: 7%;"></th>
+                <th style="width: 24%;">Producto</th>
+                <th style="width: 18%;">Depósito destino</th>
+                <th style="width: 10%;">Unidad</th>
+                <th style="width: 10%;">Cantidad</th>
+                <th style="width: 12%;">Precio Unit.</th>
+                <th style="width: 11%;">Total base</th>
+                <th style="width: 12%;">Subtotal</th>
+                <th style="width: 3%;"></th>
               </tr>
             </thead>
             <tbody id="cuerpoLineas"></tbody>
@@ -365,6 +424,15 @@
     </td>
 
     <td class="input-cell">
+      <select name="items[__IDX__][deposito_id]" class="form-select deposito-linea-select" required>
+        <option value="">Seleccione...</option>
+        @foreach($depositos as $dep)
+          <option value="{{ $dep->id }}">{{ $dep->nombre }}</option>
+        @endforeach
+      </select>
+    </td>
+
+    <td class="input-cell">
       <select name="items[__IDX__][unidad_compra]" class="form-select unidad-select">
         <option value="caja">Caja</option>
         <option value="bolsa">Bolsa</option>
@@ -404,18 +472,20 @@
 
 {{-- Datos de las líneas actuales --}}
 <script id="lineasExistentes" type="application/json">{!! json_encode($lineasExistentes ?? []) !!}</script>
+<script id="depositoComunId" type="application/json">{!! json_encode($depositoComun ?? null) !!}</script>
 @endsection
 
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  const cuerpo      = document.getElementById('cuerpoLineas');
-  const template    = document.getElementById('templateLinea');
-  const btnAgregar  = document.getElementById('btnAgregarLinea');
-  const inputDesc   = document.getElementById('inputDescuento');
-  const txtSubtotal = document.getElementById('txtSubtotal');
-  const txtDesc     = document.getElementById('txtDescuento');
-  const txtTotal    = document.getElementById('txtTotal');
+  const cuerpo       = document.getElementById('cuerpoLineas');
+  const template     = document.getElementById('templateLinea');
+  const btnAgregar   = document.getElementById('btnAgregarLinea');
+  const inputDesc    = document.getElementById('inputDescuento');
+  const txtSubtotal  = document.getElementById('txtSubtotal');
+  const txtDesc      = document.getElementById('txtDescuento');
+  const txtTotal     = document.getElementById('txtTotal');
+  const checkMismo   = document.getElementById('checkMismoDeposito');
 
   let lineasExistentes = [];
   try {
@@ -423,6 +493,14 @@ document.addEventListener('DOMContentLoaded', function () {
     lineasExistentes = JSON.parse(raw) || [];
   } catch (e) {
     lineasExistentes = [];
+  }
+
+  let depositoComunId = null;
+  try {
+    const raw2 = document.getElementById('depositoComunId').textContent;
+    depositoComunId = JSON.parse(raw2);
+  } catch (e) {
+    depositoComunId = null;
   }
 
   let idx = 0;
@@ -441,6 +519,83 @@ document.addEventListener('DOMContentLoaded', function () {
       const totalStr = total % 1 === 0 ? total : total.toFixed(2);
       span.textContent = totalStr + ' ' + (unidadBase || 'unidad');
     }
+  }
+
+  /**
+   * Sincroniza los selects de depósito.
+   * - Si el check está marcado: toma el primer valor no vacío, lo replica
+   *   a todos, y los deshabilita.
+   * - Si no: los habilita a todos.
+   */
+  function sincronizarDepositos() {
+    const filas = cuerpo.querySelectorAll('.linea');
+    if (filas.length === 0) return;
+
+    const selects = [...filas].map(f => f.querySelector('.deposito-linea-select'));
+
+    if (checkMismo && checkMismo.checked) {
+      // Buscar el primer valor disponible: 1) primer select con valor,
+      // 2) depositoComunId, 3) nada.
+      let primerValor = selects.map(s => s.value).find(v => v) || depositoComunId || '';
+
+      if (primerValor) {
+        selects.forEach(s => {
+          s.value = primerValor;
+          s.disabled = true;
+        });
+      } else {
+        // Sin valor de referencia: dejar el primero habilitado para que el
+        // admin pueda elegir, y el resto deshabilitados.
+        selects.forEach((s, i) => {
+          s.disabled = i !== 0;
+        });
+        selects[0]?.focus();
+      }
+    } else {
+      selects.forEach(s => { s.disabled = false; });
+    }
+  }
+
+  /**
+   * Igual que sincronizarDepositos, pero además marca los selects
+   * como "disabled" de forma que el navegador envíe el valor.
+   * Truco: en vez de `disabled`, usamos `readonly` visual + input hidden
+   * para garantizar el envío. Lo resolvemos al momento del submit.
+   */
+  function prepararEnvio() {
+    // Antes del envío, si hay selects deshabilitados, agregamos
+    // un input hidden con su valor para que el form lo envíe.
+    cuerpo.querySelectorAll('.deposito-linea-select').forEach(sel => {
+      if (!sel.disabled) return;
+
+      const name = sel.getAttribute('name');
+      const valor = sel.value;
+
+      // Evitar duplicados
+      const previo = sel.parentElement.querySelector(`input[type="hidden"][data-sync="${name}"]`);
+      if (previo) previo.remove();
+
+      if (valor) {
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = name;
+        hidden.value = valor;
+        hidden.setAttribute('data-sync', name);
+        sel.parentElement.appendChild(hidden);
+      }
+    });
+  }
+
+  /**
+   * Quita los inputs hidden de sincronización (por si se reenvía el form
+   * sin recargar, o al recalcular, etc.)
+   */
+  function limpiarHiddensSync() {
+    cuerpo.querySelectorAll('input[type="hidden"][data-sync]').forEach(el => el.remove());
+  }
+
+  if (checkMismo) {
+    checkMismo.addEventListener('change', sincronizarDepositos);
   }
 
   function recalcular() {
@@ -494,13 +649,26 @@ document.addEventListener('DOMContentLoaded', function () {
     fila.querySelector('.precio-input').addEventListener('input', recalcular);
     fila.querySelector('.unidad-select').addEventListener('change', recalcular);
 
+    fila.querySelector('.deposito-linea-select').addEventListener('change', function () {
+      // Si el check está marcado, replicar a todos los demás
+      if (checkMismo && checkMismo.checked) {
+        const valor = this.value;
+        cuerpo.querySelectorAll('.deposito-linea-select').forEach(s => {
+          if (s !== this) s.value = valor;
+        });
+      }
+    });
+
     fila.querySelector('.btn-remove-line').addEventListener('click', function () {
       fila.remove();
       recalcular();
+      sincronizarDepositos();
     });
 
+    // Precargar datos si vienen del backend
     if (datosPre) {
       fila.querySelector('.producto-select').value = datosPre.producto_id;
+      fila.querySelector('.deposito-linea-select').value = datosPre.deposito_id || '';
       fila.querySelector('.unidad-select').value   = datosPre.unidad_compra || 'unidad';
       fila.querySelector('.cantidad-input').value  = datosPre.cantidad;
       fila.querySelector('.upp-input').value       = datosPre.unidades_por_paquete;
@@ -512,27 +680,81 @@ document.addEventListener('DOMContentLoaded', function () {
       if (opt?.dataset.detalle) {
         fila.querySelector('.detalle-linea').textContent = opt.dataset.detalle;
       }
+    } else {
+      // Si es una línea nueva y hay depósito común, heredarlo
+      if (depositoComunId) {
+        fila.querySelector('.deposito-linea-select').value = depositoComunId;
+      }
+      // Si el check está marcado, heredar el valor del primer select
+      else if (checkMismo && checkMismo.checked) {
+        const primerSelect = cuerpo.querySelector('.deposito-linea-select');
+        if (primerSelect && primerSelect.value) {
+          fila.querySelector('.deposito-linea-select').value = primerSelect.value;
+        }
+      }
     }
 
     cuerpo.appendChild(fila);
     recalcular();
+    sincronizarDepositos();
   }
 
   btnAgregar.addEventListener('click', () => agregarLinea());
   inputDesc.addEventListener('input', recalcular);
 
+  // Cargar líneas existentes o crear una nueva
   if (lineasExistentes.length > 0) {
     lineasExistentes.forEach(l => agregarLinea(l));
   } else {
     agregarLinea();
   }
 
+  // Sincronizar después de la precarga
+  sincronizarDepositos();
+
   document.getElementById('formCompra').addEventListener('submit', function (e) {
     if (this.dataset.confirmado === '1') return;
     e.preventDefault();
 
+    // 🔑 CRÍTICO: preparar inputs hidden para que los selects deshabilitados
+    // también viajen al servidor.
+    limpiarHiddensSync();
+    prepararEnvio();
+
+    const filas = cuerpo.querySelectorAll('.linea');
+
+    // Contar cuántas líneas NO tienen depósito (considerando hidden)
+    let faltan = 0;
+    filas.forEach(fila => {
+      const sel = fila.querySelector('.deposito-linea-select');
+      const hidden = fila.querySelector('input[type="hidden"][data-sync]');
+      const valor = sel.value || (hidden && hidden.value) || '';
+      if (!valor) faltan++;
+    });
+
+    if (faltan > 0) {
+      limpiarHiddensSync();
+      toastr.warning(
+        faltan === 1
+          ? 'Hay una línea sin depósito seleccionado.'
+          : `Hay ${faltan} líneas sin depósito seleccionado.`,
+        'Falta depósito'
+      );
+      const primeraSinDeposito = [...filas].find(f => {
+        const s = f.querySelector('.deposito-linea-select');
+        const h = f.querySelector('input[type="hidden"][data-sync]');
+        return !(s.value || (h && h.value));
+      });
+      if (primeraSinDeposito) {
+        const sel = primeraSinDeposito.querySelector('.deposito-linea-select');
+        sel.disabled = false;
+        sel.focus();
+      }
+      return;
+    }
+
     const total    = txtTotal.textContent;
-    const cantidad = cuerpo.querySelectorAll('.linea').length;
+    const cantidad = filas.length;
 
     Swal.fire({
       title: '¿Actualizar compra?',
@@ -542,7 +764,12 @@ document.addEventListener('DOMContentLoaded', function () {
           <strong style="color:var(--cyan);font-size:1.05rem;">${cantidad}</strong>
           producto${cantidad !== 1 ? 's' : ''}
         </p>
-        <p style="margin:0;font-size:0.9rem;">Total: <strong style="color:var(--cyan);">${total}</strong></p>
+        <p style="margin:0 0 0.35rem 0;font-size:0.9rem;">
+          Total: <strong style="color:var(--cyan);">${total}</strong>
+        </p>
+        <p style="margin:0;font-size:0.82rem;color:var(--ink-muted);">
+          La orden seguirá en estado <strong style="color:var(--warning);">pendiente</strong>.
+        </p>
       `,
       icon: 'question',
       showCancelButton: true,
@@ -556,6 +783,9 @@ document.addEventListener('DOMContentLoaded', function () {
       if (r.isConfirmed) {
         this.dataset.confirmado = '1';
         this.submit();
+      } else {
+        // Si cancela, limpiamos los hiddens para no ensuciar
+        limpiarHiddensSync();
       }
     });
   });

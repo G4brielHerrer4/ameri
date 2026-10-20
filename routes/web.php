@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\StockController;
 use App\Http\Controllers\Admin\VentaController;
 use App\Http\Controllers\Admin\ReporteController;
 use App\Http\Controllers\Admin\NotificacionController;
+use App\Http\Controllers\Admin\SolicitudStockController;
 use App\Http\Controllers\Vendedor\VendedorController;
 use App\Http\Controllers\Cliente\ClienteController;
 
@@ -209,6 +210,17 @@ Route::middleware([
         Route::prefix('reportes')->name('reportes.')->group(function () {
             Route::get('/', [ReporteController::class, 'index'])->name('index');
             Route::get('/exportar-pdf', [ReporteController::class, 'exportarPdf'])->name('exportar-pdf');
+        });
+
+        // ============================================================
+        // SOLICITUDES DE STOCK (VENTA INTERNA)
+        // ============================================================
+        Route::prefix('solicitudes-stock')->name('solicitudes.')->group(function () {
+            Route::get('/', [SolicitudStockController::class, 'index'])->name('index');
+            Route::post('/', [SolicitudStockController::class, 'store'])->name('store');
+            Route::post('/{solicitud}/aprobar', [SolicitudStockController::class, 'aprobar'])->name('aprobar');
+            Route::post('/{solicitud}/rechazar', [SolicitudStockController::class, 'rechazar'])->name('rechazar');
+            Route::post('/{solicitud}/recibir', [SolicitudStockController::class, 'recibir'])->name('recibir');
         });
 
     }); // ← cierre del grupo ADMIN

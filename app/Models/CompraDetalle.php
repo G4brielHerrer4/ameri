@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CompraDetalle extends Model
 {
@@ -14,6 +15,7 @@ class CompraDetalle extends Model
     protected $fillable = [
         'compra_id',
         'producto_id',
+        'deposito_id',
         'cantidad',
         'unidad_compra',
         'unidades_por_paquete',
@@ -38,5 +40,10 @@ class CompraDetalle extends Model
     public function producto()
     {
         return $this->belongsTo(Producto::class);
+    }
+
+    public function deposito(): BelongsTo
+    {
+        return $this->belongsTo(Deposito::class);
     }
 }

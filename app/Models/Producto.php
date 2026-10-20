@@ -138,5 +138,10 @@ class Producto extends Model
         return $this->hasMany(VentaDetalle::class);
     }
 
+        public function preciosAdmin()
+    {
+        return $this->hasMany(PrecioProductoAdmin::class);
+    }
+
     
 }
