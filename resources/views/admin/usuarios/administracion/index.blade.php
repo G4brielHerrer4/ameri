@@ -1,4 +1,3 @@
-
 {{-- resources/views/admin/usuarios/administracion/index.blade.php --}}
 @extends('layouts.plantilla_maestra')
 

@@ -1521,7 +1521,6 @@
             </ul>
           </div>
         </li>
-
         <li class="nav-item">
           <a class="nav-link" href="{{ route('admin.suministros.index') }}">
             <i class="mdi mdi-truck-delivery-outline menu-icon"></i>
@@ -1587,6 +1586,13 @@
             <i class="mdi mdi-chart-box-outline menu-icon"></i>
             <span class="menu-title">Filtrar reportes</span>
           </a>
+        </li>
+         <li class="nav-category">Gestión de Camión</li>
+         <li class="nav-item">
+            <a href="{{ route('admin.camion.index') }}" class="nav-link">
+                <i class="mdi mdi-truck-outline menu-icon"></i>
+                <span class="menu-title">Gestión de camión</span>
+            </a>
         </li>
 
         <li class="nav-category">Sistema</li>

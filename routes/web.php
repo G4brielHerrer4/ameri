@@ -222,7 +222,41 @@ Route::middleware([
             Route::post('/{solicitud}/rechazar', [SolicitudStockController::class, 'rechazar'])->name('rechazar');
             Route::post('/{solicitud}/recibir', [SolicitudStockController::class, 'recibir'])->name('recibir');
         });
+       
+        Route::prefix('camion')->name('camion.')->controller(
+            \App\Http\Controllers\Admin\CamionController::class
+        )->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/crear', 'create')->name('create');
 
+            // Choferes
+            Route::post('/choferes', 'guardarChofer')->name('choferes.store');
+            Route::put('/choferes/{chofer}', 'actualizarChofer')->name('choferes.update');
+            Route::patch('/choferes/{chofer}/estado', 'cambiarEstadoChofer')->name('choferes.estado');
+            Route::delete('/choferes/{chofer}', 'eliminarChofer')->name('choferes.destroy');
+
+            // Viajes y cobros
+            Route::post('/viajes', 'guardarViaje')->name('viajes.store');
+            Route::put('/viajes/{viaje}', 'actualizarViaje')->name('viajes.update');
+            Route::patch('/viajes/{viaje}/estado-pago', 'cambiarEstadoPago')->name('viajes.estado-pago');
+            Route::delete('/viajes/{viaje}', 'eliminarViaje')->name('viajes.destroy');
+
+            // Gastos
+            Route::post('/gastos', 'guardarGasto')->name('gastos.store');
+            Route::put('/gastos/{gasto}', 'actualizarGasto')->name('gastos.update');
+            Route::delete('/gastos/{gasto}', 'eliminarGasto')->name('gastos.destroy');
+            Route::get('/gastos/{gasto}/comprobante', 'comprobante')
+                ->name('gastos.comprobante');
+            Route::get('/choferes/{chofer}/editar', 'editarChofer')
+                ->name('choferes.edit');
+
+            Route::get('/viajes/{viaje}/editar', 'editarViaje')
+                ->name('viajes.edit');
+
+            Route::get('/gastos/{gasto}/editar', 'editarGasto')
+                ->name('gastos.edit');
+            Route::get('/exportar-pdf', 'exportarPdf')->name('exportar-pdf');
+        });
     }); // ← cierre del grupo ADMIN
 
         // ============================================================
