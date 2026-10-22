@@ -1,4 +1,3 @@
-
 @extends('layouts.plantilla_maestra')
 
 @section('title', 'Gestión de Camión - AMERI')
@@ -458,6 +457,55 @@
             flex: 1;
         }
     }
+        /* =========================================
+    DATATABLES - GESTIÓN DEL CAMIÓN
+    ========================================= */
+    .camion-panel .dataTables_wrapper {
+        color: var(--ink);
+        font-size: .85rem;
+    }
+
+    .camion-panel .dataTables_length,
+    .camion-panel .dataTables_filter,
+    .camion-panel .dataTables_info,
+    .camion-panel .dataTables_paginate {
+        margin: .7rem 0;
+        color: var(--ink-muted) !important;
+    }
+
+    .camion-panel .dataTables_length select,
+    .camion-panel .dataTables_filter input {
+        background: var(--bg-2);
+        color: var(--ink);
+        border: 1px solid var(--line);
+        border-radius: var(--r-md);
+        padding: .45rem .65rem;
+        outline: none;
+    }
+
+    .camion-panel .dataTables_filter input:focus {
+        border-color: var(--cyan);
+    }
+
+    .camion-panel .dataTables_paginate .paginate_button {
+        border-radius: var(--r-md) !important;
+        color: var(--ink) !important;
+    }
+
+    .camion-panel .dataTables_paginate .paginate_button.current,
+    .camion-panel .dataTables_paginate .paginate_button.current:hover {
+        background: var(--cyan) !important;
+        color: var(--cyan-ink) !important;
+        border: 1px solid var(--cyan) !important;
+    }
+
+    .camion-panel .dataTables_paginate .paginate_button.disabled {
+        opacity: .4;
+    }
+
+    .camion-panel .dataTables_wrapper .dataTables_scroll {
+        width: 100%;
+    }
 </style>
 @endpush
 
@@ -479,7 +527,7 @@
 
         <div class="camion-actions">
             <a href="{{ route('admin.camion.create', ['tipo' => 'chofer']) }}"
-               class="camion-btn">
+               class="camion-btn secondary">
                 <i class="mdi mdi-account-plus-outline"></i>
                 Registrar chofer
             </a>
@@ -495,7 +543,10 @@
                 <i class="mdi mdi-cash-minus"></i>
                 Registrar gasto
             </a>
-             <a href="{{ route('admin.camion.exportar-pdf', request()->only(['desde', 'hasta'])) }}"
+            <a href="{{ route('admin.camion.exportar-pdf', [
+                'desde' => $desde,
+                'hasta' => $hasta
+                ]) }}"
                 class="camion-btn secondary"
                 title="Exportar el historial del período seleccionado">
                     <i class="mdi mdi-file-pdf-box"></i>
@@ -626,7 +677,7 @@
         </h2>
 
         <div class="camion-table-wrap">
-            <table class="camion-table">
+            <table id="tabla-choferes" class="camion-table">
                 <thead>
                     <tr>
                         <th>Chofer</th>
@@ -637,7 +688,7 @@
                 </thead>
 
                 <tbody>
-                    @forelse($choferes as $chofer)
+                    @foreach($choferes as $chofer)
                         <tr>
                             <td>{{ $chofer->nombre }}</td>
                             <td>{{ $chofer->telefono ?: '—' }}</td>
@@ -699,13 +750,7 @@
                                 </div>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="4" class="camion-empty">
-                                Todavía no hay choferes registrados.
-                            </td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>
@@ -721,11 +766,12 @@
         </h2>
 
         <div class="camion-table-wrap">
-            <table class="camion-table">
+            <table id="tabla-viajes" class="camion-table">
                 <thead>
                     <tr>
                         <th>Fecha</th>
                         <th>Chofer</th>
+                        <th>Registrado por</th>
                         <th>Ruta</th>
                         <th>Mercadería</th>
                         <th>Monto</th>
@@ -735,11 +781,12 @@
                 </thead>
 
                 <tbody>
-                    @forelse($viajes as $viaje)
+                    @foreach($viajes as $viaje)
                         <tr>
                             <td>{{ $viaje->fecha->format('d/m/Y') }}</td>
 
                             <td>{{ $viaje->chofer->nombre }}</td>
+                            <td>{{ $viaje->usuario?->name ?? 'No registrado' }}</td>
 
                             <td>
                                 {{ $viaje->origen }}
@@ -810,13 +857,7 @@
                                 </div>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="7" class="camion-empty">
-                                Todavía no hay viajes registrados.
-                            </td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>
@@ -832,20 +873,21 @@
         </h2>
 
         <div class="camion-table-wrap">
-            <table class="camion-table">
-                <thead>
+            <table id="tabla-gastos" class="camion-table">
+               <thead>
                     <tr>
                         <th>Fecha</th>
                         <th>Tipo</th>
                         <th>Descripción</th>
                         <th>Monto</th>
                         <th>Comprobante</th>
+                        <th>Registrado por</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
 
                 <tbody>
-                    @forelse($gastos as $gasto)
+                    @foreach($gastos as $gasto)
                         <tr>
                             <td>{{ $gasto->fecha->format('d/m/Y') }}</td>
 
@@ -876,7 +918,7 @@
                                     —
                                 @endif
                             </td>
-
+                                <td>{{ $gasto->usuario?->name ?? 'No registrado' }}</td>
                             <td>
                                 <div class="camion-actions">
 
@@ -909,13 +951,7 @@
                                 </div>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6" class="camion-empty">
-                                Todavía no hay gastos registrados.
-                            </td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>
@@ -923,6 +959,7 @@
 
 </div>
 @endsection
+
 
 {{-- =========================================
      TOASTR Y SWEETALERT2
@@ -1018,5 +1055,49 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
 });
+// =========================================
+// DATATABLES - CAMIÓN
+// =========================================
+if (typeof jQuery !== 'undefined' &&
+    jQuery.fn &&
+    jQuery.fn.DataTable) {
+
+    const configurarTabla = function(selector) {
+        jQuery(selector).DataTable({
+            pageLength: 5,
+            lengthMenu: [
+                [5, 10, -1],
+                [5, 10, 'Todos']
+            ],
+            paging: true,
+            searching: true,
+            ordering: true,
+            info: true,
+            autoWidth: false,
+            language: {
+                lengthMenu: 'Mostrar _MENU_ registros',
+                search: 'Buscar:',
+                zeroRecords: 'No se encontraron registros',
+                emptyTable: 'No hay registros disponibles',
+                info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+                infoEmpty: 'Mostrando 0 registros',
+                infoFiltered: '(filtrados de _MAX_ registros)',
+                paginate: {
+                    first: 'Primero',
+                    last: 'Último',
+                    next: 'Siguiente',
+                    previous: 'Anterior'
+                }
+            }
+        });
+    };
+
+    configurarTabla('#tabla-choferes');
+    configurarTabla('#tabla-viajes');
+    configurarTabla('#tabla-gastos');
+
+} else {
+    console.warn('DataTables no está cargado en la plantilla principal.');
+}
 </script>
 @endsection

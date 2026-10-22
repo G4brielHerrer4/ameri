@@ -19,13 +19,23 @@ class CamionController extends Controller
      */
     public function index(Request $request)
     {
-        $hoy = now()->toDateString();
+        $hoy = now();
 
-        $desde = $request->input('desde', $hoy);
-        $hasta = $request->input('hasta', $hoy);
+        $desde = $request->input(
+            'desde',
+            $hoy->copy()->subMonthNoOverflow()->toDateString()
+        );
 
-        $viajesQuery = CamionViaje::with('chofer');
-        $gastosQuery = CamionGasto::query();
+        $hasta = $request->input(
+            'hasta',
+            $hoy->toDateString()
+        );
+
+        // Cargar chofer y administrador que registró cada viaje.
+        $viajesQuery = CamionViaje::with(['chofer', 'usuario']);
+
+        // Cargar administrador que registró cada gasto.
+        $gastosQuery = CamionGasto::with('usuario');
 
         if ($desde) {
             $viajesQuery->whereDate('fecha', '>=', $desde);
@@ -238,6 +248,8 @@ class CamionController extends Controller
             ],
         ]);
 
+       $datos['user_id'] = auth()->id();
+
         CamionViaje::create($datos);
 
         return redirect()
@@ -344,6 +356,8 @@ class CamionController extends Controller
             $datos['comprobante'] = $request->file('comprobante')
                 ->store('camion/comprobantes', 'local');
         }
+
+       $datos['user_id'] = auth()->id();
 
         CamionGasto::create($datos);
 
@@ -503,8 +517,10 @@ class CamionController extends Controller
 
         return Storage::disk('local')->response($ruta);
     }
-    /**
- * Exportar el historial del camión a PDF según el período filtrado.
+   /**
+ * =========================================
+ * EXPORTAR REPORTE DEL CAMIÓN A PDF
+ * =========================================
  */
     public function exportarPdf(Request $request)
     {
@@ -513,11 +529,19 @@ class CamionController extends Controller
             'hasta' => ['nullable', 'date', 'after_or_equal:desde'],
         ]);
 
-        $desde = $datos['desde'] ?? null;
-        $hasta = $datos['hasta'] ?? null;
+        $hoy = now();
 
-        $viajesQuery = CamionViaje::with('chofer');
-        $gastosQuery = CamionGasto::query();
+        $desde = $datos['desde']
+            ?? $hoy->copy()->subMonthNoOverflow()->toDateString();
+
+        $hasta = $datos['hasta']
+            ?? $hoy->toDateString();
+
+        // Viajes con chofer y administrador que realizó el registro.
+        $viajesQuery = CamionViaje::with(['chofer', 'usuario']);
+
+        // Gastos con administrador que realizó el registro.
+        $gastosQuery = CamionGasto::with('usuario');
 
         if ($desde) {
             $viajesQuery->whereDate('fecha', '>=', $desde);
@@ -567,7 +591,9 @@ class CamionController extends Controller
 
         $pdf->setPaper('A4', 'landscape');
 
-        $nombreArchivo = 'reporte-camion-' . now()->format('Y-m-d-His') . '.pdf';
+        $nombreArchivo = 'reporte-camion-'
+            . now()->format('Y-m-d-His')
+            . '.pdf';
 
         return $pdf->download($nombreArchivo);
     }

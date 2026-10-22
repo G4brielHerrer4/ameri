@@ -10,6 +10,7 @@ class CamionViaje extends Model
     protected $table = 'camion_viajes';
 
     protected $fillable = [
+        'user_id',
         'chofer_id',
         'fecha',
         'origen',
@@ -28,5 +29,9 @@ class CamionViaje extends Model
     public function chofer(): BelongsTo
     {
         return $this->belongsTo(CamionChofer::class, 'chofer_id');
+    }
+    public function usuario(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }
