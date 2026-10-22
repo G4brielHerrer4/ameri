@@ -101,6 +101,20 @@ class ProductoController extends Controller
             ->with('active_tab', 'productos');
     }
 
+    public function buscarGlobal()
+    {
+        // Traemos los productos con sus relaciones de tipo y stock (con admin y depósito)
+        $productos = Producto::with([
+            'tipoProducto.categoria',
+            'stocks.user',
+            'stocks.deposito'
+        ])
+        ->orderBy('nombre')
+        ->get();
+
+        return view('admin.productos.buscar', compact('productos'));
+    }
+
 
     private function rules(Request $request): array
     {

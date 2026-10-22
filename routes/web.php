@@ -257,6 +257,11 @@ Route::middleware([
                 ->name('gastos.edit');
             Route::get('/exportar-pdf', 'exportarPdf')->name('exportar-pdf');
         });
+
+        // ============================================================
+        // BUSCAR PRODUCTO (VISTA GLOBAL)
+        // ============================================================
+        Route::get('/buscar-producto', [ProductoController::class, 'buscarGlobal'])->name('productos.buscar');
     }); // ← cierre del grupo ADMIN
 
         // ============================================================
