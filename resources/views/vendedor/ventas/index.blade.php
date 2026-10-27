@@ -68,6 +68,74 @@
   }
 
   /* =====================================================
+     STATS CARDS
+     ===================================================== */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+  .stat-card {
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: 1rem 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    transition: all 0.25s var(--ease);
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--stat-color, var(--cyan));
+    opacity: 0.85;
+  }
+  .stat-card:hover {
+    border-color: var(--line-strong);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px -16px var(--shadow);
+  }
+  .stat-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: var(--r-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    background: color-mix(in srgb, var(--stat-color, var(--cyan)) 14%, transparent);
+    color: var(--stat-color, var(--cyan));
+  }
+  .stat-info { min-width: 0; }
+  .stat-value {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.4rem;
+    color: var(--ink);
+    line-height: 1.1;
+  }
+  .stat-label {
+    font-size: 0.72rem;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    margin-top: 0.15rem;
+  }
+
+  .stat-card.stat-total      { --stat-color: var(--cyan); }
+  .stat-card.stat-pendiente  { --stat-color: var(--warning); }
+  .stat-card.stat-vendida    { --stat-color: var(--cyan); }
+  .stat-card.stat-cancelada  { --stat-color: var(--error); }
+
+  /* =====================================================
      FILTROS CHIP
      ===================================================== */
   .filter-bar {
@@ -128,7 +196,7 @@
   .panel-body { padding: 1.1rem 1.25rem; }
 
   /* =====================================================
-     DATATABLES — top y bottom en una fila
+     DATATABLES
      ===================================================== */
   .dataTables_wrapper {
     color: var(--ink) !important;
@@ -216,7 +284,7 @@
     font-size: 0.85rem !important;
     margin: 0 0 0 0.5rem !important;
     height: 36px !important;
-    min-width: 200px;
+    min-width: 220px;
     transition: border-color .18s ease, box-shadow .18s ease;
   }
   .dataTables_wrapper .dt-top .dataTables_filter input:focus {
@@ -347,6 +415,33 @@
     font-size: 0.9rem;
   }
 
+  .admin-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.82rem;
+    color: var(--ink-muted);
+  }
+  .admin-cell .avatar-mini {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--cyan), var(--cyan-2));
+    color: var(--cyan-ink);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+  .admin-cell strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
   /* =====================================================
      BADGES DE ESTADO
      ===================================================== */
@@ -383,20 +478,6 @@
     background: color-mix(in srgb, var(--error) 12%, transparent);
     color: var(--error);
     border: 1px solid color-mix(in srgb, var(--error) 40%, transparent);
-  }
-
-  .badge-tu {
-    display: inline-flex;
-    align-items: center;
-    background: var(--glow-soft);
-    color: var(--cyan);
-    font-size: 0.62rem;
-    font-weight: 700;
-    padding: 0.15rem 0.45rem;
-    border-radius: var(--r-pill);
-    margin-left: 0.35rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
 
   /* =====================================================
@@ -490,6 +571,31 @@
   }
 
   /* =====================================================
+     EMPTY STATE
+     ===================================================== */
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--ink-muted);
+  }
+  .empty-state .mdi {
+    font-size: 3.5rem;
+    color: var(--line-strong);
+    margin-bottom: 0.75rem;
+    display: block;
+  }
+  .empty-state h5 {
+    font-family: var(--font-display);
+    color: var(--ink);
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+  .empty-state p {
+    font-size: 0.88rem;
+    margin-bottom: 1rem;
+  }
+
+  /* =====================================================
      TOASTR
      ===================================================== */
   #toast-container > div {
@@ -537,7 +643,7 @@
   }
 
   /* =====================================================
-     SWEETALERT2 — con texto visible en dark y light
+     SWEETALERT2
      ===================================================== */
   .swal2-popup {
     background: var(--bg-1) !important;
@@ -632,6 +738,7 @@
      ===================================================== */
   @media (max-width: 991.98px) {
     .panel-body { padding: 1rem; }
+    .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 
   @media (max-width: 767.98px) {
@@ -679,6 +786,10 @@
     }
     .ventas-header h3 { font-size: 1.05rem; }
     .panel-body { padding: 0.9rem 1rem; }
+    .stats-grid { grid-template-columns: 1fr; gap: 0.5rem; }
+    .stat-card { padding: 0.8rem 0.9rem; }
+    .stat-icon { width: 36px; height: 36px; font-size: 1.05rem; }
+    .stat-value { font-size: 1.2rem; }
     .dataTables_wrapper .dataTables_paginate .page-item .page-link {
       padding: 0.3rem 0.55rem;
       min-width: 30px;
@@ -714,6 +825,38 @@
     $countMias       = $ventas->where('user_id', auth()->id())->count();
   @endphp
 
+  {{-- ==================== STATS CARDS ==================== --}}
+  <div class="stats-grid">
+    <div class="stat-card stat-total">
+      <div class="stat-icon"><i class="mdi mdi-chart-line"></i></div>
+      <div class="stat-info">
+        <div class="stat-value">{{ $countTodas }}</div>
+        <div class="stat-label">Total</div>
+      </div>
+    </div>
+    <div class="stat-card stat-pendiente">
+      <div class="stat-icon"><i class="mdi mdi-clock-outline"></i></div>
+      <div class="stat-info">
+        <div class="stat-value">{{ $countPendientes }}</div>
+        <div class="stat-label">Pendientes</div>
+      </div>
+    </div>
+    <div class="stat-card stat-vendida">
+      <div class="stat-icon"><i class="mdi mdi-check-circle-outline"></i></div>
+      <div class="stat-info">
+        <div class="stat-value">{{ $countVendidas }}</div>
+        <div class="stat-label">Vendidas</div>
+      </div>
+    </div>
+    <div class="stat-card stat-cancelada">
+      <div class="stat-icon"><i class="mdi mdi-close-circle-outline"></i></div>
+      <div class="stat-info">
+        <div class="stat-value">{{ $countCanceladas }}</div>
+        <div class="stat-label">Canceladas</div>
+      </div>
+    </div>
+  </div>
+
   {{-- ==================== FILTROS CHIP ==================== --}}
   <div class="filter-bar">
     <button type="button" class="filter-chip active" data-filter="all">
@@ -746,146 +889,175 @@
   {{-- ==================== TABLA ==================== --}}
   <div class="panel">
     <div class="panel-body">
-      <table id="tablaVentas" class="table dt-responsive nowrap" style="width:100%">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>N° Venta</th>
-            <th>Fecha</th>
-            <th>Cliente</th>
-            <th>Total</th>
-            <th>Estado</th>
-            <th class="text-end">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          @foreach($ventas as $venta)
-            <tr data-estado="{{ $venta->estado }}"
-                data-es-mia="{{ $venta->user_id === auth()->id() ? '1' : '0' }}">
-              <td>{{ $venta->id }}</td>
 
-              <td><span class="cell-code">{{ $venta->numero_venta }}</span></td>
-
-              <td>
-                <span class="cell-muted">
-                  <i class="mdi mdi-calendar" style="color:var(--cyan);"></i>
-                  {{ $venta->fecha_venta->format('d/m/Y') }}
-                </span>
-                <br>
-                <small class="cell-muted">
-                  <i class="mdi mdi-clock-outline" style="color:var(--cyan);"></i>
-                  {{ $venta->created_at ? $venta->created_at->format('H:i') : '—' }}
-                </small>
-              </td>
-
-              <td>
-                <span class="cell-strong">{{ $venta->cliente_nombre }}</span>
-                <br>
-                <small class="cell-muted">{{ $venta->cliente_documento }}</small>
-              </td>
-
-              <td><span class="cell-total">Bs. {{ number_format($venta->total, 2) }}</span></td>
-
-              <td>
-                @if($venta->estado === 'pendiente')
-                  <span class="status-badge status-pendiente">Pendiente</span>
-                @elseif($venta->estado === 'vendida')
-                  <span class="status-badge status-vendida">Vendida</span>
-                @else
-                  <span class="status-badge status-cancelada">Cancelada</span>
-                @endif
-              </td>
-
-              <td>
-                <div class="actions-cell">
-
-                  {{-- VER --}}
-                  <a href="{{ route('vendedor.ventas.show', $venta) }}"
-                     class="action-btn view"
-                     title="Ver detalle"
-                     aria-label="Ver detalle">
-                    <i class="mdi mdi-eye"></i>
-                  </a>
-
-                  {{-- EDITAR --}}
-                  @if($venta->estado === 'pendiente' && $venta->user_id === auth()->id())
-                    <a href="{{ route('vendedor.ventas.edit', $venta) }}"
-                       class="action-btn edit"
-                       title="Editar"
-                       aria-label="Editar">
-                      <i class="mdi mdi-pencil"></i>
-                    </a>
-                  @endif
-
-                  {{-- CONFIRMAR --}}
-                  @if($venta->estado === 'pendiente' && $venta->user_id === auth()->id())
-                    <form id="form-confirmar-{{ $venta->id }}"
-                          action="{{ route('vendedor.ventas.confirmar', $venta) }}"
-                          method="POST"
-                          class="d-none">
-                      @csrf @method('PATCH')
-                    </form>
-                    <button type="button"
-                            class="action-btn confirm"
-                            title="Confirmar venta"
-                            aria-label="Confirmar venta"
-                            onclick='confirmarVenta({
-                              numero: @json($venta->numero_venta),
-                              cliente: @json($venta->cliente_nombre),
-                              total: @json(number_format($venta->total, 2)),
-                              url: "form-confirmar-{{ $venta->id }}"
-                            })'>
-                      <i class="mdi mdi-check-circle"></i>
-                    </button>
-                  @endif
-
-                  {{-- CANCELAR --}}
-                  @if($venta->estado !== 'cancelada' && $venta->user_id === auth()->id())
-                    <form id="form-cancelar-{{ $venta->id }}"
-                          action="{{ route('vendedor.ventas.cancelar', $venta) }}"
-                          method="POST"
-                          class="d-none">
-                      @csrf @method('PATCH')
-                    </form>
-                    <button type="button"
-                            class="action-btn cancel"
-                            title="Cancelar venta"
-                            aria-label="Cancelar venta"
-                            onclick='cancelarVenta({
-                              numero: @json($venta->numero_venta),
-                              estado: @json($venta->estado),
-                              url: "form-cancelar-{{ $venta->id }}"
-                            })'>
-                      <i class="mdi mdi-close-circle"></i>
-                    </button>
-                  @endif
-
-                  {{-- ELIMINAR --}}
-                  @if($venta->estado !== 'vendida' && $venta->user_id === auth()->id())
-                    <form id="form-delete-{{ $venta->id }}"
-                          action="{{ route('vendedor.ventas.destroy', $venta) }}"
-                          method="POST"
-                          class="d-none">
-                      @csrf @method('DELETE')
-                    </form>
-                    <button type="button"
-                            class="action-btn delete"
-                            title="Eliminar"
-                            aria-label="Eliminar"
-                            onclick='eliminarVenta({
-                              numero: @json($venta->numero_venta),
-                              url: "form-delete-{{ $venta->id }}"
-                            })'>
-                      <i class="mdi mdi-delete"></i>
-                    </button>
-                  @endif
-
-                </div>
-              </td>
+      @if($ventas->isEmpty())
+        <div class="empty-state">
+          <i class="mdi mdi-cart-off"></i>
+          <h5>Aún no tienes ventas</h5>
+          <p>Cuando registres tu primera venta aparecerá aquí.</p>
+          <a href="{{ route('vendedor.ventas.create') }}" class="btn-nuevo">
+            <i class="mdi mdi-plus"></i> Registrar primera venta
+          </a>
+        </div>
+      @else
+        <table id="tablaVentas" class="table dt-responsive nowrap" style="width:100%">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>N° Venta</th>
+              <th>Fecha</th>
+              <th>Cliente</th>
+              <th>Administrador</th>
+              <th>Total</th>
+              <th>Estado</th>
+              <th class="text-end">Acciones</th>
             </tr>
-          @endforeach
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            @foreach($ventas as $venta)
+              <tr data-estado="{{ $venta->estado }}"
+                  data-es-mia="{{ $venta->user_id === auth()->id() ? '1' : '0' }}">
+                <td>{{ $venta->id }}</td>
+
+                <td><span class="cell-code">{{ $venta->numero_venta }}</span></td>
+
+                <td>
+                  <span class="cell-muted">
+                    <i class="mdi mdi-calendar" style="color:var(--cyan);"></i>
+                    {{ $venta->fecha_venta->format('d/m/Y') }}
+                  </span>
+                  <br>
+                  <small class="cell-muted">
+                    <i class="mdi mdi-clock-outline" style="color:var(--cyan);"></i>
+                    {{ $venta->created_at ? $venta->created_at->format('H:i') : '—' }}
+                  </small>
+                </td>
+
+                <td>
+                  <span class="cell-strong">{{ $venta->cliente_nombre }}</span>
+                  <br>
+                  <small class="cell-muted">{{ $venta->cliente_documento }}</small>
+                </td>
+
+                <td>
+                  @php
+                    $adminVenta = $venta->detalles->first()?->movimientos->first()?->stockUser;
+                    $nombreAdmin = $adminVenta->name ?? '—';
+                    $iniciales = collect(explode(' ', $nombreAdmin))->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
+                  @endphp
+                  @if($adminVenta)
+                    <div class="admin-cell">
+                      <span class="avatar-mini">{{ $iniciales }}</span>
+                      <strong>{{ $nombreAdmin }}</strong>
+                    </div>
+                  @else
+                    <span class="cell-muted">—</span>
+                  @endif
+                </td>
+
+                <td><span class="cell-total">Bs. {{ number_format($venta->total, 2) }}</span></td>
+
+                <td>
+                  @if($venta->estado === 'pendiente')
+                    <span class="status-badge status-pendiente">Pendiente</span>
+                  @elseif($venta->estado === 'vendida')
+                    <span class="status-badge status-vendida">Vendida</span>
+                  @else
+                    <span class="status-badge status-cancelada">Cancelada</span>
+                  @endif
+                </td>
+
+                <td>
+                  <div class="actions-cell">
+
+                    {{-- VER --}}
+                    <a href="{{ route('vendedor.ventas.show', $venta) }}"
+                       class="action-btn view"
+                       title="Ver detalle"
+                       aria-label="Ver detalle">
+                      <i class="mdi mdi-eye"></i>
+                    </a>
+
+                    {{-- EDITAR --}}
+                    @if($venta->estado === 'pendiente' && $venta->user_id === auth()->id())
+                      <a href="{{ route('vendedor.ventas.edit', $venta) }}"
+                         class="action-btn edit"
+                         title="Editar"
+                         aria-label="Editar">
+                        <i class="mdi mdi-pencil"></i>
+                      </a>
+                    @endif
+
+                    {{-- CONFIRMAR --}}
+                    @if($venta->estado === 'pendiente' && $venta->user_id === auth()->id())
+                      <form id="form-confirmar-{{ $venta->id }}"
+                            action="{{ route('vendedor.ventas.confirmar', $venta) }}"
+                            method="POST"
+                            class="d-none">
+                        @csrf @method('PATCH')
+                      </form>
+                      <button type="button"
+                              class="action-btn confirm"
+                              title="Confirmar venta"
+                              aria-label="Confirmar venta"
+                              onclick='confirmarVenta({
+                                numero: @json($venta->numero_venta),
+                                cliente: @json($venta->cliente_nombre),
+                                total: @json(number_format($venta->total, 2)),
+                                url: "form-confirmar-{{ $venta->id }}"
+                              })'>
+                        <i class="mdi mdi-check-circle"></i>
+                      </button>
+                    @endif
+
+                    {{-- CANCELAR --}}
+                    @if($venta->estado !== 'cancelada' && $venta->user_id === auth()->id())
+                      <form id="form-cancelar-{{ $venta->id }}"
+                            action="{{ route('vendedor.ventas.cancelar', $venta) }}"
+                            method="POST"
+                            class="d-none">
+                        @csrf @method('PATCH')
+                      </form>
+                      <button type="button"
+                              class="action-btn cancel"
+                              title="Cancelar venta"
+                              aria-label="Cancelar venta"
+                              onclick='cancelarVenta({
+                                numero: @json($venta->numero_venta),
+                                estado: @json($venta->estado),
+                                url: "form-cancelar-{{ $venta->id }}"
+                              })'>
+                        <i class="mdi mdi-close-circle"></i>
+                      </button>
+                    @endif
+
+                    {{-- ELIMINAR --}}
+                    @if($venta->estado !== 'vendida' && $venta->user_id === auth()->id())
+                      <form id="form-delete-{{ $venta->id }}"
+                            action="{{ route('vendedor.ventas.destroy', $venta) }}"
+                            method="POST"
+                            class="d-none">
+                        @csrf @method('DELETE')
+                      </form>
+                      <button type="button"
+                              class="action-btn delete"
+                              title="Eliminar"
+                              aria-label="Eliminar"
+                              onclick='eliminarVenta({
+                                numero: @json($venta->numero_venta),
+                                url: "form-delete-{{ $venta->id }}"
+                              })'>
+                        <i class="mdi mdi-delete"></i>
+                      </button>
+                    @endif
+
+                  </div>
+                </td>
+              </tr>
+            @endforeach
+          </tbody>
+        </table>
+      @endif
     </div>
   </div>
 </div>
@@ -941,7 +1113,7 @@ document.addEventListener('DOMContentLoaded', function () {
           Total: <strong>Bs. ${total}</strong>
         </p>
         <p style="font-size:0.82rem;">
-          Se <strong>descontará el stock</strong> de los administradores y se notificará a quienes prestaron.
+          Se <strong>descontará el stock</strong> del administrador y se le notificará.
         </p>
       `,
       icon: 'question',
@@ -970,7 +1142,7 @@ document.addEventListener('DOMContentLoaded', function () {
           "${numero}"
         </p>
         ${esVendida
-          ? '<p style="font-size:0.85rem;font-weight:600;">Se devolverá el stock a cada administrador de origen.</p>'
+          ? '<p style="font-size:0.85rem;font-weight:600;">Se devolverá el stock al administrador de origen.</p>'
           : '<p style="font-size:0.85rem;">La venta se marcará como cancelada.</p>'}
       `,
       icon: 'warning',
@@ -1020,6 +1192,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
   /* ==================== DATATABLES ==================== */
+  @if(!$ventas->isEmpty())
   const dtEspanol = {
     decimal: ',',
     emptyTable: 'No hay ventas registradas',
@@ -1050,11 +1223,12 @@ document.addEventListener('DOMContentLoaded', function () {
     order: [[0, 'desc']],
     autoWidth: false,
     columnDefs: [
-      { orderable: false, targets: [6] },
-      { responsivePriority: 1, targets: [1, 6] },
+      { orderable: false, targets: [7] },
+      { responsivePriority: 1, targets: [1, 7] },
       { responsivePriority: 2, targets: [3] },
-      { responsivePriority: 3, targets: [4, 5] },
+      { responsivePriority: 3, targets: [4, 5, 6] },
       { responsivePriority: 4, targets: [2] },
+      { responsivePriority: 5, targets: [0] },
     ],
     responsive: {
       details: { type: 'inline', target: 'tr' },
@@ -1073,7 +1247,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
       const filtro = this.dataset.filter;
 
-      // Limpiar filtros previos
       $.fn.dataTable.ext.search.pop();
 
       if (filtro === 'mias') {
@@ -1091,6 +1264,7 @@ document.addEventListener('DOMContentLoaded', function () {
       tabla.draw();
     });
   });
+  @endif
 
 });
 </script>
