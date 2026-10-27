@@ -612,7 +612,21 @@
                 <p class="fw-light text-muted mb-0">{{ Auth::user()->email ?? 'usuario@ameri.com' }}</p>
               </div>
               <a class="dropdown-item" href="#"><i class="dropdown-item-icon mdi mdi-account-outline me-2"></i>Mi perfil</a>
-              <a class="dropdown-item" href="#"><i class="dropdown-item-icon mdi mdi-message-text-outline me-2"></i>Mensajes</a>
+              @php
+                  $mensajesSinLeer = \App\Models\MensajeContacto::where('leido', false)->count();
+              @endphp
+
+              <a class="dropdown-item" href="{{ route('admin.mensajes.index') }}">
+                  <i class="dropdown-item-icon mdi mdi-message-text-outline me-2"></i>
+                  Mensajes
+
+                  @if ($mensajesSinLeer > 0)
+                      <span class="badge bg-danger rounded-pill ms-2">
+                          {{ $mensajesSinLeer }}
+                      </span>
+                  @endif
+              </a>
+
               <a class="dropdown-item" href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                 <i class="dropdown-item-icon mdi mdi-power me-2"></i>Cerrar sesión
               </a>
@@ -707,6 +721,12 @@
             <i class="mdi mdi-truck-outline menu-icon"></i>
             <span class="menu-title">Gestión de camión</span>
           </a>
+        </li>
+        <li class="nav-item">
+            <a href="{{ route('admin.catalogo.index') }}" class="nav-link">
+                <i class="mdi mdi-view-grid-outline menu-icon"></i>
+                <span class="menu-title">Catálogo de productos</span>
+            </a>
         </li>
 
         <li class="nav-category">Sistema</li>

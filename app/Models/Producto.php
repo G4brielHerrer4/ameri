@@ -30,6 +30,8 @@ class Producto extends Model
         'precio_venta_m2',
         'precio_venta_pieza',
         'precio_venta_bolsa',
+        'imagen_catalogo',
+        'visible_catalogo',
     ];
 
         protected $casts = [
@@ -42,6 +44,7 @@ class Producto extends Model
         'precio_venta_m2'     => 'decimal:2',
         'precio_venta_pieza'  => 'decimal:2',
         'precio_venta_bolsa'  => 'decimal:2',
+        'visible_catalogo' => 'boolean',
     ];
 
     /* ============================================================

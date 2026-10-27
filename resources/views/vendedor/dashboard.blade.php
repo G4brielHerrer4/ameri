@@ -304,7 +304,7 @@
     <div class="welcome-info">
       <p class="greeting"><i class="mdi mdi-account-tie"></i> Panel de vendedor</p>
       <h1>Hola, <span class="highlight">{{ Auth::user()->name }}</span></h1>
-      <p>Resumen de tu actividad · {{ now()->translatedFormat('l, d \\d\\e F \\d\\e Y') }}</p>
+     <p>Resumen de tu actividad · {{ now()->locale('es')->translatedFormat('l, d \d\e F \d\e Y') }}</p>
     </div>
     <div class="welcome-actions">
       <a href="{{ route('vendedor.ventas.create') }}" class="btn-welcome"><i class="mdi mdi-cart-plus"></i> Nueva venta</a>

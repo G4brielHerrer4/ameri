@@ -504,6 +504,12 @@
         </li>
 
         <li class="nav-category">Operaciones</li>
+         <li class="nav-item">
+          <a class="nav-link" href="{{ route('vendedor.productos.buscar') }}">
+            <i class="mdi mdi-magnify menu-icon"></i>
+            <span class="menu-title">Buscar Producto</span>
+          </a>
+        </li>
 
         <li class="nav-item">
           <a class="nav-link {{ request()->routeIs('vendedor.ventas.create') ? 'active' : '' }}" href="{{ route('vendedor.ventas.create') }}">

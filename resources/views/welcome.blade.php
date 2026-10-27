@@ -775,6 +775,80 @@
             }
             .section-header h2 .accent { color: var(--cyan); }
             .section-header p { color: var(--ink-muted); font-size: 1rem; line-height: 1.6; }
+     
+            /* ---------- PANEL COMERCIAL AMERI ---------- */
+            .ameri-visual {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-rows: repeat(2, minmax(100px, 1fr));
+                gap: 10px;
+                padding: 10px;
+                background: var(--bg-2);
+            }
+
+            .ameri-category {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 0.7rem;
+                min-width: 0;
+                padding: 1rem 0.5rem;
+                border: 1px solid var(--line);
+                border-radius: var(--r-md);
+                background: var(--bg-1);
+                color: var(--ink-muted);
+                text-align: center;
+                transition: transform 0.25s ease, border-color 0.25s ease;
+            }
+
+            .ameri-category:hover {
+                transform: translateY(-3px);
+                border-color: var(--cyan);
+            }
+
+            .ameri-category i {
+                font-size: 2rem;
+                color: var(--cyan);
+            }
+
+            .ameri-category span {
+                font-size: 0.85rem;
+                font-weight: 600;
+            }
+
+            .ameri-category-highlight {
+                background: color-mix(in srgb, var(--cyan) 10%, var(--bg-1));
+                border-color: color-mix(in srgb, var(--cyan) 45%, var(--line));
+            }
+
+            .ameri-spec-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                margin-top: 1.25rem;
+                text-decoration: none;
+            }
+
+            @media (max-width: 480px) {
+                .ameri-visual {
+                    grid-template-rows: repeat(2, minmax(85px, 1fr));
+                    gap: 7px;
+                    padding: 7px;
+                }
+
+                .ameri-category {
+                    padding: 0.75rem 0.35rem;
+                }
+
+                .ameri-category i {
+                    font-size: 1.6rem;
+                }
+
+                .ameri-category span {
+                    font-size: 0.78rem;
+                }
+            }
 
             /* ==================== FEATURES ==================== */
             .features {
@@ -1262,24 +1336,64 @@
                     </div>
                     <div class="hero-stats hero-fade" style="animation-delay:0.36s">
                         <div class="hero-stat"><h3>500+</h3><p>Proyectos realizados</p></div>
-                        <div class="hero-stat"><h3>20+</h3><p>Años de experiencia</p></div>
+                        <div class="hero-stat"><h3>10+</h3><p>Años de experiencia</p></div>
                         <div class="hero-stat"><h3>98%</h3><p>Satisfacción del cliente</p></div>
                     </div>
                 </div>
 
-                <div class="spec-panel hero-fade" style="animation-delay:0.2s">
-                    <div class="spec-panel-header">
-                        <h4>Ficha técnica</h4>
-                        <span>Serie Estándar</span>
+                    <div class="spec-panel hero-fade" style="animation-delay:0.2s">
+
+                        <div class="spec-panel-header">
+                            <h4>Soluciones para tus proyectos</h4>
+                            <span>AMERI · Bolivia</span>
+                        </div>
+
+                        <div class="spec-visual ameri-visual">
+                            <div class="ameri-category">
+                                <i class="mdi mdi-texture-box"></i>
+                                <span>Cerámicas</span>
+                            </div>
+
+                            <div class="ameri-category">
+                                <i class="mdi mdi-view-grid-outline"></i>
+                                <span>Porcelanatos</span>
+                            </div>
+
+                            <div class="ameri-category ameri-category-highlight">
+                                <i class="mdi mdi-trowel"></i>
+                                <span>Cemento cola</span>
+                            </div>
+
+                            <div class="ameri-category">
+                                <i class="mdi mdi-palette-outline"></i>
+                                <span>Acabados</span>
+                            </div>
+                        </div>
+
+                        <div class="spec-rows">
+                            <div class="spec-row">
+                                <span class="label">Variedad</span>
+                                <span class="value">Para cada espacio</span>
+                            </div>
+
+                            <div class="spec-row">
+                                <span class="label">Materiales</span>
+                                <span class="value">Calidad y diseño</span>
+                            </div>
+
+                            <div class="spec-row">
+                                <span class="label">Tu proyecto</span>
+                                <span class="value">Estamos para ayudarte</span>
+                            </div>
+                        </div>
+
+                        <a href="#products" class="btn-primary ameri-spec-btn">
+                            <i class="mdi mdi-arrow-right"></i>
+                            Explorar catálogo
+                        </a>
+
                     </div>
-                    <div class="spec-visual" id="spec-visual"></div>
-                    <div class="spec-rows">
-                        <div class="spec-row"><span class="label">Formato</span><span class="value">60 × 60 cm</span></div>
-                        <div class="spec-row"><span class="label">Absorción de agua</span><span class="value">&lt; 0.5%</span></div>
-                        <div class="spec-row"><span class="label">Resistencia a flexión</span><span class="value">Alta</span></div>
-                        <div class="spec-row"><span class="label">Uso recomendado</span><span class="value">Piso y pared</span></div>
-                    </div>
-                </div>
+
             </div>
         </section>
 
@@ -1342,15 +1456,15 @@
                     <div class="about-content reveal" data-delay="2">
                         <div class="section-header" style="margin-bottom:1.5rem;">
                             <div class="kicker"><span class="dot"></span><span>Quiénes somos</span></div>
-                            <h2>20 años construyendo <span class="accent">confianza</span></h2>
+                            <h2>10 años construyendo <span class="accent">confianza</span></h2>
                         </div>
-                        <p><strong>AMERI</strong> es una empresa boliviana con más de 20 años de trayectoria en el sector de la construcción y los acabados. Nos especializamos en la comercialización de <strong>cerámicos, porcelanatos y cemento cola</strong> de alta calidad.</p>
+                        <p><strong>AMERI</strong> es una empresa boliviana con más de 10 años de trayectoria en el sector de la construcción y los acabados. Nos especializamos en la comercialización de <strong>cerámicos, porcelanatos y cemento cola</strong> de alta calidad.</p>
                         <p>Trabajamos con las mejores marcas del mercado y ofrecemos productos que cumplen con estándares internacionales, aportando soluciones duraderas y estéticas para cada proyecto, desde viviendas hasta grandes obras comerciales.</p>
                         <p>Contamos con un equipo de expertos que te asesora en la elección del producto adecuado para tus necesidades.</p>
                         <div class="stats-grid">
-                            <div class="stat-item"><h4>20+</h4><p>Años de trayectoria</p></div>
+                            <div class="stat-item"><h4>10+</h4><p>Años de trayectoria</p></div>
                             <div class="stat-item"><h4>500+</h4><p>Proyectos</p></div>
-                            <div class="stat-item"><h4>50+</h4><p>Marcas aliadas</p></div>
+                            <div class="stat-item"><h4>10+</h4><p>Marcas aliadas</p></div>
                         </div>
                     </div>
                 </div>
@@ -1373,7 +1487,7 @@
                         <div class="product-info">
                             <h3>Cerámicos y porcelanatos</h3>
                             <p>Amplia variedad de diseños, texturas y formatos para pisos y paredes.</p>
-                            <a href="" class="product-link">Ver productos <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+                            <a href="{{ route('catalogo.categoria', ['categoria' => 1]) }}" class="product-link">Ver productos <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
                         </div>
                     </div>
                     <div class="product-card reveal" data-delay="2">
@@ -1383,7 +1497,7 @@
                         <div class="product-info">
                             <h3>Cemento cola</h3>
                             <p>Adhesivos de alta resistencia para todo tipo de instalaciones.</p>
-                            <a href="" class="product-link">Ver productos <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+                            <a href="{{ route('catalogo.categoria', ['categoria' => 2]) }}" class="product-link">Ver productos <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
                         </div>
                     </div>
                     <div class="product-card reveal" data-delay="3">
@@ -1393,7 +1507,7 @@
                         <div class="product-info">
                             <h3>Decorativos</h3>
                             <p>Soluciones específicas para cerámica, porcelanato y piedra.</p>
-                            <a href="" class="product-link">Ver productos <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+                            <a href="{{ route('catalogo.categoria', ['categoria' => 3]) }}" class="product-link">Ver productos <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
                         </div>
                     </div>
                 </div>
@@ -1412,65 +1526,158 @@
             </div>
         </section>
 
-        <!-- ==================== CONTACT ==================== -->
-        <section id="contact" class="contact">
-            <div class="container">
-                <div class="section-header reveal">
-                    <div class="kicker"><span class="dot"></span><span>Contacto</span></div>
-                    <h2>Hablemos de tu <span class="accent">próximo proyecto</span></h2>
-                </div>
-                <div class="contact-grid">
-                    <div class="contact-info reveal">
-                        <div class="contact-item">
-                            <div class="contact-icon">
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            </div>
-                            <div class="contact-text">
-                                <h4>Dirección</h4>
-                                <p>Av. Alfredo Franco Valle, Calle 8, El Alto - Bolivia</p>
-                            </div>
+            <!-- ==================== CONTACT ==================== -->
+            <section id="contact" class="contact">
+                <div class="container">
+
+                    <div class="section-header reveal">
+                        <div class="kicker">
+                            <span class="dot"></span>
+                            <span>Contacto</span>
                         </div>
-                        <div class="contact-item">
-                            <div class="contact-icon">
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-                            </div>
-                            <div class="contact-text">
-                                <h4>Teléfono</h4>
-                                <p>+591 77513891</p>
-                            </div>
-                        </div>
-                        <div class="contact-item">
-                            <div class="contact-icon">
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                            </div>
-                            <div class="contact-text">
-                                <h4>Email</h4>
-                                <p>Fsalexander70@gmail.com</p>
-                            </div>
-                        </div>
+
+                        <h2>Hablemos de tu <span class="accent">próximo proyecto</span></h2>
                     </div>
-                    <form class="contact-form reveal" data-delay="2">
-                        <div class="form-group">
-                            <label for="c-nombre">Nombre completo</label>
-                            <input id="c-nombre" type="text" placeholder="Escribe tu nombre">
+
+                    <div class="contact-grid">
+
+                        <!-- INFORMACIÓN DE CONTACTO -->
+                        <div class="contact-info reveal">
+
+                            <div class="contact-item">
+                                <div class="contact-icon">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            stroke-width="1.5"
+                                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            stroke-width="1.5"
+                                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    </svg>
+                                </div>
+
+                                <div class="contact-text">
+                                    <h4>Dirección</h4>
+                                    <p>Av. Alfredo Franco Valle, Calle 8, El Alto - Bolivia</p>
+                                </div>
+                            </div>
+
+                            <div class="contact-item">
+                                <div class="contact-icon">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            stroke-width="1.5"
+                                            d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                                    </svg>
+                                </div>
+
+                                <div class="contact-text">
+                                    <h4>Teléfono</h4>
+                                    <p>+591 77513891</p>
+                                </div>
+                            </div>
+
+                            <div class="contact-item">
+                                <div class="contact-icon">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            stroke-width="1.5"
+                                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                    </svg>
+                                </div>
+
+                                <div class="contact-text">
+                                    <h4>Email</h4>
+                                    <p>Fsalexander70@gmail.com</p>
+                                </div>
+                            </div>
+
                         </div>
-                        <div class="form-group">
-                            <label for="c-email">Correo electrónico</label>
-                            <input id="c-email" type="email" placeholder="tu@correo.com">
+
+                        <!-- FORMULARIO DE CONTACTO -->
+                        <div class="contact-form-wrapper">
+
+                            @if (session('contacto_exito'))
+                                <div class="alert alert-success" role="status">
+                                    {{ session('contacto_exito') }}
+                                </div>
+                            @endif
+
+                            @if ($errors->any())
+                                <div class="alert alert-danger" role="alert">
+                                    <p>Por favor, revisa los siguientes errores:</p>
+                                    <ul>
+                                        @foreach ($errors->all() as $error)
+                                            <li>{{ $error }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+
+                            <form class="contact-form reveal"
+                                data-delay="2"
+                                action="{{ route('contacto.store') }}"
+                                method="POST">
+
+                                @csrf
+
+                                <div class="form-group">
+                                    <label for="c-nombre">Nombre completo</label>
+                                    <input
+                                        id="c-nombre"
+                                        name="nombre"
+                                        type="text"
+                                        placeholder="Escribe tu nombre"
+                                        maxlength="120"
+                                        value="{{ old('nombre') }}"
+                                        required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="c-email">Correo electrónico</label>
+                                    <input
+                                        id="c-email"
+                                        name="email"
+                                        type="email"
+                                        placeholder="tu@correo.com"
+                                        maxlength="150"
+                                        value="{{ old('email') }}"
+                                        required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="c-tel">Teléfono</label>
+                                    <input
+                                        id="c-tel"
+                                        name="telefono"
+                                        type="tel"
+                                        placeholder="+591 ..."
+                                        maxlength="30"
+                                        value="{{ old('telefono') }}">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="c-msg">Mensaje</label>
+                                    <textarea
+                                        id="c-msg"
+                                        name="mensaje"
+                                        rows="4"
+                                        maxlength="5000"
+                                        placeholder="Cuéntanos sobre tu proyecto"
+                                        required>{{ old('mensaje') }}</textarea>
+                                </div>
+
+                                <button type="submit" class="btn-primary">
+                                    Enviar mensaje
+                                </button>
+
+                            </form>
+
                         </div>
-                        <div class="form-group">
-                            <label for="c-tel">Teléfono</label>
-                            <input id="c-tel" type="tel" placeholder="+591 ...">
-                        </div>
-                        <div class="form-group">
-                            <label for="c-msg">Mensaje</label>
-                            <textarea id="c-msg" rows="4" placeholder="Cuéntanos sobre tu proyecto"></textarea>
-                        </div>
-                        <button type="submit" class="btn-primary">Enviar mensaje</button>
-                    </form>
+
+                    </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
         <!-- ==================== FOOTER ==================== -->
         <footer class="footer">
