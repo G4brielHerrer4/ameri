@@ -3,7 +3,6 @@
 namespace App\Actions\Fortify;
 
 use App\Models\User;
-use App\Models\Role;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
@@ -14,40 +13,40 @@ class CreateNewUser implements CreatesNewUsers
     use PasswordValidationRules;
 
     /**
-     * Validate and create a newly registered user.
+     * Crea un usuario registrado desde el formulario público.
      *
-     * @param array<string, string> $input
+     * Reglas:
+     *  - role_id = null (pendiente de asignación por un administrador)
+     *  - estado  = false (pendiente de aprobación)
+     *
+     * El admin puede asignar rol y activar después desde el CRUD.
      */
     public function create(array $input): User
     {
         Validator::make($input, [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'telefono' => ['nullable', 'string', 'max:30'],
+            'name'      => ['required', 'string', 'max:255'],
+            'email'     => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'telefono'  => ['nullable', 'string', 'max:30'],
             'direccion' => ['nullable', 'string', 'max:255'],
-            'password' => $this->passwordRules(),
-            'role_id' => ['nullable', 'exists:roles,id'],
-            'terms' => Jetstream::hasTermsAndPrivacyPolicyFeature()
+            'password'  => $this->passwordRules(),
+            'terms'     => Jetstream::hasTermsAndPrivacyPolicyFeature()
                 ? ['accepted', 'required']
                 : '',
+        ], [
+            'name.required'  => 'El nombre es obligatorio.',
+            'email.required' => 'El correo electrónico es obligatorio.',
+            'email.email'    => 'El correo electrónico no es válido.',
+            'email.unique'   => 'Este correo ya está registrado.',
         ])->validate();
 
-        // Si se envió un role_id, usar ese; si no, asignar 'cliente' por defecto.
-        if (isset($input['role_id']) && $input['role_id']) {
-            $roleId = $input['role_id'];
-        } else {
-            // Obtener el rol de Cliente (slug = 'cliente').
-            $clienteRole = Role::where('slug', 'cliente')->first();
-            $roleId = $clienteRole ? $clienteRole->id : null;
-        }
-
         return User::create([
-            'name' => $input['name'],
-            'email' => $input['email'],
-            'telefono' => $input['telefono'] ?? null,
+            'name'      => $input['name'],
+            'email'     => $input['email'],
+            'telefono'  => $input['telefono']  ?? null,
             'direccion' => $input['direccion'] ?? null,
-            'password' => Hash::make($input['password']),
-            'role_id' => $roleId,
+            'password'  => Hash::make($input['password']),
+            'role_id'   => null,   // Pendiente de asignación
+            'estado'    => false,  // Pendiente de aprobación
         ]);
     }
 }
