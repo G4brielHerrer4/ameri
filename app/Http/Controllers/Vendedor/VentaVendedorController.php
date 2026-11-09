@@ -8,6 +8,7 @@ use App\Models\Producto;
 use App\Models\SolicitudStock;
 use App\Models\SolicitudStockDetalle;
 use App\Models\Stock;
+use App\Models\PrecioProductoAdmin;
 use App\Models\User;
 use App\Models\Venta;
 use App\Models\VentaDetalle;
@@ -61,11 +62,13 @@ class VentaVendedorController extends Controller
             ->map(function ($grupo) {
                 $primero = $grupo->first();
                 return [
-                    'id'             => $primero->producto_id,
-                    'nombre'         => $primero->producto->nombre,
-                    'tipo'           => $primero->producto->tipoProducto?->nombre,
-                    'unidad_base'    => $primero->producto->unidad_base,
-                    'cantidad_total' => (float) $grupo->sum('cantidad'),
+                    'id'              => $primero->producto_id,
+                    'nombre'          => $primero->producto->nombre,
+                    'tipo'            => $primero->producto->tipoProducto?->nombre,
+                    'unidad_base'     => $primero->producto->unidad_base,
+                    'cantidad_total'  => (float) $grupo->sum('cantidad'),
+                    'piezas_por_caja' => (int) ($primero->producto->piezas_por_caja ?? 0),
+                    'm2_por_caja'     => (float) ($primero->producto->m2_por_caja ?? 0),
                 ];
             })
             ->values();
@@ -85,6 +88,9 @@ class VentaVendedorController extends Controller
 
         $admin = User::with('role')->find($adminId);
         abort_unless($admin && $admin->role?->slug === 'administrador', 422, 'Administrador inválido.');
+        $configPrecios = PrecioProductoAdmin::where('producto_id', $producto->id)
+        ->where('user_id', $adminId)
+        ->first();
 
         $producto->load('tipoProducto');
         $unidadesVenta = $this->unidadesVenta($producto);
@@ -135,12 +141,21 @@ class VentaVendedorController extends Controller
                 'unidades_venta'  => $unidadesVenta,
                 'piezas_por_caja' => (int) ($producto->piezas_por_caja ?? 0),
                 'm2_por_caja'     => (float) ($producto->m2_por_caja ?? 0),
-                'precios_venta'   => [
-                    'caja'  => $producto->precio_venta_caja  !== null ? (float) $producto->precio_venta_caja  : null,
-                    'm2'    => $producto->precio_venta_m2    !== null ? (float) $producto->precio_venta_m2    : null,
-                    'pieza' => $producto->precio_venta_pieza !== null ? (float) $producto->precio_venta_pieza : null,
-                    'bolsa' => $producto->precio_venta_bolsa !== null ? (float) $producto->precio_venta_bolsa : null,
-                ],
+                'precios_venta' => [
+                'caja' => $configPrecios?->precio_venta_caja !== null
+                    ? (float) $configPrecios->precio_venta_caja
+                    : null,
+
+                'm2' => null,
+
+                'pieza' => $configPrecios?->precio_venta_pieza !== null
+                    ? (float) $configPrecios->precio_venta_pieza
+                    : null,
+
+                'bolsa' => $configPrecios?->precio_venta_bolsa !== null
+                    ? (float) $configPrecios->precio_venta_bolsa
+                    : null,
+            ],
             ],
             'admin' => [
                 'id'   => $admin->id,
@@ -281,53 +296,152 @@ class VentaVendedorController extends Controller
 
         return view('vendedor.ventas.show', compact('venta'));
     }
+    /* =========================================================
+   RECIBO PDF — VENDEDOR
+   ========================================================= */
+    public function recibo(Venta $venta)
+    {
+        // El vendedor solamente puede imprimir sus propias ventas.
+        if ((int) $venta->user_id !== (int) auth()->id()) {
+            abort(403);
+        }
+
+        $venta->load([
+            'user',
+            'detalles.producto.tipoProducto',
+            'detalles.movimientos.stockUser',
+            'detalles.movimientos.deposito',
+        ]);
+
+        $cantidadDetalles = $venta->detalles->count();
+
+        $cantidadMovimientos = $venta->detalles->sum(
+            fn ($detalle) => $detalle->movimientos->count()
+        );
+
+        $alto = 650 + ($cantidadDetalles * 115) + ($cantidadMovimientos * 65);
+
+        if (!empty($venta->observaciones)) {
+            $alto += 100;
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView(
+            'admin.ventas.recibo',
+            compact('venta')
+        );
+
+        $pdf->setPaper([0, 0, 226.77, $alto], 'portrait');
+
+        return $pdf->stream(
+            'recibo-' . ($venta->numero_venta ?? $venta->id) . '.pdf'
+        );
+    }
 
     /* =========================================================
        EDIT / UPDATE
        ========================================================= */
-    public function edit(Venta $venta)
+   public function edit(Venta $venta)
     {
-        if ((int) $venta->user_id !== (int) auth()->id()) abort(403);
+        if ((int) $venta->user_id !== (int) auth()->id()) {
+            abort(403);
+        }
+
         if ($venta->estado !== 'pendiente') {
-            return redirect()->route('vendedor.ventas.index')->with('error', 'Solo ventas pendientes.');
+            return redirect()
+                ->route('vendedor.ventas.index')
+                ->with('error', 'Solo puedes editar ventas pendientes.');
         }
 
         $venta->load('detalles.movimientos');
 
-        $admins = User::whereHas('role', fn($q) => $q->where('slug', 'administrador'))
-            ->whereHas('stocks', fn($q) => $q->where('cantidad', '>', 0))
-            ->orderBy('name')->get();
+        // Obtener el administrador al que pertenecen los movimientos
+        $adminId = $venta->detalles
+            ->flatMap(fn($detalle) => $detalle->movimientos)
+            ->pluck('stock_user_id')
+            ->filter()
+            ->unique()
+            ->first();
 
-        $lineasExistentes = $venta->detalles->map(fn($d) => [
-            'producto_id'     => (int) $d->producto_id,
-            'cantidad'        => (float) $d->cantidad,
-            'unidad'          => $d->unidad,
-            'precio_unitario' => (float) $d->precio_unitario,
-            'movimientos'     => $d->movimientos->map(fn($m) => [
-                'stock_user_id' => (int) $m->stock_user_id,
-                'deposito_id'   => (int) $m->deposito_id,
-                'cantidad'      => (float) $m->cantidad,
-            ])->values()->all(),
-        ])->values()->all();
+        // Cargar administradores
+        $admins = User::whereHas('role', function ($q) {
+            $q->where('slug', 'administrador');
+        })
+            ->orderBy('name')
+            ->get();
 
-        return view('vendedor.ventas.edit', compact('venta', 'admins', 'lineasExistentes'));
+        // Recuperar los productos de la venta
+        $lineasExistentes = $venta->detalles->map(function ($d) {
+            return [
+                'producto_id' => (int) $d->producto_id,
+
+                // Recuperar los datos originales cuando existan.
+                // Para ventas antiguas se utilizan los campos anteriores.
+                'cantidad' => (float) (
+                    $d->cantidad_venta ?? $d->cantidad
+                ),
+
+                'unidad' => $d->unidad_venta ?? $d->unidad,
+
+                'precio_unitario' => (float) $d->precio_unitario,
+
+                'movimientos' => $d->movimientos->map(function ($m) {
+                    return [
+                        'stock_user_id' => (int) $m->stock_user_id,
+                        'deposito_id'   => (int) $m->deposito_id,
+                        'cantidad'      => (float) $m->cantidad,
+                    ];
+                })->values()->all(),
+            ];
+        })->values()->all();
+
+        return view('vendedor.ventas.edit', compact(
+            'venta',
+            'admins',
+            'adminId',
+            'lineasExistentes'
+        ));
     }
 
     public function update(Request $request, Venta $venta)
     {
-        if ((int) $venta->user_id !== (int) auth()->id()) abort(403);
-        if ($venta->estado !== 'pendiente') {
-            return redirect()->route('vendedor.ventas.index')->with('error', 'Solo ventas pendientes.');
+        if ((int) $venta->user_id !== (int) auth()->id()) {
+            abort(403);
         }
 
-        $validator = Validator::make($request->all(), $this->rules(), $this->messages());
+        if ($venta->estado !== 'pendiente') {
+            return redirect()
+                ->route('vendedor.ventas.index')
+                ->with('error', 'Solo ventas pendientes.');
+        }
+
+        $validator = Validator::make(
+            $request->all(),
+            $this->rules(),
+            $this->messages()
+        );
+
         if ($validator->fails()) {
-            return redirect()->route('vendedor.ventas.edit', $venta)->withErrors($validator)->withInput();
+            return redirect()
+                ->route('vendedor.ventas.edit', $venta)
+                ->withErrors($validator)
+                ->withInput();
         }
 
         DB::beginTransaction();
+
         try {
             $adminId = (int) $request->admin_id;
+
+            // Validar que el administrador seleccionado sea válido
+            $adminValido = User::where('id', $adminId)
+                ->whereHas('role', function ($q) {
+                    $q->where('slug', 'administrador');
+                })
+                ->exists();
+
+            if (!$adminValido) {
+                throw new \Exception('El administrador seleccionado no es válido.');
+            }
 
             $venta->update([
                 'cliente_nombre'    => $request->cliente_nombre,
@@ -338,9 +452,16 @@ class VentaVendedorController extends Controller
                 'observaciones'     => $request->observaciones,
             ]);
 
+            // Eliminar los detalles anteriores
             $venta->detalles()->delete();
 
-            $subtotal  = $this->procesarLineas($venta, $request->items, $adminId);
+            // Registrar nuevamente los productos y sus movimientos
+            $subtotal = $this->procesarLineas(
+                $venta,
+                $request->items,
+                $adminId
+            );
+
             $descuento = (float) ($request->descuento ?? 0);
 
             $venta->update([
@@ -349,13 +470,20 @@ class VentaVendedorController extends Controller
             ]);
 
             DB::commit();
-            return redirect()->route('vendedor.ventas.index')->with('success', 'Venta actualizada.');
+
+            return redirect()
+                ->route('vendedor.ventas.index')
+                ->with('success', 'Venta actualizada.');
+
         } catch (\Throwable $e) {
             DB::rollBack();
-            return redirect()->route('vendedor.ventas.edit', $venta)->withInput()->with('error', 'Error: ' . $e->getMessage());
+
+            return redirect()
+                ->route('vendedor.ventas.edit', $venta)
+                ->withInput()
+                ->with('error', 'Error: ' . $e->getMessage());
         }
     }
-
     /* =========================================================
        CONFIRMAR
        ========================================================= */
@@ -595,7 +723,12 @@ class VentaVendedorController extends Controller
                 throw new \Exception('El stock asignado no coincide con la cantidad física requerida.');
             }
 
-            $calculoPrecio = $this->calcularPrecioLinea($producto, $cantidad, $unidad);
+            $calculoPrecio = $this->calcularPrecioLinea(
+            $producto,
+            $cantidad,
+            $unidad,
+            $adminId
+        );
             $subtotal     += $calculoPrecio['subtotal'];
 
             $cantidadRegistrada = $cantidad;
@@ -608,9 +741,18 @@ class VentaVendedorController extends Controller
             $detalle = VentaDetalle::create([
                 'venta_id'        => $venta->id,
                 'producto_id'     => $producto->id,
+
+                // Datos que conserva el sistema actualmente
                 'cantidad'        => $cantidadRegistrada,
                 'unidad'          => $unidadRegistrada,
+
+                // Cantidad física utilizada para el inventario
                 'cantidad_stock'  => $cantidadStock,
+
+                // Datos originales ingresados por el vendedor
+                'cantidad_venta'  => $cantidad,
+                'unidad_venta'    => $unidad,
+
                 'precio_unitario' => $calculoPrecio['precio_unitario'],
                 'subtotal'        => $calculoPrecio['subtotal'],
             ]);
@@ -634,48 +776,97 @@ class VentaVendedorController extends Controller
     /* =========================================================
        HELPERS
        ========================================================= */
-    private function calcularPrecioLinea(Producto $producto, float $cantidad, string $unidad): array
-    {
-        if ($cantidad <= 0) throw new \Exception('La cantidad debe ser mayor que cero.');
 
-        $tipo       = mb_strtolower(trim((string) ($producto->tipoProducto?->nombre ?? '')), 'UTF-8');
-        $esCeramica = in_array($tipo, ['cerámica', 'ceramica', 'porcelanato'], true);
-
-        if (!$esCeramica) {
-            $precioUnitario = $this->obtenerPrecioVenta($producto, $unidad);
-            return ['precio_unitario' => $precioUnitario, 'subtotal' => round($cantidad * $precioUnitario, 2)];
+    private function calcularPrecioLinea(
+        Producto $producto,
+        float $cantidad,
+        string $unidad,
+        int $adminId
+    ): array {
+        if ($cantidad <= 0) {
+            throw new \Exception('La cantidad debe ser mayor que cero.');
         }
 
-        $precioCaja = (float) ($producto->precio_venta_caja ?? 0);
-        if ($precioCaja <= 0) throw new \Exception('Falta precio por caja.');
+        // Obtener los precios configurados por el administrador seleccionado.
+        $config = PrecioProductoAdmin::where('producto_id', $producto->id)
+            ->where('user_id', $adminId)
+            ->first();
+
+        $tipo = mb_strtolower(
+            trim((string) ($producto->tipoProducto?->nombre ?? '')),
+            'UTF-8'
+        );
+
+        $esCeramica = in_array(
+            $tipo,
+            ['cerámica', 'ceramica', 'porcelanato'],
+            true
+        );
+
+        // Productos que no son cerámica.
+        if (!$esCeramica) {
+            $precioUnitario = $this->obtenerPrecioVenta($config, $unidad);
+
+            return [
+                'precio_unitario' => $precioUnitario,
+                'subtotal' => round($cantidad * $precioUnitario, 2),
+            ];
+        }
+
+        // Precio de caja configurado por el administrador.
+        $precioCaja = (float) ($config?->precio_venta_caja ?? 0);
+
+        if ($precioCaja <= 0) {
+            throw new \Exception('El administrador no tiene configurado el precio de venta por caja.');
+        }
 
         switch ($unidad) {
+
             case 'caja':
-                if (floor($cantidad) != $cantidad) throw new \Exception('Cajas enteras.');
-                return ['precio_unitario' => $precioCaja, 'subtotal' => round($cantidad * $precioCaja, 2)];
+
+                if (floor($cantidad) != $cantidad) {
+                    throw new \Exception('La cantidad de cajas debe ser un número entero.');
+                }
+
+                return [
+                    'precio_unitario' => round($precioCaja, 2),
+                    'subtotal' => round($cantidad * $precioCaja, 2),
+                ];
 
             case 'm2':
-                $m2PorCaja     = (float) ($producto->m2_por_caja ?? 0);
-                $piezasPorCaja = (int) ($producto->piezas_por_caja ?? 0);
-                if ($m2PorCaja <= 0 || $piezasPorCaja <= 0) throw new \Exception('Faltan m² o piezas por caja.');
-                $m2PorPieza       = $m2PorCaja / $piezasPorCaja;
-                $piezasNecesarias = (int) ceil(($cantidad / $m2PorPieza) - 0.000000001);
-                $precioUnitario   = $precioCaja / $piezasPorCaja;
-                return ['precio_unitario' => round($precioUnitario, 2), 'subtotal' => round($piezasNecesarias * $precioUnitario, 2)];
+
+                $m2PorCaja = (float) ($producto->m2_por_caja ?? 0);
+
+                if ($m2PorCaja <= 0) {
+                    throw new \Exception('Falta configurar los m² por caja.');
+                }
+
+                $precioM2 = $precioCaja / $m2PorCaja;
+
+                return [
+                    'precio_unitario' => round($precioM2, 2),
+                    'subtotal' => round($cantidad * $precioM2, 2),
+                ];
 
             case 'pieza':
-                $piezasPorCaja = (int) ($producto->piezas_por_caja ?? 0);
-                if ($piezasPorCaja <= 0) throw new \Exception('Faltan piezas por caja.');
-                $precioUnitario = $precioCaja / $piezasPorCaja;
-                return ['precio_unitario' => round($precioUnitario, 2), 'subtotal' => round($cantidad * $precioUnitario, 2)];
+
+                // Se utiliza el precio independiente configurado por el administrador.
+                $precioPieza = $this->obtenerPrecioVenta($config, 'pieza');
+
+                return [
+                    'precio_unitario' => $precioPieza,
+                    'subtotal' => round($cantidad * $precioPieza, 2),
+                ];
 
             default:
-                throw new \Exception('Unidad inválida.');
+                throw new \Exception('Unidad de venta inválida.');
         }
     }
 
-    private function obtenerPrecioVenta(Producto $producto, string $unidad): float
-    {
+    private function obtenerPrecioVenta(
+        ?PrecioProductoAdmin $config,
+        string $unidad
+    ): float {
         $campoPrecio = match ($unidad) {
             'caja'  => 'precio_venta_caja',
             'm2'    => 'precio_venta_m2',
@@ -683,9 +874,19 @@ class VentaVendedorController extends Controller
             'bolsa' => 'precio_venta_bolsa',
             default => null,
         };
-        if ($campoPrecio === null) throw new \Exception('Unidad inválida.');
-        $precio = $producto->{$campoPrecio};
-        if ($precio === null || (float) $precio <= 0) throw new \Exception('No hay precio válido.');
+
+        if ($campoPrecio === null) {
+            throw new \Exception('Unidad inválida.');
+        }
+
+        $precio = $config?->{$campoPrecio};
+
+        if ($precio === null || (float) $precio <= 0) {
+            throw new \Exception(
+                'El administrador seleccionado no tiene un precio válido configurado para esta unidad.'
+            );
+        }
+
         return round((float) $precio, 2);
     }
 
@@ -751,7 +952,7 @@ class VentaVendedorController extends Controller
         return [
             'admin_id'          => ['required', 'integer', 'exists:users,id'],
             'cliente_nombre'    => ['required', 'string', 'max:150'],
-            'cliente_documento' => ['required', 'string', 'max:30'],
+            'cliente_documento' => ['nullable', 'string', 'max:30'],
             'cliente_telefono'  => ['nullable', 'string', 'max:30'],
             'fecha_venta'       => ['required', 'date'],
             'descuento'         => ['nullable', 'numeric', 'min:0'],
@@ -772,7 +973,6 @@ class VentaVendedorController extends Controller
         return [
             'admin_id.required'          => 'Debes seleccionar el administrador para esta venta.',
             'cliente_nombre.required'    => 'El nombre del cliente es obligatorio.',
-            'cliente_documento.required' => 'El CI/NIT del cliente es obligatorio.',
             'fecha_venta.required'       => 'La fecha de venta es obligatoria.',
             'items.required'             => 'Debes agregar al menos un producto a la venta.',
             'items.min'                  => 'Debes agregar al menos un producto a la venta.',

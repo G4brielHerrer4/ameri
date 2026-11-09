@@ -469,6 +469,148 @@
       page-break-inside: avoid;
     }
 
+
+  /* ============================================================
+    SECCIÓN NARANJA — COMPRAS CONFIRMADAS
+    ============================================================ */
+
+  .compras-section {
+      margin-bottom: 16px;
+  }
+
+  .compras-head {
+      display: table;
+      width: 100%;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-left: 4px solid #f97316;
+      border-radius: 6px;
+  }
+
+  .compras-head-title {
+      display: table-cell;
+      vertical-align: middle;
+      font-size: 11px;
+      font-weight: bold;
+      color: #9a3412;
+  }
+
+  .compras-head-total {
+      display: table-cell;
+      vertical-align: middle;
+      text-align: right;
+      font-size: 10px;
+      color: #9a3412;
+      font-weight: bold;
+  }
+
+  .compras-head-total .monto {
+      background: #f97316;
+      color: #ffffff;
+      padding: 3px 9px;
+      border-radius: 5px;
+      font-size: 10px;
+      margin-left: 5px;
+  }
+
+  .compra-card {
+      background: #ffffff;
+      border: 1px solid #fed7aa;
+      border-left: 3px solid #f97316;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      page-break-inside: avoid;
+  }
+
+  .compra-numero {
+      display: table-cell;
+      font-size: 9.5px;
+      font-weight: bold;
+      color: #c2410c;
+      vertical-align: middle;
+  }
+
+  .compra-proveedor {
+      font-size: 9.5px;
+      font-weight: bold;
+      color: #0a1013;
+      margin-bottom: 2px;
+  }
+
+  .compra-doc {
+      font-size: 7.5px;
+      color: #999;
+      margin-bottom: 6px;
+  }
+
+  .compra-productos {
+      background: #fff7ed;
+      border-radius: 4px;
+      padding: 5px 8px;
+      margin-bottom: 6px;
+  }
+
+  .compra-productos .label {
+      font-size: 7px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #9a3412;
+      font-weight: bold;
+      display: block;
+      margin-bottom: 3px;
+  }
+
+  .compra-producto-item {
+      font-size: 8px;
+      color: #555;
+      padding: 2px 0;
+      border-bottom: 1px dotted #fed7aa;
+  }
+
+  .compra-producto-item:last-child {
+      border-bottom: none;
+  }
+
+  .compra-producto-item .nombre {
+      color: #0a1013;
+      font-weight: bold;
+  }
+
+  .compra-producto-item .cantidad {
+      color: #c2410c;
+      font-weight: bold;
+      float: right;
+  }
+
+  .compra-footer {
+      display: table;
+      width: 100%;
+      padding-top: 6px;
+      border-top: 1px dashed #fed7aa;
+  }
+
+  .compra-monto {
+      display: table-cell;
+      text-align: right;
+      font-size: 11px;
+      font-weight: bold;
+      color: #ea580c;
+      vertical-align: middle;
+  }
+
+  .compras-empty {
+      padding: 20px 16px;
+      text-align: center;
+      background: #fff7ed;
+      border: 1px dashed #fed7aa;
+      border-radius: 7px;
+      color: #9a3412;
+      font-size: 9px;
+  }
+
     /* ============================================================
        RESUMEN FINANCIERO
        ============================================================ */
@@ -595,6 +737,159 @@
   </style>
 </head>
 <body>
+  @php
+
+      /*
+      |--------------------------------------------------------------------------
+      | FORMATEAR CANTIDADES FÍSICAS
+      |--------------------------------------------------------------------------
+      */
+
+      $formatearCantidadBase = function ($producto, $cantidadTotal) {
+
+          $cantidadTotal = (int) round((float) $cantidadTotal);
+
+          $unidadCompra = $producto?->unidad_compra ?? 'unidad';
+
+          // Cerámicas y porcelanatos: cajas + piezas
+          if ($unidadCompra === 'caja') {
+
+              $piezasPorCaja = max(
+                  1,
+                  (int) ($producto?->piezas_por_caja ?? 1)
+              );
+
+              $cajas = intdiv($cantidadTotal, $piezasPorCaja);
+              $piezas = $cantidadTotal % $piezasPorCaja;
+
+              $resultado = [];
+
+              if ($cajas > 0) {
+                  $resultado[] = $cajas . (
+                      $cajas === 1 ? ' caja' : ' cajas'
+                  );
+              }
+
+              if ($piezas > 0) {
+                  $resultado[] = $piezas . (
+                      $piezas === 1 ? ' pieza' : ' piezas'
+                  );
+              }
+
+              return count($resultado) > 0
+                  ? implode(' + ', $resultado)
+                  : '0 piezas';
+          }
+
+          // Cemento cola y pastinas
+          if ($unidadCompra === 'bolsa') {
+
+              return number_format($cantidadTotal, 0) . (
+                  $cantidadTotal === 1 ? ' bolsa' : ' bolsas'
+              );
+          }
+
+          // Demás productos
+          return number_format($cantidadTotal, 0) . (
+              $cantidadTotal === 1 ? ' pieza' : ' piezas'
+          );
+      };
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | FORMATEAR CANTIDADES DE VENTAS
+      |--------------------------------------------------------------------------
+      */
+
+      $formatearCantidadVenta = function ($detalle) use ($formatearCantidadBase) {
+
+          $producto = $detalle->producto;
+
+          $unidad = strtolower(trim(
+              $detalle->unidad_venta
+              ?? $detalle->unidad
+              ?? ''
+          ));
+
+          $cantidad = (float) (
+              $detalle->cantidad_venta
+              ?? $detalle->cantidad
+              ?? 0
+          );
+
+          $cantidadStock = (float) (
+              $detalle->cantidad_stock
+              ?? $cantidad
+          );
+
+          $unidadCompra = $producto?->unidad_compra ?? 'unidad';
+
+          // Cerámicas y porcelanatos
+          if ($unidadCompra === 'caja') {
+
+              if ($unidad === 'm2' || $unidad === 'm²') {
+
+                  $cantidadTexto = number_format(
+                      $cantidad,
+                      fmod($cantidad, 1) == 0 ? 0 : 2
+                  );
+
+                  return $cantidadTexto . ' m² (' .
+                      $formatearCantidadBase($producto, $cantidadStock) .
+                  ')';
+              }
+
+              if ($unidad === 'caja') {
+
+                  $cantidadTexto = number_format(
+                      $cantidad,
+                      fmod($cantidad, 1) == 0 ? 0 : 2
+                  );
+
+                  return $cantidadTexto . (
+                      $cantidad == 1 ? ' caja' : ' cajas'
+                  );
+              }
+
+              if ($unidad === 'pieza') {
+                  return $formatearCantidadBase(
+                      $producto,
+                      $cantidadStock
+                  );
+              }
+
+              return $formatearCantidadBase(
+                  $producto,
+                  $cantidadStock
+              );
+          }
+
+          // Cemento cola y pastinas
+          if ($unidadCompra === 'bolsa') {
+
+              $cantidadTexto = number_format(
+                  $cantidad,
+                  fmod($cantidad, 1) == 0 ? 0 : 2
+              );
+
+              return $cantidadTexto . (
+                  $cantidad == 1 ? ' bolsa' : ' bolsas'
+              );
+          }
+
+          // Los demás productos
+          $cantidadTexto = number_format(
+              $cantidad,
+              fmod($cantidad, 1) == 0 ? 0 : 2
+          );
+
+          return $cantidadTexto . (
+              $cantidad == 1 ? ' pieza' : ' piezas'
+          );
+      };
+
+  @endphp
 
 {{-- ====================================================
      HEADER
@@ -669,6 +964,34 @@
   </tr>
 </table>
 
+<table class="kpi-table">
+  <tr>
+    <td>
+      <div class="kpi-card naranja">
+          <div class="label">Total de Compras</div>
+
+
+          <div class="value">Bs. {{ number_format($totalCompras, 2) }}</div>
+
+          <div class="sub">
+              Compras registradas durante el período
+          </div>
+      </div>
+    </td>
+    <td>
+      <div class="kpi-card verde">
+          <div class="label">Balance de caja</div>
+          <div class="value">
+              Bs. {{ number_format($balanceCaja, 2) }}
+          </div>
+          <div class="sub">
+              Ingresos por ventas menos compras
+          </div>
+      </div>
+    </td>
+  </tr>
+</table>
+
 {{-- ====================================================
      KPIs SECUNDARIOS
      ==================================================== --}}
@@ -691,6 +1014,122 @@
     <td></td>
   </tr>
 </table>
+
+
+{{-- ====================================================
+     SECCIÓN NARANJA: COMPRAS CONFIRMADAS DEL PERÍODO
+     ==================================================== --}}
+
+<div class="compras-section">
+
+    <div class="compras-head">
+        <div class="compras-head-title">
+            ✓ Compras del período confirmadas
+            ({{ $comprasConfirmadas->count() }})
+        </div>
+
+        <div class="compras-head-total">
+            Total:
+            <span class="monto">
+                Bs. {{ number_format($totalCompras, 2) }}
+            </span>
+        </div>
+    </div>
+
+    @forelse($comprasConfirmadas as $compra)
+
+        <div class="compra-card">
+
+            <div class="venta-header">
+                <div class="compra-numero">
+                    {{ $compra->numero_orden ?? 'Compra #' . $compra->id }}
+                </div>
+
+                <div class="venta-fecha">
+                    {{ \Carbon\Carbon::parse($compra->fecha_compra)->format('d/m/Y') }}
+                </div>
+            </div>
+
+            <div class="compra-proveedor">
+                {{ $compra->proveedor->nombre ?? 'Proveedor no registrado' }}
+            </div>
+
+            <div class="compra-doc">
+                CI/NIT:
+                {{ $compra->proveedor->nit ?? 'No registrado' }}
+            </div>
+
+            <div class="venta-vendedor">
+                <span class="label">Comprador / Registrado por</span>
+                <span class="nombre">
+                    {{ $compra->user->name ?? 'Sin asignar' }}
+                </span>
+            </div>
+
+            @if($compra->detalles->count() > 0)
+
+                <div class="compra-productos">
+
+                    <span class="label">
+                        Productos ({{ $compra->detalles->count() }})
+                    </span>
+
+                    @foreach($compra->detalles as $detalle)
+
+                        <div class="compra-producto-item">
+
+                            <span class="nombre">
+                                {{ $detalle->producto->nombre ?? 'Producto eliminado' }}
+
+                                @if($detalle->producto && $detalle->producto->marca)
+                                    · {{ $detalle->producto->marca }}
+                                @endif
+                            </span>
+
+                          <span class="cantidad">
+                              @php
+                                  $producto = $detalle->producto;
+
+                                  $cantidadTotal = (float) ($detalle->cantidad_total ?? 0);
+
+                                  if ($cantidadTotal <= 0) {
+                                      $cantidadTotal = (float) $detalle->cantidad
+                                          * (float) ($detalle->unidades_por_paquete ?? 1);
+                                  }
+                              @endphp
+
+                              {{ $formatearCantidadBase($producto, $cantidadTotal) }}
+                          </span>
+
+                        </div>
+
+                    @endforeach
+
+                </div>
+
+            @endif
+
+            <div class="compra-footer">
+                <span class="venta-label">Total de compra</span>
+
+                <span class="compra-monto">
+                    Bs. {{ number_format($compra->total, 2) }}
+                </span>
+            </div>
+
+        </div>
+
+    @empty
+
+        <div class="compras-empty">
+            <strong>Sin compras confirmadas</strong><br>
+            No se registraron compras recibidas durante el período seleccionado.
+        </div>
+
+    @endforelse
+
+</div>
+
 
 {{-- ====================================================
      SECCIÓN VERDE: VENTAS DEL PERÍODO FILTRADO
@@ -743,9 +1182,9 @@
                     · {{ $detalle->producto->marca }}
                   @endif
                 </span>
-                <span class="cantidad">
-                  × {{ number_format($detalle->cantidad, 0) }}
-                </span>
+               <span class="cantidad">
+                  {{ $formatearCantidadVenta($detalle) }}
+              </span>
               </div>
             @endforeach
           </div>
@@ -818,7 +1257,7 @@
                   @endif
                 </span>
                 <span class="cantidad" style="color:#b91c3c;">
-                  × {{ number_format($detalle->cantidad, 0) }}
+                    {{ $formatearCantidadVenta($detalle) }}
                 </span>
               </div>
             @endforeach
@@ -847,22 +1286,30 @@
   <table>
     <tbody>
       <tr>
-        <td>Ingresos confirmados (ventas vendidas)</td>
-        <td>Bs. {{ number_format($montoTotal, 2) }}</td>
+          <td>Ingresos confirmados (ventas vendidas)</td>
+          <td>Bs. {{ number_format($ingresosVentas, 2) }}</td>
       </tr>
+
       <tr>
-        <td>Monto en ventas pendientes de cobro</td>
-        <td>Bs. {{ number_format($montoPendientes, 2) }}</td>
+          <td>Monto en ventas pendientes de cobro</td>
+          <td>Bs. {{ number_format($montoPendientes, 2) }}</td>
       </tr>
+
       <tr>
-        <td>Monto perdido (ventas canceladas)</td>
-        <td>Bs. {{ number_format($montoCanceladas, 2) }}</td>
+          <td>Monto perdido (ventas canceladas)</td>
+          <td>Bs. {{ number_format($montoCanceladas, 2) }}</td>
       </tr>
+
       <tr>
-        <td>INGRESOS TOTALES REALES</td>
-        <td>Bs. {{ number_format($montoTotal, 2) }}</td>
+          <td>Total de compras confirmadas</td>
+          <td>Bs. {{ number_format($totalCompras, 2) }}</td>
       </tr>
-    </tbody>
+
+      <tr>
+          <td>BALANCE DE CAJA</td>
+          <td>Bs. {{ number_format($balanceCaja, 2) }}</td>
+      </tr>
+  </tbody>
   </table>
 </div>
 
@@ -926,7 +1373,9 @@
                 <br><span class="text-muted">{{ $p->producto->marca }}</span>
               @endif
             </td>
-            <td class="text-center">{{ number_format($p->cantidad_total, 2) }}</td>
+            <td class="text-center">
+                {{ $formatearCantidadBase($p->producto, $p->cantidad_total) }}
+            </td>
             <td class="text-right text-cyan">Bs. {{ number_format($p->monto_total, 2) }}</td>
           </tr>
         @endforeach

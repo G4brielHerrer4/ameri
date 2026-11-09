@@ -623,20 +623,23 @@
     <div class="kpi-grid">
 
       <div class="kpi-card kpi-cyan">
-        <div class="kpi-head">
-          <p class="kpi-label">
-            @if($estado === 'cancelada')
-              Ventas canceladas
-            @elseif($estado === 'pendiente')
-              Ventas pendientes
-            @else
-              Ventas realizadas
-            @endif
-          </p>
-          <span class="kpi-icon"><i class="mdi mdi-cart-check"></i></span>
-        </div>
-        <p class="kpi-value">{{ number_format($totalVentas) }}</p>
-        <p class="kpi-sub">en el período</p>
+          <div class="kpi-head">
+              <p class="kpi-label">
+                  @if($estado === 'cancelada')
+                      Ventas canceladas
+                  @elseif($estado === 'pendiente')
+                      Ventas pendientes
+                  @else
+                      Ventas realizadas
+                  @endif
+              </p>
+              <span class="kpi-icon">
+                  <i class="mdi mdi-cart-check"></i>
+              </span>
+          </div>
+
+          <p class="kpi-value">{{ number_format($totalVentas) }}</p>
+          <p class="kpi-sub">en el período</p>
       </div>
 
       <div class="kpi-card kpi-green">
@@ -679,6 +682,44 @@
         <p class="kpi-value">{{ number_format($totalCanceladas) }}</p>
         <p class="kpi-sub">Bs. {{ number_format($montoCanceladas, 2) }} cancelado</p>
       </div>
+
+    </div>
+    {{-- ============================================
+     COMPRAS Y BALANCE DE CAJA
+    ============================================ --}}
+    <div class="kpi-grid kpi-grid-secondary">
+
+        {{-- TOTAL COMPRAS --}}
+        <div class="kpi-card kpi-orange">
+            <div class="kpi-head">
+                <p class="kpi-label">Total de compras</p>
+                <span class="kpi-icon">
+                    <i class="mdi mdi-cart-outline"></i>
+                </span>
+            </div>
+
+            <p class="kpi-value">
+                Bs. {{ number_format($totalCompras, 2) }}
+            </p>
+
+            <p class="kpi-sub">Compras registradas en el período</p>
+        </div>
+
+        {{-- BALANCE DE CAJA --}}
+        <div class="kpi-card kpi-green">
+            <div class="kpi-head">
+                <p class="kpi-label">Balance de caja</p>
+                <span class="kpi-icon">
+                    <i class="mdi mdi-cash-multiple"></i>
+                </span>
+            </div>
+
+            <p class="kpi-value {{ $balanceCaja < 0 ? 'text-danger' : '' }}">
+                Bs. {{ number_format($balanceCaja, 2) }}
+            </p>
+
+            <p class="kpi-sub">Ingresos por ventas menos compras</p>
+        </div>
 
     </div>
 

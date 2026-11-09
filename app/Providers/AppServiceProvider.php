@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Role;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Pagination\Paginator;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,5 +20,8 @@ class AppServiceProvider extends ServiceProvider
         View::composer(['auth.register', 'livewire.auth.register'], function ($view) {
             $view->with('roles', Role::all());
         });
+        {
+            Paginator::useBootstrapFive();
+        }
     }
 }

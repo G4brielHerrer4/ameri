@@ -142,6 +142,8 @@
                 Route::put('/{compra}',          [CompraController::class, 'update'])->name('update');
                 Route::patch('/{compra}/estado', [CompraController::class, 'cambiarEstado'])->name('estado');
                 Route::delete('/{compra}',       [CompraController::class, 'destroy'])->name('destroy');
+                Route::post('/{compra}/archivos', [CompraController::class, 'subirArchivos'])->name('archivos.store');
+                Route::delete('/{compra}/archivos/{archivo}', [CompraController::class, 'eliminarArchivo'])->name('archivos.destroy');
             });
 
             /* ---------- STOCK ---------- */
@@ -162,6 +164,7 @@
                 Route::patch('/{venta}/confirmar', [VentaController::class, 'confirmar'])->name('confirmar');
                 Route::patch('/{venta}/cancelar',  [VentaController::class, 'cancelar'])->name('cancelar');
                 Route::delete('/{venta}', [VentaController::class, 'destroy'])->name('destroy');
+                Route::get('/{venta}/recibo', [VentaController::class, 'recibo'])->name('recibo');
 
                 Route::get('/stock-producto/{producto}', [VentaController::class, 'stockProducto'])->name('stock-producto');
             });
@@ -216,7 +219,7 @@
                     Route::get('/exportar-pdf', 'exportarPdf')->name('exportar-pdf');
                 });
 
-                
+
                 /* ---------- CATÁLOGO PÚBLICO (ADMINISTRACIÓN) ---------- */
                 Route::prefix('catalogo')->name('catalogo.')->group(function () {
                     Route::get('/', [CatalogoController::class, 'index'])->name('index');
@@ -260,6 +263,9 @@
                     Route::get('/productos-admin/{admin}',   [VentaVendedorController::class, 'productosAdmin'])->name('productos-admin');
                     Route::get('/stock-producto/{producto}', [VentaVendedorController::class, 'stockProducto'])->name('stock-producto');
                     Route::post('/solicitar-venta-interna',  [VentaVendedorController::class, 'solicitarVentaInterna'])->name('solicitar-venta-interna');
+
+                    /* ---- RECIBO ---- */
+                    Route::get('/{venta}/recibo', [VentaVendedorController::class, 'recibo'])->name('recibo');
 
                     /* ---- CRUD con {venta} ---- */
                     Route::get('/{venta}/edit', [VentaVendedorController::class, 'edit'])->name('edit');

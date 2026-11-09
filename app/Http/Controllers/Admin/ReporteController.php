@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Venta;
 use App\Models\VentaDetalle;
 use App\Models\Producto;
+use App\Models\Compra;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Http\Request;
@@ -25,6 +26,33 @@ class ReporteController extends Controller
         $hasta = $request->filled('hasta')
             ? Carbon::parse($request->hasta)->endOfDay()
             : now()->endOfDay();
+
+        // ============================================
+        // COMPRAS DEL PERÍODO
+        // ============================================
+
+        $totalCompras = Compra::query()
+            ->whereBetween('fecha_compra', [
+                $desde->toDateString(),
+                $hasta->toDateString()
+            ])
+            ->where('estado', 'recibida')
+            ->sum('total');
+
+        // ============================================
+        // INGRESOS REALES POR VENTAS
+        // ============================================
+
+        $ingresosVentas = Venta::query()
+            ->whereBetween('fecha_venta', [$desde, $hasta])
+            ->where('estado', 'vendida')
+            ->sum('total');
+
+        // ============================================
+        // BALANCE DE CAJA
+        // ============================================
+
+        $balanceCaja = $ingresosVentas - $totalCompras;
 
         // ============================================================
         // 2. FILTROS
@@ -107,14 +135,17 @@ class ReporteController extends Controller
         // ============================================================
         $topProductos = VentaDetalle::query()
             ->whereIn('venta_id', (clone $queryReales)->pluck('id'))
-            ->selectRaw('
+          ->selectRaw('
                 producto_id,
-                SUM(cantidad) as cantidad_total,
+                SUM(cantidad_stock) as cantidad_total,
                 SUM(subtotal) as monto_total
             ')
             ->groupBy('producto_id')
             ->orderByDesc('monto_total')
-            ->with('producto:id,nombre,marca')
+            ->with([
+                'producto:id,nombre,marca,tipo_producto_id,piezas_por_caja',
+                'producto.tipoProducto:id,nombre',
+            ])
             ->take(5)
             ->get();
 
@@ -146,10 +177,14 @@ class ReporteController extends Controller
         // 12. TABLA DETALLE
         // ============================================================
         $ventas = (clone $queryReales)
-            ->with(['user:id,name', 'detalles.producto:id,nombre'])
+            ->with([
+                'user:id,name',
+                'detalles.producto:id,nombre,marca,tipo_producto_id,piezas_por_caja',
+                'detalles.producto.tipoProducto:id,nombre',
+            ])
             ->orderByDesc('fecha_venta')
             ->orderByDesc('id')
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return view('admin.reportes.index', compact(
@@ -172,7 +207,10 @@ class ReporteController extends Controller
             'ventasPorEstado',
             'vendedores',
             'productos',
-            'ventas'
+            'ventas',
+            'totalCompras',
+            'ingresosVentas',
+            'balanceCaja',
         ));
     }
 
@@ -192,6 +230,42 @@ class ReporteController extends Controller
         $hasta = $request->filled('hasta')
             ? Carbon::parse($request->hasta)->endOfDay()
             : now()->endOfDay();
+
+            // ============================================================
+            // COMPRAS Y BALANCE DE CAJA
+            // ============================================================
+
+                // ============================================================
+        // COMPRAS CONFIRMADAS DEL PERÍODO
+        // ============================================================
+
+        $comprasConfirmadas = Compra::query()
+            ->whereBetween('fecha_compra', [
+                $desde->toDateString(),
+                $hasta->toDateString()
+            ])
+            ->where('estado', 'recibida')
+            ->with([
+                'user:id,name',
+                'proveedor',
+                'detalles.producto:id,nombre,marca,tipo_producto_id,piezas_por_caja',
+                'detalles.producto.tipoProducto:id,nombre',
+            ])
+            ->orderByDesc('fecha_compra')
+            ->orderByDesc('id')
+            ->get();
+
+        // Total de compras confirmadas
+        $totalCompras = $comprasConfirmadas->sum('total');
+
+            // Ingresos reales por ventas vendidas del período
+            $ingresosVentas = Venta::query()
+                ->whereBetween('fecha_venta', [$desde, $hasta])
+                ->where('estado', 'vendida')
+                ->sum('total');
+
+            // Balance de caja
+            $balanceCaja = $ingresosVentas - $totalCompras;
 
         $estado     = $request->get('estado');
         $vendedorId = $request->get('vendedor_id');
@@ -247,7 +321,8 @@ class ReporteController extends Controller
             ->where('estado', 'cancelada')
             ->with([
                 'user:id,name',
-                'detalles.producto:id,nombre,marca',
+                'detalles.producto:id,nombre,marca,tipo_producto_id,piezas_por_caja',
+                'detalles.producto.tipoProducto:id,nombre',
             ])
             ->orderByDesc('fecha_venta')
             ->orderByDesc('id')
@@ -271,12 +346,15 @@ class ReporteController extends Controller
             ->whereIn('venta_id', (clone $queryReales)->pluck('id'))
             ->selectRaw('
                 producto_id,
-                SUM(cantidad) as cantidad_total,
+                SUM(cantidad_stock) as cantidad_total,
                 SUM(subtotal) as monto_total
             ')
             ->groupBy('producto_id')
             ->orderByDesc('monto_total')
-            ->with('producto:id,nombre,marca')
+            ->with([
+                'producto:id,nombre,marca,tipo_producto_id,piezas_por_caja',
+                'producto.tipoProducto:id,nombre',
+            ])
             ->take(5)
             ->get();
 
@@ -284,7 +362,11 @@ class ReporteController extends Controller
         // 7. DETALLE DE VENTAS (todas, sin paginar para el PDF)
         // ============================================================
         $ventas = (clone $queryReales)
-            ->with(['user:id,name', 'detalles.producto:id,nombre'])
+            ->with([
+                'user:id,name',
+                'detalles.producto:id,nombre,marca,tipo_producto_id,piezas_por_caja',
+                'detalles.producto.tipoProducto:id,nombre',
+            ])
             ->orderByDesc('fecha_venta')
             ->orderByDesc('id')
             ->take(200) // límite para no generar PDFs gigantes
@@ -318,7 +400,11 @@ class ReporteController extends Controller
                 'totalCanceladas', 'montoCanceladas',
                 'ventasCanceladas',
                 'ventasPorVendedor', 'topProductos',
-                'ventas'
+                'ventas',
+                'comprasConfirmadas',
+                'totalCompras',
+                'ingresosVentas',
+                'balanceCaja',
             )
         );
 

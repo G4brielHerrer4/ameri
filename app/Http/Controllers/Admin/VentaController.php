@@ -8,6 +8,7 @@ use App\Models\Producto;
 use App\Models\Stock;
 use App\Models\Venta;
 use App\Models\VentaDetalle;
+use App\Models\PrecioProductoAdmin;
 use App\Models\VentaMovimiento;
 use App\Models\User;
 use App\Models\Deposito;
@@ -67,8 +68,11 @@ class VentaController extends Controller
         $producto->load('tipoProducto');
         $unidadesVenta = $this->unidadesVenta($producto);
         $esVendedor = auth()->user()->role?->slug === 'vendedor';
+        $configPrecios = PrecioProductoAdmin::where('producto_id', $producto->id)
+        ->where('user_id', auth()->id())
+        ->first();
 
-        // 🔥 AGRUPAMOS POR ADMIN Y TIENDA (depósito)
+        //  AGRUPAMOS POR ADMIN Y TIENDA (depósito)
         $stocks = Stock::with(['user', 'deposito'])
             ->where('producto_id', $producto->id)
             ->where('cantidad', '>', 0)
@@ -118,11 +122,20 @@ class VentaController extends Controller
                 'piezas_por_caja' => (int) ($producto->piezas_por_caja ?? 0),
                 'm2_por_caja'     => (float) ($producto->m2_por_caja ?? 0),
                 'precios_venta' => [
-                    'caja' => $producto->precio_venta_caja !== null ? (float) $producto->precio_venta_caja : null,
-                    'm2' => $producto->precio_venta_m2 !== null ? (float) $producto->precio_venta_m2 : null,
-                    'pieza' => $producto->precio_venta_pieza !== null ? (float) $producto->precio_venta_pieza : null,
-                    'bolsa' => $producto->precio_venta_bolsa !== null ? (float) $producto->precio_venta_bolsa : null,
-                ],
+                'caja' => $configPrecios?->precio_venta_caja !== null
+                    ? (float) $configPrecios->precio_venta_caja
+                    : null,
+
+                'm2' => null,
+
+                'pieza' => $configPrecios?->precio_venta_pieza !== null
+                    ? (float) $configPrecios->precio_venta_pieza
+                    : null,
+
+                'bolsa' => $configPrecios?->precio_venta_bolsa !== null
+                    ? (float) $configPrecios->precio_venta_bolsa
+                    : null,
+            ],
             ],
             'stocks' => $stocks,
         ]);
@@ -198,19 +211,25 @@ class VentaController extends Controller
 
                 $cantidadRegistrada = $cantidad;
                 $unidadRegistrada = $unidad;
-                if ($esCeramica && $unidad === 'm2') { $cantidadRegistrada = $cantidadStock; $unidadRegistrada = 'pieza'; }
 
                 $subtotal += $lineSubtotal;
 
-                $detalle = VentaDetalle::create([
-                    'venta_id'        => $venta->id,
-                    'producto_id'     => $producto->id,
-                    'cantidad'        => $cantidadRegistrada,
-                    'unidad'          => $unidadRegistrada,
-                    'cantidad_stock'  => $cantidadStock,
-                    'precio_unitario' => $precioUnit,
-                    'subtotal'        => $lineSubtotal,
-                ]);
+               $detalle = VentaDetalle::create([
+                'venta_id'        => $venta->id,
+                'producto_id'     => $producto->id,
+
+                // Cantidad y unidad comercial vendida
+                'cantidad'        => $cantidadRegistrada,
+                'unidad'          => $unidadRegistrada,
+                'cantidad_venta'  => $cantidad,
+                'unidad_venta'    => $unidad,
+
+                // Cantidad física descontada del inventario
+                'cantidad_stock'  => $cantidadStock,
+
+                'precio_unitario' => $precioUnit,
+                'subtotal'        => $lineSubtotal,
+            ]);
 
                 foreach ($movimientos as $mov) {
                     $cantMov = (float) ($mov['cantidad'] ?? 0);
@@ -259,33 +278,117 @@ class VentaController extends Controller
 
     public function edit(Venta $venta)
     {
-        $venta->load('detalles.movimientos');
-        $stocks = Stock::with(['producto.tipoProducto.categoria'])->where('cantidad', '>', 0)->get()->filter(fn($s) => $s->producto !== null)->groupBy('producto_id')->map(function ($grupo) {
-            $primero = $grupo->first();
-            $primero->cantidad = $grupo->sum(fn($stock) => (float) $stock->cantidad);
-            return $primero;
-        })->values();
+        // Solo se pueden editar las ventas pendientes del propio administrador.
+        if ($venta->estado !== 'pendiente') {
+            return redirect()
+                ->route($this->rutaVentas('index'))
+                ->with('error', 'Solo se pueden editar ventas pendientes.');
+        }
 
-        $admins = User::whereHas('role', function ($q) { $q->where('slug', 'administrador'); })->where('id', '!=', auth()->id())->orderBy('name')->get();
+        if ((int) $venta->user_id !== (int) auth()->id()) {
+            abort(403);
+        }
 
+        $venta->load([
+            'detalles.producto.tipoProducto',
+            'detalles.movimientos',
+        ]);
+
+        // Identificamos los productos que ya forman parte de esta venta.
+        $productoIdsExistentes = $venta->detalles
+            ->pluck('producto_id')
+            ->unique()
+            ->values()
+            ->all();
+
+        // Productos con stock de administradores.
+        // También incluimos los productos de esta venta aunque su stock sea cero.
+        $stocks = Stock::with(['producto.tipoProducto.categoria', 'user'])
+            ->whereHas('user.role', function ($q) {
+                $q->where('slug', 'administrador');
+            })
+            ->where(function ($q) use ($productoIdsExistentes) {
+                $q->where('cantidad', '>', 0);
+
+                if (!empty($productoIdsExistentes)) {
+                    $q->orWhereIn('producto_id', $productoIdsExistentes);
+                }
+            })
+            ->get()
+            ->filter(fn ($s) => $s->producto !== null)
+            ->groupBy('producto_id')
+            ->map(function ($grupo) {
+                $primero = $grupo->first();
+
+                // Cantidad total disponible entre los administradores.
+                $primero->cantidad = $grupo->sum(
+                    fn ($stock) => (float) $stock->cantidad
+                );
+
+                return $primero;
+            })
+            ->values();
+
+        // Si un producto de la venta no tiene ningún registro de stock,
+        // lo agregamos igualmente al selector para poder editarlo.
+        $productosIncluidos = $stocks
+            ->pluck('producto_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $productosFaltantes = Producto::with('tipoProducto.categoria')
+            ->whereIn('id', $productoIdsExistentes)
+            ->whereNotIn('id', $productosIncluidos)
+            ->get();
+
+        foreach ($productosFaltantes as $producto) {
+            $stockVacio = new Stock([
+                'producto_id' => $producto->id,
+                'cantidad' => 0,
+            ]);
+
+            $stockVacio->setRelation('producto', $producto);
+            $stocks->push($stockVacio);
+        }
+
+        $admins = User::whereHas('role', function ($q) {
+            $q->where('slug', 'administrador');
+        })
+            ->where('id', '!=', auth()->id())
+            ->orderBy('name')
+            ->get();
+
+        // Recuperamos la cantidad y unidad comerciales originales.
+        // El fallback permite editar ventas antiguas que todavía no tenían
+        // cantidad_venta y unidad_venta.
         $lineasExistentes = $venta->detalles->map(function ($detalle) {
             return [
                 'producto_id' => (int) $detalle->producto_id,
-                'cantidad' => (float) $detalle->cantidad,
-                'unidad' => $detalle->unidad,
+
+                'cantidad' => (float) (
+                    $detalle->cantidad_venta ?? $detalle->cantidad
+                ),
+
+                'unidad' => $detalle->unidad_venta ?? $detalle->unidad,
+
                 'precio_unitario' => (float) $detalle->precio_unitario,
+
                 'movimientos' => $detalle->movimientos->map(function ($mov) {
                     return [
                         'stock_user_id' => (int) $mov->stock_user_id,
-                        'deposito_id' => (int) $mov->deposito_id, // 🔥
+                        'deposito_id' => (int) $mov->deposito_id,
                         'cantidad' => (float) $mov->cantidad,
                     ];
                 })->values()->all(),
             ];
         })->values()->all();
 
-        $vista = auth()->user()->role?->slug === 'vendedor' ? 'vendedor.ventas.edit' : 'admin.ventas.edit';
-        return view($vista, compact('venta', 'stocks', 'admins', 'lineasExistentes'));
+        return view('admin.ventas.edit', compact(
+            'venta',
+            'stocks',
+            'admins',
+            'lineasExistentes'
+        ));
     }
 
     public function update(Request $request, Venta $venta)
@@ -354,6 +457,8 @@ class VentaController extends Controller
                     'cantidad'        => $cantidadRegistrada,
                     'unidad'          => $unidadRegistrada,
                     'cantidad_stock'  => $cantidadStock,
+                    'cantidad_venta' => $cantidad,
+                    'unidad_venta'   => $unidad,
                     'precio_unitario' => $calculoPrecio['precio_unitario'],
                     'subtotal'        => $calculoPrecio['subtotal'],
                 ]);
@@ -506,40 +611,85 @@ class VentaController extends Controller
         return redirect()->route($this->rutaVentas('index'))->with('success', 'Venta eliminada correctamente.');
     }
 
-    private function calcularPrecioLinea(Producto $producto, float $cantidad, string $unidad): array
-    {
-        if ($cantidad <= 0) throw new \Exception('La cantidad debe ser mayor que cero.');
-        $tipo = mb_strtolower(trim((string) ($producto->tipoProducto?->nombre ?? '')), 'UTF-8');
-        $esCeramica = in_array($tipo, ['cerámica', 'ceramica', 'porcelanato'], true);
-
-        if (!$esCeramica) {
-            $precioUnitario = $this->obtenerPrecioVenta($producto, $unidad);
-            return ['precio_unitario' => $precioUnitario, 'subtotal' => round($cantidad * $precioUnitario, 2)];
+   private function calcularPrecioLinea(
+        Producto $producto,
+        float $cantidad,
+        string $unidad
+    ): array {
+        if ($cantidad <= 0) {
+            throw new \Exception('La cantidad debe ser mayor que cero.');
         }
 
-        $precioCaja = (float) ($producto->precio_venta_caja ?? 0);
-        if ($precioCaja <= 0) throw new \Exception('Falta precio por caja.');
+        // Obtenemos los precios configurados para este administrador.
+        $configPrecios = PrecioProductoAdmin::where('producto_id', $producto->id)
+            ->where('user_id', auth()->id())
+            ->first();
 
-        switch ($unidad) {
-            case 'caja':
-                if (floor($cantidad) != $cantidad) throw new \Exception('Cajas enteras.');
-                return ['precio_unitario' => $precioCaja, 'subtotal' => round($cantidad * $precioCaja, 2)];
-            case 'm2':
+        if (!$configPrecios) {
+            throw new \Exception(
+                'No existe una configuración de precios para el producto '
+                . $producto->nombre . ' en tu inventario.'
+            );
+        }
+
+        $tipo = mb_strtolower(
+            trim((string) ($producto->tipoProducto?->nombre ?? '')),
+            'UTF-8'
+        );
+
+        $esCeramica = in_array(
+            $tipo,
+            ['cerámica', 'ceramica', 'porcelanato'],
+            true
+        );
+
+        $precioUnitario = 0;
+
+        if ($esCeramica) {
+            if ($unidad === 'caja') {
+                $precioUnitario = (float) $configPrecios->precio_venta_caja;
+
+            } elseif ($unidad === 'm2') {
+                $precioCaja = (float) $configPrecios->precio_venta_caja;
                 $m2PorCaja = (float) ($producto->m2_por_caja ?? 0);
-                $piezasPorCaja = (int) ($producto->piezas_por_caja ?? 0);
-                if ($m2PorCaja <= 0 || $piezasPorCaja <= 0) throw new \Exception('Faltan m² o piezas por caja.');
-                $m2PorPieza = $m2PorCaja / $piezasPorCaja;
-                $piezasNecesarias = (int) ceil(($cantidad / $m2PorPieza) - 0.000000001);
-                $precioUnitario = $precioCaja / $piezasPorCaja;
-                return ['precio_unitario' => round($precioUnitario, 2), 'subtotal' => round($piezasNecesarias * $precioUnitario, 2)];
-            case 'pieza':
-                $piezasPorCaja = (int) ($producto->piezas_por_caja ?? 0);
-                if ($piezasPorCaja <= 0) throw new \Exception('Faltan piezas por caja.');
-                $precioUnitario = $precioCaja / $piezasPorCaja;
-                return ['precio_unitario' => round($precioUnitario, 2), 'subtotal' => round($cantidad * $precioUnitario, 2)];
-            default:
-                throw new \Exception('Unidad inválida.');
+
+                if ($m2PorCaja <= 0) {
+                    throw new \Exception('El producto no tiene una configuración válida de m² por caja.');
+                }
+
+                // El precio por m² se obtiene del precio de caja.
+                $precioUnitario = $precioCaja / $m2PorCaja;
+
+            } elseif ($unidad === 'pieza') {
+                // El precio por pieza es independiente del precio de caja.
+                $precioUnitario = (float) $configPrecios->precio_venta_pieza;
+
+            } else {
+                throw new \Exception('Unidad de venta inválida para este producto.');
+            }
+        } else {
+            if ($unidad === 'bolsa') {
+                $precioUnitario = (float) $configPrecios->precio_venta_bolsa;
+
+            } elseif ($unidad === 'pieza') {
+                $precioUnitario = (float) $configPrecios->precio_venta_pieza;
+
+            } else {
+                throw new \Exception('Unidad de venta inválida para este producto.');
+            }
         }
+
+        if ($precioUnitario <= 0) {
+            throw new \Exception(
+                'No hay un precio válido configurado para '
+                . $producto->nombre . ' por ' . $unidad . '.'
+            );
+        }
+
+        return [
+            'precio_unitario' => round($precioUnitario, 2),
+            'subtotal' => round($cantidad * $precioUnitario, 2),
+        ];
     }
 
     private function obtenerPrecioVenta(Producto $producto, string $unidad): float
@@ -618,7 +768,7 @@ class VentaController extends Controller
     {
         return [
             'cliente_nombre' => ['required', 'string', 'max:150'],
-            'cliente_documento' => ['required', 'string', 'max:30'],
+            'cliente_documento' => ['nullable', 'string', 'max:30'],
             'cliente_telefono' => ['nullable', 'string', 'max:30'],
             'fecha_venta' => ['required', 'date'],
             'descuento' => ['nullable', 'numeric', 'min:0'],
@@ -638,7 +788,6 @@ class VentaController extends Controller
     {
         return [
             'cliente_nombre.required' => 'El nombre del cliente es obligatorio.',
-            'cliente_documento.required' => 'El CI/NIT del cliente es obligatorio.',
             'fecha_venta.required' => 'La fecha de venta es obligatoria.',
             'items.required' => 'Debes agregar al menos un producto a la venta.',
             'items.min' => 'Debes agregar al menos un producto a la venta.',
@@ -657,5 +806,45 @@ class VentaController extends Controller
     {
         $prefijo = auth()->user()->role?->slug === 'vendedor' ? 'vendedor.ventas.' : 'admin.ventas.';
         return $prefijo . $accion;
+    }
+
+    /**
+ * Generar recibo PDF para impresora térmica de 80 mm.
+ */
+    public function recibo(Venta $venta)
+    {
+        // Cargar todos los datos necesarios para el recibo.
+        $venta->load([
+            'user',
+            'detalles.producto.tipoProducto',
+            'detalles.movimientos.deposito',
+        ]);
+
+        // Calcular una altura aproximada según el contenido.
+        $cantidadDetalles = $venta->detalles->count();
+
+        $cantidadMovimientos = $venta->detalles->sum(function ($detalle) {
+            return $detalle->movimientos->count();
+        });
+
+        $alto = 650
+            + ($cantidadDetalles * 115)
+            + ($cantidadMovimientos * 65);
+
+        if (!empty($venta->observaciones)) {
+            $alto += 100;
+        }
+
+        // DomPDF: 80 mm equivalen aproximadamente a 226.77 puntos.
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView(
+            'admin.ventas.recibo',
+            compact('venta')
+        );
+
+        $pdf->setPaper([0, 0, 226.77, $alto], 'portrait');
+
+        return $pdf->stream(
+            'recibo-' . ($venta->numero_venta ?? $venta->id) . '.pdf'
+        );
     }
 }

@@ -977,6 +977,16 @@
                        aria-label="Ver detalle">
                       <i class="mdi mdi-eye"></i>
                     </a>
+                   @if ($venta->estado === 'vendida')
+                        <a href="{{ route('vendedor.ventas.recibo', $venta) }}"
+                          class="action-btn receipt"
+                          title="Imprimir recibo"
+                          aria-label="Imprimir recibo"
+                          target="_blank"
+                          rel="noopener">
+                            <i class="mdi mdi-printer"></i>
+                        </a>
+                    @endif
 
                     {{-- EDITAR --}}
                     @if($venta->estado === 'pendiente' && $venta->user_id === auth()->id())
@@ -1264,6 +1274,19 @@ document.addEventListener('DOMContentLoaded', function () {
       tabla.draw();
     });
   });
+  /* ==================== FILTRO INICIAL DESDE URL ==================== */
+  const parametros = new URLSearchParams(window.location.search);
+  const filtroInicial = parametros.get('filtro');
+
+  if (filtroInicial) {
+      const chipInicial = document.querySelector(
+          `.filter-chip[data-filter="${filtroInicial}"]`
+      );
+
+      if (chipInicial) {
+          chipInicial.click();
+      }
+  }
   @endif
 
 });

@@ -763,6 +763,47 @@
     .panel-body { padding: 0.9rem 1rem; }
     .otros-admin-depositos { grid-template-columns: 1fr; }
   }
+  /* =====================================================
+   DETALLE DE STOCK POR ADMINISTRADOR
+   ===================================================== */
+
+  .otros-admin-total {
+      text-align: right;
+      white-space: nowrap;
+  }
+
+  .otros-admin-total .total-detalle {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--ink-muted);
+      margin-top: 3px;
+  }
+
+  .otros-admin-dep {
+      align-items: flex-start;
+  }
+
+  .dep-stock-detalle {
+      text-align: right;
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: var(--ink);
+      font-size: 0.78rem;
+  }
+
+  .dep-stock-detalle small {
+      display: block;
+      font-family: var(--font-body);
+      color: var(--ink-faint);
+      font-size: 0.68rem;
+      font-weight: 500;
+      margin-top: 2px;
+  }
+
+  .dep-cantidad.zero {
+      color: var(--ink-faint);
+  }
 </style>
 @endpush
 
@@ -834,10 +875,12 @@
 
               $detalleModal = [
                 'producto' => [
-                  'id'     => $producto->id,
-                  'nombre' => $producto->nombre,
-                  'marca'  => $producto->marca,
-                  'medida' => $producto->medida,
+                    'id'                => $producto->id,
+                    'nombre'            => $producto->nombre,
+                    'marca'             => $producto->marca,
+                    'medida'            => $producto->medida,
+                    'tipo'              => $tipoNombre,
+                    'piezas_por_caja'   => (int) ($producto->piezas_por_caja ?? 0),
                 ],
                 'depositos' => $depositos->map(fn($d) => [
                   'id' => $d->id,
@@ -1198,38 +1241,246 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   const modalOtros = document.getElementById('modalOtrosAdmins');
+
   modalOtros.addEventListener('show.bs.modal', function (event) {
-    const b = event.relatedTarget;
-    const raw = b.getAttribute('data-detalle');
-    const contenedor = document.getElementById('otrosAdminsLista');
-    const titulo = document.getElementById('otrosAdminsProducto');
-    contenedor.innerHTML = '';
-    if (!raw) return;
-    let data;
-    try { data = JSON.parse(raw); } catch (e) { return; }
-    titulo.textContent = data.producto?.nombre || '';
-    if (!data.otros_admins || data.otros_admins.length === 0) {
-      contenedor.innerHTML = '<div style="color:var(--ink-muted);font-size:0.9rem;text-align:center;padding:1rem;">Ningún otro administrador tiene stock de este producto.</div>';
-      return;
-    }
-    const fmt = function (n) { return Number(n).toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); };
-    data.otros_admins.forEach(function (a) {
-      const card = document.createElement('div');
-      card.className = 'otros-admin-card';
-      let preciosTxt = '';
-      if (a.precio_caja !== null && a.precio_caja !== undefined) preciosTxt += 'Caja: ' + fmt(a.precio_caja) + ' Bs';
-      if (a.precio_pieza !== null && a.precio_pieza !== undefined) { if (preciosTxt) preciosTxt += ' · '; preciosTxt += 'Pieza: ' + fmt(a.precio_pieza) + ' Bs'; }
-      if (a.precio_bolsa !== null && a.precio_bolsa !== undefined) { if (preciosTxt) preciosTxt += ' · '; preciosTxt += 'Bolsa: ' + fmt(a.precio_bolsa) + ' Bs'; }
-      
-      let depositosHtml = '';
-      a.por_deposito.forEach(function (d) {
-        const c = Number(d.cantidad) || 0;
-        depositosHtml += '<div class="otros-admin-dep ' + (c <= 0 ? 'zero' : '') + '"><span class="dep-nombre">' + d.nombre + '</span><span class="dep-cantidad">' + fmt(c) + '</span></div>';
+
+      const b = event.relatedTarget;
+      const raw = b.getAttribute('data-detalle');
+
+      const contenedor = document.getElementById('otrosAdminsLista');
+      const titulo = document.getElementById('otrosAdminsProducto');
+
+      contenedor.innerHTML = '';
+
+      if (!raw) return;
+
+      let data;
+
+      try {
+          data = JSON.parse(raw);
+      } catch (e) {
+          console.error('Error al leer el inventario:', e);
+          return;
+      }
+
+      const producto = data.producto || {};
+
+      titulo.textContent = producto.nombre || '';
+
+      // ==========================================
+      // IDENTIFICAR TIPO DE PRODUCTO
+      // ==========================================
+
+      const tipo = (producto.tipo || '')
+          .toLocaleLowerCase('es')
+          .trim();
+
+      const piezasPorCaja = parseInt(producto.piezas_por_caja) || 0;
+
+      const esCeramica = [
+          'cerámica',
+          'ceramica',
+          'porcelanato'
+      ].includes(tipo) && piezasPorCaja > 0;
+
+      const esBolsa = tipo.includes('cemento cola') ||
+                      tipo.includes('pastina');
+
+      // ==========================================
+      // FORMATO DE CANTIDADES
+      // ==========================================
+
+      const fmt = function (n) {
+          return Math.floor(Number(n) || 0).toLocaleString('es-BO');
+      };
+
+      // Cerámica: convertir piezas en cajas + piezas restantes.
+      const convertirStock = function (cantidad) {
+
+          const c = Math.max(0, Math.floor(Number(cantidad) || 0));
+
+          if (esCeramica) {
+
+              const cajas = Math.floor(c / piezasPorCaja);
+              const piezas = c % piezasPorCaja;
+
+              return {
+                  principal: fmt(cajas) + ' cajas',
+                  detalle: fmt(piezas) + ' piezas',
+                  texto: fmt(cajas) + ' cajas y ' + fmt(piezas) + ' piezas'
+              };
+          }
+
+          if (esBolsa) {
+              return {
+                  principal: fmt(c) + ' bolsas',
+                  detalle: '',
+                  texto: fmt(c) + ' bolsas'
+              };
+          }
+
+          return {
+              principal: fmt(c) + ' piezas',
+              detalle: '',
+              texto: fmt(c) + ' piezas'
+          };
+      };
+
+      // ==========================================
+      // SIN OTROS ADMINISTRADORES
+      // ==========================================
+
+      if (!data.otros_admins || data.otros_admins.length === 0) {
+
+          contenedor.innerHTML = `
+              <div style="
+                  color:var(--ink-muted);
+                  font-size:0.9rem;
+                  text-align:center;
+                  padding:1.5rem;
+              ">
+                  <i class="mdi mdi-warehouse"
+                    style="font-size:2rem;display:block;margin-bottom:0.5rem;">
+                  </i>
+                  Ningún otro administrador tiene stock de este producto.
+              </div>
+          `;
+
+          return;
+      }
+
+      // ==========================================
+      // MOSTRAR INVENTARIO DE CADA ADMINISTRADOR
+      // ==========================================
+
+      data.otros_admins.forEach(function (a) {
+
+          const card = document.createElement('div');
+
+          card.className = 'otros-admin-card';
+
+          // --------------------------------------
+          // PRECIOS
+          // --------------------------------------
+
+          let preciosTxt = '';
+
+          if (a.precio_caja !== null && a.precio_caja !== undefined) {
+              preciosTxt += 'Caja: ' + fmt(a.precio_caja) + ' Bs';
+          }
+
+          if (a.precio_pieza !== null && a.precio_pieza !== undefined) {
+
+              if (preciosTxt) preciosTxt += ' · ';
+
+              preciosTxt += 'Pieza: ' + fmt(a.precio_pieza) + ' Bs';
+          }
+
+          if (a.precio_bolsa !== null && a.precio_bolsa !== undefined) {
+
+              if (preciosTxt) preciosTxt += ' · ';
+
+              preciosTxt += 'Bolsa: ' + fmt(a.precio_bolsa) + ' Bs';
+          }
+
+          // --------------------------------------
+          // STOCK POR TIENDA / DEPÓSITO
+          // --------------------------------------
+
+          let depositosHtml = '';
+
+          let totalFisico = 0;
+
+          (a.por_deposito || []).forEach(function (d) {
+
+              const cantidad = Math.max(
+                  0,
+                  Math.floor(Number(d.cantidad) || 0)
+              );
+
+              totalFisico += cantidad;
+
+              const stock = convertirStock(cantidad);
+
+              depositosHtml += `
+                  <div class="otros-admin-dep ${cantidad <= 0 ? 'zero' : ''}">
+
+                      <span class="dep-nombre">
+                          ${d.nombre}
+                      </span>
+
+                      <span class="dep-stock-detalle">
+                          ${stock.principal}
+
+                          ${stock.detalle ? `
+                              <small>${stock.detalle}</small>
+                          ` : ''}
+
+                      </span>
+
+                  </div>
+              `;
+          });
+
+          // --------------------------------------
+          // TOTAL DE TODAS LAS TIENDAS
+          // --------------------------------------
+
+          const total = convertirStock(totalFisico);
+
+          const etiquetaTotal = esCeramica
+              ? `<span class="total-detalle">${total.detalle}</span>`
+              : '';
+
+          // --------------------------------------
+          // CONSTRUIR TARJETA
+          // --------------------------------------
+
+          const cabecera = document.createElement('div');
+          cabecera.className = 'otros-admin-head';
+
+          const nombre = document.createElement('div');
+          nombre.className = 'otros-admin-name';
+
+          const icono = document.createElement('i');
+          icono.className = 'mdi mdi-account-circle-outline';
+
+          nombre.appendChild(icono);
+          nombre.appendChild(document.createTextNode(' ' + (a.nombre || 'Administrador')));
+
+          const precios = document.createElement('span');
+          precios.className = 'otros-admin-precio';
+          precios.textContent = preciosTxt || 'Sin precios configurados';
+
+          nombre.appendChild(precios);
+
+          const totalElemento = document.createElement('div');
+          totalElemento.className = 'otros-admin-total';
+
+          totalElemento.appendChild(
+              document.createTextNode('Total: ' + total.principal)
+          );
+
+          if (etiquetaTotal) {
+              const detalle = document.createElement('span');
+              detalle.className = 'total-detalle';
+              detalle.textContent = total.detalle;
+              totalElemento.appendChild(detalle);
+          }
+
+          cabecera.appendChild(nombre);
+          cabecera.appendChild(totalElemento);
+
+          const depositos = document.createElement('div');
+          depositos.className = 'otros-admin-depositos';
+          depositos.innerHTML = depositosHtml;
+
+          card.appendChild(cabecera);
+          card.appendChild(depositos);
+
+          contenedor.appendChild(card);
       });
-      
-      card.innerHTML = '<div class="otros-admin-head"><div class="otros-admin-name"><i class="mdi mdi-account-circle-outline"></i>' + a.nombre + '<span class="otros-admin-precio">' + (preciosTxt || 'Sin precios configurados') + '</span></div><div class="otros-admin-total">Total: ' + fmt(a.stock_total) + '</div></div><div class="otros-admin-depositos">' + depositosHtml + '</div>';
-      contenedor.appendChild(card);
-    });
+
   });
 
 });

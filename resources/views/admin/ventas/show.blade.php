@@ -229,13 +229,13 @@
           <tr>
             <th>#</th>
             <th>Producto</th>
-            <th class="text-end">Cantidad</th>
+            <th class="text-end">Cantidad Vendida</th>
             <th class="text-end">Precio Unit.</th>
             <th class="text-end">Subtotal</th>
             <th>Origen del stock</th>
           </tr>
         </thead>
-        <tbody>
+         <tbody>
           @foreach($venta->detalles as $i => $d)
             <tr>
               <td>{{ $i + 1 }}</td>
@@ -245,10 +245,61 @@
                   <br><small style="color:var(--ink-muted);font-size:0.78rem;">{{ $d->producto->marca }}</small>
                 @endif
               </td>
-              <td class="text-end">
-                {{ rtrim(rtrim(number_format($d->cantidad, 2, '.', ''), '0'), '.') }}
-                <small style="color:var(--ink-muted);">{{ $d->unidad ?? 'unidad' }}</small>
+
+                <td class="text-end">
+                  @php
+                      $producto = $d->producto;
+
+                      // Cantidad comercial que se cobró al cliente.
+                      $cantidadVendida = (float) ($d->cantidad_venta ?? $d->cantidad);
+
+                      $unidadVendida = $d->unidad_venta ?? ($producto->unidad_base ?? 'unidades');
+
+                      $nombreUnidad = match ($unidadVendida) {
+                          'm2' => 'm²',
+                          'caja' => 'cajas',
+                          'pieza' => 'piezas',
+                          'bolsa' => 'bolsas',
+                          default => $unidadVendida,
+                      };
+
+                      // Cantidad física descontada del inventario.
+                      $tipo = strtolower($producto->tipoProducto->nombre ?? '');
+
+                      $esCeramicaOPorcelanato = str_contains($tipo, 'cerámica')
+                          || str_contains($tipo, 'ceramica')
+                          || str_contains($tipo, 'porcelanato');
+
+                      $cantidadPiezas = (float) ($d->cantidad_stock ?? $d->cantidad);
+                      $piezasPorCaja = (int) ($producto->piezas_por_caja ?? 0);
+                  @endphp
+
+                  <strong>
+                      {{ rtrim(rtrim(number_format($cantidadVendida, 2, '.', ''), '0'), '.') }}
+                      {{ $nombreUnidad }}
+                  </strong>
+
+                  @if($esCeramicaOPorcelanato && $piezasPorCaja > 0)
+                      @php
+                          $cajas = (int) floor($cantidadPiezas / $piezasPorCaja);
+                          $piezas = round($cantidadPiezas - ($cajas * $piezasPorCaja), 2);
+                      @endphp
+
+                      <div style="color:var(--ink-muted);font-size:0.75rem;margin-top:0.3rem;">
+                          Stock descontado:
+
+                          @if($cajas > 0)
+                              {{ $cajas }} cajas
+                          @endif
+
+                          @if($piezas > 0)
+                              @if($cajas > 0) y @endif
+                              {{ rtrim(rtrim(number_format($piezas, 2, '.', ''), '0'), '.') }} piezas
+                          @endif
+                      </div>
+                  @endif
               </td>
+
               <td class="text-end">Bs. {{ number_format($d->precio_unitario, 2) }}</td>
               <td class="text-end"><strong>Bs. {{ number_format($d->subtotal, 2) }}</strong></td>
               <td>
@@ -257,8 +308,7 @@
                     <i class="mdi mdi-account"></i>
                     <span>{{ $mov->stockUser->name ?? '—' }}</span>
                     <strong>× {{ rtrim(rtrim(number_format($mov->cantidad, 2, '.', ''), '0'), '.') }}</strong>
-                    
-                    {{-- 🔥 MOSTRAMOS LA TIENDA DE ORIGEN 🔥 --}}
+                     {{--  MOSTRAMOS LA TIENDA DE ORIGEN  --}}
                     @if($mov->deposito)
                       <span class="tienda-tag">
                         <i class="mdi mdi-storefront"></i> {{ $mov->deposito->nombre }}

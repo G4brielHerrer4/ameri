@@ -79,7 +79,7 @@
     box-shadow: 0 10px 30px -15px var(--glow);
     transform: translateY(-2px);
   }
-  
+
   .prod-header {
     display: flex;
     justify-content: space-between;
@@ -182,7 +182,7 @@
     border-radius: var(--r-pill);
     font-size: 0.8rem;
   }
-  
+
   /* ESTADO INICIAL (Invitación a buscar) */
   .empty-state {
     text-align: center;
@@ -217,6 +217,39 @@
     50% { transform: scale(1.05); opacity: 0.5; }
     100% { transform: scale(1); opacity: 0.3; }
   }
+  .stock-total {
+    margin-top: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--glow-soft);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .stock-total-label {
+      color: var(--ink);
+      font-weight: 700;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+  }
+
+  .stock-total-label .mdi {
+      color: var(--primary);
+      font-size: 1.2rem;
+  }
+
+  .stock-total-value {
+      color: var(--primary);
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.05rem;
+  }
 </style>
 @endpush
 
@@ -238,8 +271,8 @@
     <input type="text" id="searchInput" class="form-control" placeholder="Escribe el nombre, marca o medida del producto..." autocomplete="off">
   </div>
 
-  <!-- 
-    ESTADO INICIAL: Se muestra antes de buscar 
+  <!--
+    ESTADO INICIAL: Se muestra antes de buscar
   -->
   <div id="estadoInicial" class="empty-state">
     <i class="mdi mdi-magnify"></i>
@@ -247,89 +280,207 @@
     <p>Escribe al menos 2 letras en el buscador para encontrar productos en el inventario de todos los administradores.</p>
   </div>
 
-  <!-- 
-    RESULTADOS: Ocultos por defecto. Solo se muestran al buscar. 
+  <!--
+    RESULTADOS: Ocultos por defecto. Solo se muestran al buscar.
   -->
-  <div id="resultados" style="display: none;">
+
+<div id="resultados" style="display: none;">
+
     @forelse($productos as $producto)
-      @php
-        $busquedaStr = Str::lower(
-            $producto->nombre . ' ' . 
-            ($producto->marca ?? '') . ' ' . 
-            ($producto->modelo ?? '') . ' ' . 
-            ($producto->medida ?? '') . ' ' .
-            ($producto->tipoProducto?->categoria?->nombre ?? '') . ' ' .
-            ($producto->tipoProducto?->nombre ?? '')
-        );
-      @endphp
-      
-      <div class="producto-card" data-search="{{ $busquedaStr }}">
-        <!-- Info del producto -->
-        <div class="prod-header">
-          <div>
-            <h4 class="prod-title nombre-producto">{{ $producto->nombre }}</h4>
-            <span class="prod-tipo">
-              <i class="mdi mdi-tag-outline"></i> 
-              {{ $producto->tipoProducto?->categoria?->nombre }} · {{ $producto->tipoProducto?->nombre }}
-            </span>
-          </div>
-          
-          <div class="prod-meta">
-            @if($producto->marca) <span><i class="mdi mdi-trademark"></i> {{ $producto->marca }}</span> @endif
-            @if($producto->medida) <span><i class="mdi mdi-ruler"></i> {{ $producto->medida }}</span> @endif
-            @if($producto->modelo) <span><i class="mdi mdi-barcode"></i> {{ $producto->modelo }}</span> @endif
-            @if($producto->color) <span><i class="mdi mdi-palette"></i> {{ $producto->color }}</span> @endif
-          </div>
+
+        @php
+            $busquedaStr = Str::lower(
+                $producto->nombre . ' ' .
+                ($producto->marca ?? '') . ' ' .
+                ($producto->modelo ?? '') . ' ' .
+                ($producto->medida ?? '') . ' ' .
+                ($producto->tipoProducto?->categoria?->nombre ?? '') . ' ' .
+                ($producto->tipoProducto?->nombre ?? '')
+            );
+
+            $tipo = mb_strtolower(trim($producto->tipoProducto?->nombre ?? ''), 'UTF-8');
+
+            $esCeramica = in_array($tipo, ['cerámica', 'ceramica', 'porcelanato'], true);
+            $esBolsa = in_array($tipo, ['cemento cola', 'pastinas'], true);
+
+            $totalStock = (int) round((float) $producto->stocks->sum('cantidad'));
+            $piezasPorCaja = (int) ($producto->piezas_por_caja ?? 0);
+
+            $totalCajas = 0;
+            $totalPiezas = $totalStock;
+
+            if ($esCeramica && $piezasPorCaja > 0) {
+                $totalCajas = intdiv($totalStock, $piezasPorCaja);
+                $totalPiezas = $totalStock % $piezasPorCaja;
+            }
+        @endphp
+
+        <div class="producto-card" data-search="{{ $busquedaStr }}">
+
+            <div class="prod-header">
+                <div>
+                    <h4 class="prod-title nombre-producto">
+                        {{ $producto->nombre }}
+                    </h4>
+
+                    <span class="prod-tipo">
+                        <i class="mdi mdi-tag-outline"></i>
+                        {{ $producto->tipoProducto?->categoria?->nombre }}
+                        ·
+                        {{ $producto->tipoProducto?->nombre }}
+                    </span>
+                </div>
+
+                <div class="prod-meta">
+                    @if($producto->marca)
+                        <span><i class="mdi mdi-trademark"></i> {{ $producto->marca }}</span>
+                    @endif
+
+                    @if($producto->medida)
+                        <span><i class="mdi mdi-ruler"></i> {{ $producto->medida }}</span>
+                    @endif
+
+                    @if($producto->modelo)
+                        <span><i class="mdi mdi-barcode"></i> {{ $producto->modelo }}</span>
+                    @endif
+
+                    @if($producto->color)
+                        <span><i class="mdi mdi-palette"></i> {{ $producto->color }}</span>
+                    @endif
+                </div>
+            </div>
+
+            {{-- STOCK POR ADMINISTRADOR Y DEPÓSITO --}}
+            <div class="stock-grid">
+
+                @forelse($producto->stocks->groupBy('user_id') as $userId => $stocks)
+
+                    <div class="stock-admin-card">
+
+                        <div class="admin-header">
+                            <i class="mdi mdi-account-circle-outline"></i>
+
+                            <span class="admin-nombre">
+                                {{ $stocks->first()->user->name ?? 'Admin Desconocido' }}
+                            </span>
+                        </div>
+
+                        @foreach($stocks as $stock)
+
+                            @php
+                                $cantidad = (int) round((float) $stock->cantidad);
+
+                                $cajas = 0;
+                                $piezas = $cantidad;
+
+                                if ($esCeramica && $piezasPorCaja > 0) {
+                                    $cajas = intdiv($cantidad, $piezasPorCaja);
+                                    $piezas = $cantidad % $piezasPorCaja;
+                                }
+                            @endphp
+
+                            <div class="deposito-row">
+
+                                <span class="deposito-nombre">
+                                    <i class="mdi mdi-storefront-outline"></i>
+                                    {{ $stock->deposito->nombre ?? 'Tienda Desconocida' }}
+                                </span>
+
+                                <span class="deposito-cant">
+
+                                    @if($esCeramica && $piezasPorCaja > 0)
+
+                                        {{ $cajas }} cajas
+
+                                        @if($piezas > 0)
+                                            + {{ $piezas }} piezas
+                                        @endif
+
+                                    @elseif($esBolsa)
+
+                                        {{ number_format($cantidad, 0) }} bolsas
+
+                                    @else
+
+                                        {{ number_format($cantidad, 0) }}
+                                        {{ $producto->unidad_base ?? 'unidades' }}
+
+                                    @endif
+
+                                </span>
+                            </div>
+
+                        @endforeach
+
+                    </div>
+
+                @empty
+
+                    <div class="stock-admin-card" style="border-style: dashed; opacity: 0.7;">
+                        <div class="d-flex align-items-center gap-2 text-muted" style="font-size: 0.85rem;">
+                            <i class="mdi mdi-information-outline"></i>
+                            Sin stock en ninguna tienda
+                        </div>
+                    </div>
+
+                @endforelse
+
+            </div>
+
+            {{-- TOTAL GENERAL DE TODOS LOS DEPÓSITOS --}}
+            <div class="stock-total">
+
+                <div class="stock-total-label">
+                    <i class="mdi mdi-warehouse"></i>
+                    Stock total en todos los depósitos
+                </div>
+
+                <div class="stock-total-value">
+
+                    @if($esCeramica && $piezasPorCaja > 0)
+
+                        {{ $totalCajas }} cajas
+
+                        @if($totalPiezas > 0)
+                            + {{ $totalPiezas }} piezas
+                        @endif
+
+                    @elseif($esBolsa)
+
+                        {{ number_format($totalStock, 0) }} bolsas
+
+                    @else
+
+                        {{ number_format($totalStock, 0) }}
+                        {{ $producto->unidad_base ?? 'unidades' }}
+
+                    @endif
+
+                </div>
+
+            </div>
+
         </div>
 
-        <!-- Desglose de stock -->
-        <div class="stock-grid">
-          @forelse($producto->stocks->groupBy('user_id') as $userId => $stocks)
-            <div class="stock-admin-card">
-              <div class="admin-header">
-                <i class="mdi mdi-account-circle-outline"></i>
-                <span class="admin-nombre">{{ $stocks->first()->user->name ?? 'Admin Desconocido' }}</span>
-              </div>
-              <div>
-                @foreach($stocks as $stock)
-                  <div class="deposito-row">
-                    <span class="deposito-nombre">
-                      <i class="mdi mdi-storefront-outline"></i> 
-                      {{ $stock->deposito->nombre ?? 'Tienda Desconocida' }}
-                    </span>
-                    <span class="deposito-cant">
-                      {{ number_format($stock->cantidad, 0) }} pzs
-                    </span>
-                  </div>
-                @endforeach
-              </div>
-            </div>
-          @empty
-            <div class="stock-admin-card" style="border-style: dashed; opacity: 0.7;">
-              <div class="d-flex align-items-center gap-2 text-muted" style="font-size: 0.85rem;">
-                <i class="mdi mdi-information-outline"></i>
-                Sin stock en ninguna tienda
-              </div>
-            </div>
-          @endforelse
-        </div>
-      </div>
     @empty
-      <!-- Si no hay productos en la BD -->
-      <div class="empty-state">
-        <i class="mdi mdi-package-variant"></i>
-        <h5>No hay productos registrados</h5>
-        <p>Agrega productos desde el módulo de Suministros para verlos aquí.</p>
-      </div>
+
+        <div class="empty-state">
+            <i class="mdi mdi-package-variant"></i>
+            <h5>No hay productos registrados</h5>
+            <p>Agrega productos desde el módulo de Suministros para verlos aquí.</p>
+        </div>
+
     @endforelse
 
-    <!-- Estado vacío por búsqueda no encontrada -->
+    {{-- SIN RESULTADOS DE BÚSQUEDA --}}
     <div id="noResults" class="empty-state" style="display: none;">
-      <i class="mdi mdi-magnify-close"></i>
-      <h5>No se encontraron productos</h5>
-      <p>No hay resultados para tu búsqueda. Intenta con otra palabra.</p>
+        <i class="mdi mdi-magnify-close"></i>
+        <h5>No se encontraron productos</h5>
+        <p>No hay resultados para tu búsqueda. Intenta con otra palabra.</p>
     </div>
-  </div>
+
+</div>
+
 
 </div>
 @endsection
@@ -356,12 +507,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // 2. Si tiene 2 o más letras, mostramos el contenedor y filtramos
     estadoInicial.style.display = 'none';
     resultadosContainer.style.display = 'block';
-    
+
     let encontrados = 0;
 
     cards.forEach(card => {
       const searchData = card.dataset.search;
-      
+
       if (searchData.includes(query)) {
         card.style.display = 'flex';
         encontrados++;

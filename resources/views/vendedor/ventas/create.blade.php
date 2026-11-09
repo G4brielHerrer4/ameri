@@ -109,6 +109,126 @@
     .totales-panel { padding: 0.9rem 1rem; }
     .btn-primary-app, .btn-secondary-app { flex: 1 1 100%; justify-content: center; }
   }
+    /* Panel de conversión de venta */
+  .conversion-info {
+      margin: 12px 0 !important;
+      padding: 16px !important;
+      border: 1px solid var(--line-strong) !important;
+      border-radius: 14px !important;
+      background: color-mix(in srgb, var(--primary) 5%, var(--bg-card)) !important;
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
+  }
+
+  .conversion-info > div:first-child {
+      color: var(--primary);
+      font-size: 0.9rem;
+      font-weight: 800;
+      margin-bottom: 12px !important;
+  }
+
+  .conversion-paso {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 13px;
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      text-align: center;
+  }
+
+  .conversion-paso strong {
+      color: var(--ink);
+      font-size: 0.88rem;
+  }
+
+  .conversion-paso span {
+      color: var(--primary);
+      font-weight: 900;
+      font-size: 1.1rem;
+  }
+
+  .conversion-nota {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-align: center;
+  }
+
+  .conversion-resumen {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+      margin-top: 12px;
+  }
+
+  .conversion-resumen > div {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 12px 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+  }
+
+  .conversion-resumen span {
+      font-size: 1.15rem;
+  }
+
+  .conversion-resumen strong {
+      color: var(--primary);
+      font-size: 1.15rem;
+  }
+
+  .conversion-resumen small {
+      color: var(--muted);
+      font-size: 0.7rem;
+      text-align: center;
+  }
+  /* ====== Buscador de productos ====== */
+  .buscador-producto-wrap {
+      position: relative;
+      margin-bottom: 0.55rem;
+  }
+
+  .buscador-producto-wrap .mdi-magnify {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--ink-muted);
+      font-size: 1.15rem;
+      pointer-events: none;
+  }
+
+  .buscador-producto {
+      padding-left: 2.35rem !important;
+      height: 42px;
+      font-size: 0.85rem !important;
+  }
+
+  .buscador-producto:focus {
+      border-color: var(--primary);
+  }
+
+  .producto-select {
+      min-height: 42px;
+  }
+
+  @media (max-width: 576px) {
+      .conversion-paso {
+          flex-direction: column;
+          gap: 5px;
+      }
+
+    .conversion-paso span {
+        transform: rotate(90deg);
+    }
+}
 </style>
 @endpush
 
@@ -158,8 +278,21 @@
           </div>
 
           <div class="col-md-4 mb-3">
-            <label class="form-label">CI / NIT <span class="required">*</span></label>
-            <input type="text" name="cliente_documento" class="form-control" value="{{ old('cliente_documento') }}" required placeholder="Ej: 12345678">
+              <label class="form-label">
+                  CI / NIT <small class="text-muted">(Opcional)</small>
+              </label>
+
+              <input
+                  type="text"
+                  name="cliente_documento"
+                  class="form-control @error('cliente_documento') is-invalid @enderror"
+                  value="{{ old('cliente_documento') }}"
+                  placeholder="Ej: 12345678"
+              >
+
+              @error('cliente_documento')
+                  <div class="invalid-feedback">{{ $message }}</div>
+              @enderror
           </div>
 
           <div class="col-md-3 mb-3">
@@ -231,8 +364,19 @@
     </div>
 
     <div class="row">
-      <div class="col-md-5 mb-2">
+     <div class="col-md-5 mb-2">
         <label class="form-label">Producto <span class="required">*</span></label>
+
+        <div class="buscador-producto-wrap">
+          <i class="mdi mdi-magnify"></i>
+          <input
+            type="text"
+            class="form-control buscador-producto"
+            placeholder="Buscar por nombre, marca o medida..."
+            autocomplete="off"
+          >
+        </div>
+
         <select class="form-select producto-select" required>
           <option value="">Seleccione un producto...</option>
         </select>
@@ -252,6 +396,13 @@
     </div>
 
     <div class="origenes-section" style="display:none;">
+      <div class="conversion-info" style="display:none; margin-bottom:0.85rem; padding:0.85rem 1rem; border:1px solid var(--line-strong); border-radius:var(--r-sm); background:color-mix(in srgb, var(--primary) 7%, transparent); color:var(--ink); font-size:0.85rem;">
+          <div style="font-weight:700; margin-bottom:0.65rem;">
+              <i class="mdi mdi-calculator-variant"></i> Conversión de venta
+          </div>
+
+          <div class="conversion-detalle"></div>
+      </div>
       <div class="origenes-title"><i class="mdi mdi-source-branch"></i> Selecciona de qué tienda tomar</div>
       <div class="origenes-lista"></div>
       <div class="alerta-stock"></div>
@@ -309,6 +460,162 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     return cantidad;
   }
+  function actualizarMaximosOrigen(linea) {
+      const producto = linea._producto;
+      const unidad = linea.querySelector('.unidad-select').value;
+
+      if (!producto) return;
+
+      const esCeramica = ['cerámica', 'ceramica', 'porcelanato']
+          .includes(String(producto.tipo || '').toLowerCase());
+
+      const piezasPorCaja = Number(producto.piezas_por_caja || 0);
+
+      linea.querySelectorAll('.cantidad-origen').forEach(input => {
+          const stockFisico = Number(input.dataset.stockFisico || 0);
+
+          let maximo = stockFisico;
+          let etiqueta = 'Tomar';
+
+          if (esCeramica && unidad === 'caja' && piezasPorCaja > 0) {
+              maximo = Math.floor(stockFisico / piezasPorCaja);
+              etiqueta = 'Tomar cajas';
+              input.step = '1';
+          } else if (esCeramica) {
+              etiqueta = 'Tomar piezas';
+              input.step = '1';
+          } else {
+              input.step = '1';
+          }
+
+          input.dataset.max = maximo;
+
+          const valorActual = Number(input.value || 0);
+
+          if (valorActual > maximo) {
+              input.value = maximo;
+          }
+
+          input.nextElementSibling.textContent = etiqueta;
+      });
+  }
+
+  function actualizarConversion(linea) {
+      const panel = linea.querySelector('.conversion-info');
+      const detalle = linea.querySelector('.conversion-detalle');
+
+      const unidad = linea.querySelector('.unidad-select').value;
+      const cantidad = parseFloat(linea.querySelector('.cantidad-input').value) || 0;
+      const producto = linea._producto;
+
+      if (!unidad || !producto || cantidad <= 0) {
+          panel.style.display = 'none';
+          return;
+      }
+
+      const piezasPorCaja = Number(producto.piezas_por_caja || 0);
+      const m2PorCaja = Number(producto.m2_por_caja || 0);
+
+      if (piezasPorCaja <= 0 || m2PorCaja <= 0) {
+          panel.style.display = 'none';
+          return;
+      }
+
+      const m2PorPieza = m2PorCaja / piezasPorCaja;
+
+      let contenido = '';
+
+      if (unidad === 'caja') {
+          const totalPiezas = cantidad * piezasPorCaja;
+          const totalM2 = cantidad * m2PorCaja;
+
+          contenido = `
+              <div class="conversion-paso">
+                  <strong>${cantidad.toLocaleString('es-BO')} cajas</strong>
+                  <span>→</span>
+                  <strong>${totalPiezas.toLocaleString('es-BO')} piezas</strong>
+                  <span>→</span>
+                  <strong>📐 ${totalM2.toFixed(2)} m²</strong>
+              </div>
+              <div class="conversion-nota">
+                  Cada caja contiene ${piezasPorCaja} piezas y cubre ${m2PorCaja.toFixed(2)} m².
+              </div>
+          `;
+
+     } else if (unidad === 'pieza') {
+      const cajasCompletas = Math.floor(cantidad / piezasPorCaja);
+      const piezasSueltas = cantidad % piezasPorCaja;
+      const totalM2 = cantidad * m2PorPieza;
+
+      contenido = `
+          <div class="conversion-paso">
+              <strong>${cantidad.toLocaleString('es-BO')} piezas solicitadas</strong>
+              <span>→</span>
+              <strong>${cajasCompletas} cajas + ${piezasSueltas} piezas</strong>
+              <span>→</span>
+              <strong>📐 ${totalM2.toFixed(2)} m²</strong>
+          </div>
+
+          <div class="conversion-resumen">
+              <div>
+                  <span></span>
+                  <strong>${cajasCompletas}</strong>
+                  <small>cajas completas</small>
+              </div>
+              <div>
+                  <span></span>
+                  <strong>${piezasSueltas}</strong>
+                  <small>piezas sueltas</small>
+              </div>
+              <div>
+                  <span></span>
+                  <strong>${cantidad}</strong>
+                  <small>total de piezas</small>
+              </div>
+          </div>
+
+          <div class="conversion-nota">
+              Cada caja contiene ${piezasPorCaja} piezas.
+          </div>
+      `;
+
+      } else if (unidad === 'm2') {
+          const totalPiezas = convertirAStock(producto, cantidad, 'm2');
+          const cajasCompletas = Math.floor(totalPiezas / piezasPorCaja);
+          const piezasSueltas = totalPiezas % piezasPorCaja;
+          const totalM2 = totalPiezas * m2PorPieza;
+
+          contenido = `
+              <div class="conversion-paso">
+                  <strong>${cantidad.toFixed(2)} m² solicitados</strong>
+                  <span>→</span>
+                  <strong>${totalPiezas} piezas</strong>
+                  <span>→</span>
+                  <strong>📐 ${totalM2.toFixed(2)} m² reales</strong>
+              </div>
+              <div class="conversion-resumen">
+                  <div>
+                      <span></span>
+                      <strong>${cajasCompletas}</strong>
+                      <small>cajas completas</small>
+                  </div>
+                  <div>
+                      <span></span>
+                      <strong>${piezasSueltas}</strong>
+                      <small>piezas sueltas</small>
+                  </div>
+                  <div>
+                      <span></span>
+                      <strong>${totalPiezas}</strong>
+                      <small>total de piezas</small>
+                  </div>
+              </div>
+          `;
+      }
+
+      detalle.innerHTML = contenido;
+      panel.style.display = contenido ? 'block' : 'none';
+  }
 
   /* ================== Cambio de admin ================== */
   adminSelect.addEventListener('change', async function () {
@@ -363,17 +670,80 @@ document.addEventListener('DOMContentLoaded', function () {
     linea.querySelector('[data-num]').textContent = numLinea;
 
     const selectProd = linea.querySelector('.producto-select');
+    const buscadorProd = linea.querySelector('.buscador-producto');
+
     selectProd.innerHTML = '<option value="">Seleccione un producto...</option>';
     productosAdminCache.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.id;
-      opt.textContent = `${p.nombre} (${p.cantidad_total} ${p.unidad_base})`;
-      selectProd.appendChild(opt);
-    });
+      opt.dataset.search = [
+      p.nombre,
+      p.tipo,
+      p.marca,
+      p.medida,
+      p.modelo,
+      p.color,
+      p.acabado
+  ].filter(Boolean).join(' ').toLowerCase();
 
-    selectProd.addEventListener('change', function () {
+      const tipo = String(p.tipo || '').trim().toLowerCase();
+      const esCeramica = ['cerámica', 'ceramica', 'porcelanato'].includes(tipo);
+
+      if (esCeramica) {
+          const piezas = Number(p.cantidad_total || 0);
+          const piezasPorCaja = Number(p.piezas_por_caja || 0);
+
+          if (piezasPorCaja > 0) {
+              const cajas = Math.floor(piezas / piezasPorCaja);
+              const sobrantes = piezas % piezasPorCaja;
+
+              opt.textContent = sobrantes > 0
+                  ? `${p.nombre} (${cajas} cajas y ${sobrantes} piezas disponibles)`
+                  : `${p.nombre} (${cajas} cajas disponibles)`;
+          } else {
+              opt.textContent = `${p.nombre} (${piezas} piezas disponibles)`;
+          }
+      } else {
+          opt.textContent = `${p.nombre} (${p.cantidad_total} ${p.unidad_base} disponibles)`;
+      }
+
+      selectProd.appendChild(opt);
+  });
+
+    // Buscar productos por nombre, tipo, marca, medida, modelo, color o acabado.
+  buscadorProd.addEventListener('input', function () {
+      const busqueda = this.value
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .trim();
+
+      Array.from(selectProd.options).forEach(option => {
+          if (option.value === '') {
+              option.hidden = false;
+              return;
+          }
+
+          const texto = (option.dataset.search || '')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '');
+
+          // Conserva visible el producto que ya está seleccionado.
+          const coincide = texto.includes(busqueda);
+          option.hidden = !coincide && option.value !== selectProd.value;
+      });
+  });
+
+  // Al seleccionar un producto, se muestra nuevamente toda la lista.
+  selectProd.addEventListener('change', function () {
+      buscadorProd.value = '';
+
+      Array.from(selectProd.options).forEach(option => {
+          option.hidden = false;
+      });
+
       cargarStockProducto(linea, this.value);
-    });
+  });
 
     linea.querySelector('[data-remove]').addEventListener('click', function () {
       linea.remove();
@@ -449,24 +819,62 @@ document.addEventListener('DOMContentLoaded', function () {
       if (stocks.length === 0) {
         lista.innerHTML = `<div style="padding:0.8rem;color:var(--warning);"><i class="mdi mdi-alert"></i> El administrador no tiene stock de este producto.</div>`;
       } else {
-        stocks.forEach(stock => {
-          const item = document.createElement('div');
-          item.className = 'origen-item';
-          item.dataset.depositoId = stock.deposito_id;
-          item.innerHTML = `
-            <div class="info">
-              <i class="mdi mdi-storefront-outline"></i>
-              <div class="name">${stock.deposito_nombre}</div>
-            </div>
-            <div class="disponible"><span>${stock.cantidad} ${data.producto.unidad_base}</span></div>
-            <div>
-              <input type="number" class="cantidad-origen" min="0" value="0" data-max="${stock.cantidad}" data-deposito-id="${stock.deposito_id}">
-              <span class="origen-unidad-label">Tomar</span>
-            </div>
-          `;
-          lista.appendChild(item);
-        });
+       stocks.forEach(stock => {
+    const item = document.createElement('div');
+    item.className = 'origen-item';
+    item.dataset.depositoId = stock.deposito_id;
 
+    const tipo = String(data.producto.tipo || '').trim().toLowerCase();
+    const esCeramica = ['cerámica', 'ceramica', 'porcelanato'].includes(tipo);
+
+    let stockVisible = `${stock.cantidad} ${data.producto.unidad_base}`;
+
+    if (esCeramica) {
+        const totalPiezas = Number(stock.cantidad || 0);
+        const piezasPorCaja = Number(data.producto.piezas_por_caja || 0);
+
+        if (piezasPorCaja > 0) {
+            const cajas = Math.floor(totalPiezas / piezasPorCaja);
+            const piezasSueltas = totalPiezas % piezasPorCaja;
+
+            if (cajas > 0 && piezasSueltas > 0) {
+                stockVisible = `${cajas} cajas + ${piezasSueltas} piezas`;
+            } else if (cajas > 0) {
+                stockVisible = `${cajas} cajas`;
+            } else {
+                stockVisible = `${piezasSueltas} piezas`;
+            }
+        }
+    }
+
+    item.innerHTML = `
+      <div class="info">
+        <i class="mdi mdi-storefront-outline"></i>
+        <div class="name">${stock.deposito_nombre}</div>
+      </div>
+
+      <div class="disponible">
+        <span>${stockVisible}</span>
+      </div>
+
+      <div>
+        <input
+          type="number"
+          class="cantidad-origen"
+          min="0"
+          value="0"
+          data-max="${stock.cantidad}"
+          data-stock-fisico="${stock.cantidad}"
+          data-deposito-id="${stock.deposito_id}"
+        >
+        <span class="origen-unidad-label">Tomar</span>
+      </div>
+    `;
+
+    lista.appendChild(item);
+  });
+
+        actualizarMaximosOrigen(linea);
         lista.querySelectorAll('.cantidad-origen').forEach(input => {
           input.addEventListener('input', function () {
             let val = parseFloat(this.value) || 0;
@@ -483,10 +891,11 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       unidadSelect.onchange = function () {
-        configurarCantidad(linea);
-        actualizarPrecio(linea);
-        validarOrigenes(linea);
-        recalcular();
+          configurarCantidad(linea);
+          actualizarPrecio(linea);
+          actualizarMaximosOrigen(linea);
+          validarOrigenes(linea);
+          recalcular();
       };
 
       cantidadInput.oninput = function () {
@@ -504,23 +913,43 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   /* ================== Precio / cantidad ================== */
+
   function actualizarPrecio(linea) {
-    const precioInput = linea.querySelector('.precio-input');
-    const unidad = linea.querySelector('.unidad-select').value;
-    const producto = linea._producto;
-    if (!producto || !unidad) return;
+      const precioInput = linea.querySelector('.precio-input');
+      const unidad = linea.querySelector('.unidad-select').value;
+      const producto = linea._producto;
 
-    const precios = producto.precios_venta || {};
-    const precio = precios[unidad];
+      if (!producto || !unidad) return;
 
-    if (precio) {
-      precioInput.value = Number(precio).toFixed(2);
-      precioInput.disabled = false;
-    } else {
-      precioInput.value = '';
-      precioInput.disabled = true;
-    }
-    recalcular();
+      const precios = producto.precios_venta || {};
+
+      let precio = null;
+
+      const tipo = String(producto.tipo || '').trim().toLowerCase();
+
+      const esCeramica = ['cerámica', 'ceramica', 'porcelanato']
+          .includes(tipo);
+
+      if (esCeramica && unidad === 'm2') {
+          const precioCaja = Number(precios.caja || 0);
+          const m2PorCaja = Number(producto.m2_por_caja || 0);
+
+          if (precioCaja > 0 && m2PorCaja > 0) {
+              precio = precioCaja / m2PorCaja;
+          }
+      } else {
+          precio = Number(precios[unidad] || 0);
+      }
+
+      if (precio !== null && precio > 0) {
+          precioInput.value = precio.toFixed(2);
+          precioInput.disabled = false;
+      } else {
+          precioInput.value = '';
+          precioInput.disabled = true;
+      }
+
+      recalcular();
   }
 
   function configurarCantidad(linea) {
@@ -532,97 +961,146 @@ document.addEventListener('DOMContentLoaded', function () {
 
   /* ================== Validar orígenes ================== */
   function validarOrigenes(linea) {
-    const alerta         = linea.querySelector('.alerta-stock');
-    const inputs         = linea.querySelectorAll('.cantidad-origen');
-    const panelFaltante  = linea.querySelector('.panel-faltante-container');
-    const panelInterna   = linea.querySelector('.panel-interna-container');
+      const alerta         = linea.querySelector('.alerta-stock');
+      const inputs         = linea.querySelectorAll('.cantidad-origen');
+      const panelFaltante  = linea.querySelector('.panel-faltante-container');
+      const panelInterna   = linea.querySelector('.panel-interna-container');
 
-    const producto      = linea._producto;
-    const unidadVenta   = linea.querySelector('.unidad-select').value;
-    const cantidadInput = parseFloat(linea.querySelector('.cantidad-input').value) || 0;
+      const producto      = linea._producto;
+      const unidadVenta   = linea.querySelector('.unidad-select').value;
+      const cantidadInput = parseFloat(linea.querySelector('.cantidad-input').value) || 0;
 
-    alerta.innerHTML = '';
-    alerta.className = 'alerta-stock';
-    panelFaltante.innerHTML = '';
-    panelInterna.innerHTML = '';
+      alerta.innerHTML = '';
+      alerta.className = 'alerta-stock';
+      panelFaltante.innerHTML = '';
+      panelInterna.innerHTML = '';
 
-    if (!producto || cantidadInput <= 0) return;
+      if (!producto || cantidadInput <= 0) return;
 
-    const requeridoStock  = convertirAStock(producto, cantidadInput, unidadVenta);
-    const stockTotalAdmin = Number(linea._stockTotalAdmin || 0);
+      const esCeramica = ['cerámica', 'ceramica', 'porcelanato']
+          .includes(String(producto.tipo || '').toLowerCase());
 
-    let totalAsignado = 0;
-    inputs.forEach(i => totalAsignado += parseFloat(i.value) || 0);
+      // Si se vende por cajas, la asignación también se calcula en cajas.
+      const requeridoStock = esCeramica && unidadVenta === 'caja'
+          ? cantidadInput
+          : convertirAStock(producto, cantidadInput, unidadVenta);
 
-    const faltaAsignar = +(requeridoStock - totalAsignado).toFixed(2);
-    const faltaReal    = Math.max(0, +(requeridoStock - stockTotalAdmin).toFixed(2));
+      const unidadMostrar = esCeramica && unidadVenta === 'caja'
+          ? 'cajas'
+          : producto.unidad_base;
 
-    // 1) Todo correcto
-    if (Math.abs(faltaAsignar) <= 0.01 && faltaReal <= 0.01) {
-      alerta.className = 'alerta-stock ok';
-      alerta.innerHTML = `<i class="mdi mdi-check-circle"></i> Stock asignado correctamente (${totalAsignado} / ${requeridoStock} ${producto.unidad_base}).`;
-      return;
-    }
+      const stockTotalAdmin = Number(linea._stockTotalAdmin || 0);
+      const piezasPorCaja = Number(producto.piezas_por_caja || 0);
 
-    // 2) Falta asignar entre tiendas pero el admin sí tiene suficiente
-    if (faltaReal <= 0.01 && faltaAsignar > 0) {
-      alerta.className = 'alerta-stock warn';
-      alerta.innerHTML = `<i class="mdi mdi-alert"></i> Te falta asignar <strong>${faltaAsignar} ${producto.unidad_base}</strong> entre las tiendas.`;
-      return;
-    }
+      // Convertir el stock total físico a cajas completas para comparar.
+      const stockTotalDisponible = esCeramica && unidadVenta === 'caja'
+          && piezasPorCaja > 0
+          ? Math.floor(stockTotalAdmin / piezasPorCaja)
+          : stockTotalAdmin;
 
-    // 3) Se pasó
-    if (faltaAsignar < -0.01) {
-      alerta.className = 'alerta-stock warn';
-      alerta.innerHTML = `<i class="mdi mdi-alert-circle"></i> Te pasaste por <strong>${Math.abs(faltaAsignar)} ${producto.unidad_base}</strong>.`;
-      return;
-    }
+      let totalAsignado = 0;
+      inputs.forEach(i => {
+          totalAsignado += parseFloat(i.value) || 0;
+      });
 
-    // 4) El admin NO tiene suficiente stock total
-    if (faltaReal > 0.01) {
-      alerta.className = 'alerta-stock error';
-      alerta.innerHTML = `
-        <i class="mdi mdi-close-circle"></i>
-        Necesitas <strong>${requeridoStock} ${producto.unidad_base}</strong> y
-        <strong>${linea._adminInfo.name}</strong> solo tiene
-        <strong>${stockTotalAdmin} ${producto.unidad_base}</strong>.
-        <strong>Faltan ${faltaReal} ${producto.unidad_base}</strong>.
-      `;
+      const faltaAsignar = +(requeridoStock - totalAsignado).toFixed(2);
+      const faltaReal = Math.max(
+          0,
+          +(requeridoStock - stockTotalDisponible).toFixed(2)
+      );
 
-      panelFaltante.innerHTML = renderPanelFaltante(linea, producto, faltaReal, requeridoStock, stockTotalAdmin);
-      bindPanelFaltante(linea, producto);
-
-      if (linea._otrosStocks && linea._otrosStocks.length > 0) {
-        panelInterna.innerHTML = renderPanelOtrosAdmins(linea._otrosStocks);
+      // 1) Todo correcto
+      if (Math.abs(faltaAsignar) <= 0.01 && faltaReal <= 0.01) {
+          alerta.className = 'alerta-stock ok';
+          alerta.innerHTML = `
+              <i class="mdi mdi-check-circle"></i>
+              Stock asignado correctamente
+              (${totalAsignado} / ${requeridoStock} ${unidadMostrar}).
+          `;
+          return;
       }
-    }
+
+      // 2) Falta asignar entre tiendas, pero el administrador sí tiene suficiente
+      if (faltaReal <= 0.01 && faltaAsignar > 0) {
+          alerta.className = 'alerta-stock warn';
+          alerta.innerHTML = `
+              <i class="mdi mdi-alert"></i>
+              Te falta asignar
+              <strong>${faltaAsignar} ${unidadMostrar}</strong>
+              entre las tiendas.
+          `;
+          return;
+      }
+
+      // 3) Se pasó de la cantidad solicitada
+      if (faltaAsignar < -0.01) {
+          alerta.className = 'alerta-stock warn';
+          alerta.innerHTML = `
+              <i class="mdi mdi-alert-circle"></i>
+              Te pasaste por
+              <strong>${Math.abs(faltaAsignar)} ${unidadMostrar}</strong>.
+          `;
+          return;
+      }
+
+      // 4) El administrador no tiene suficiente stock total
+      if (faltaReal > 0.01) {
+          alerta.className = 'alerta-stock error';
+          alerta.innerHTML = `
+              <i class="mdi mdi-close-circle"></i>
+              Necesitas <strong>${requeridoStock} ${unidadMostrar}</strong> y
+              <strong>${linea._adminInfo.name}</strong> solo tiene
+              <strong>${stockTotalDisponible} ${unidadMostrar}</strong>.
+              <strong>Faltan ${faltaReal} ${unidadMostrar}</strong>.
+          `;
+
+          panelFaltante.innerHTML = renderPanelFaltante(
+              linea,
+              producto,
+              faltaReal,
+              requeridoStock,
+              stockTotalDisponible,
+              unidadMostrar
+          );
+
+          bindPanelFaltante(linea, producto, unidadMostrar);
+
+          if (linea._otrosStocks && linea._otrosStocks.length > 0) {
+              panelInterna.innerHTML = renderPanelOtrosAdmins(linea._otrosStocks);
+          }
+      }
   }
 
   /* ================== Panel: falta stock ================== */
-  function renderPanelFaltante(linea, producto, faltante, total, stock) {
-    const unidad = producto.unidad_base;
-    return `
-      <div class="panel-venta faltante">
-        <div class="panel-titulo"><i class="mdi mdi-alert-circle"></i> Falta stock del administrador</div>
-        <div class="panel-texto">
-          <strong>${linea._adminInfo.name}</strong> solo tiene <strong>${stock} ${unidad}</strong>,
-          pero necesitas <strong>${total} ${unidad}</strong>.
-          <br>Faltan <strong>${faltante} ${unidad}</strong>.
+  function renderPanelFaltante(linea, producto, faltante, total, stock, unidad) {
+      return `
+        <div class="panel-venta faltante">
+          <div class="panel-titulo">
+            <i class="mdi mdi-alert-circle"></i> Falta stock del administrador
+          </div>
+
+          <div class="panel-texto">
+            <strong>${linea._adminInfo.name}</strong> solo tiene
+            <strong>${stock} ${unidad}</strong>,
+            pero necesitas <strong>${total} ${unidad}</strong>.
+            <br>Faltan <strong>${faltante} ${unidad}</strong>.
+          </div>
+
+          <div class="panel-acciones">
+            <button type="button" class="btn-panel btn-notificar btn-notificar-faltante"
+              data-producto="${producto.id}"
+              data-faltante="${faltante}"
+              data-total="${total}"
+              data-stock="${stock}">
+              <i class="mdi mdi-bell-ring"></i>
+              Notificar al administrador (faltan ${faltante})
+            </button>
+          </div>
         </div>
-        <div class="panel-acciones">
-          <button type="button" class="btn-panel btn-notificar btn-notificar-faltante"
-            data-producto="${producto.id}"
-            data-faltante="${faltante}"
-            data-total="${total}"
-            data-stock="${stock}">
-            <i class="mdi mdi-bell-ring"></i> Notificar al administrador (faltan ${faltante})
-          </button>
-        </div>
-      </div>
-    `;
+      `;
   }
 
-  function bindPanelFaltante(linea, producto) {
+  function bindPanelFaltante(linea, producto, unidadMostrar) {
     linea.querySelectorAll('.btn-notificar-faltante').forEach(btn => {
       btn.addEventListener('click', function () {
         const adminId     = adminSelect.value;
@@ -630,7 +1108,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const faltante    = this.dataset.faltante;
         const total       = this.dataset.total;
         const stockActual = this.dataset.stock;
-        const unidad      = producto.unidad_base;
+        const unidad = unidadMostrar;
 
         Swal.fire({
           title: '¿Notificar al administrador?',
@@ -695,22 +1173,33 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   /* ================== Recalcular totales ================== */
+
   function recalcular() {
-    let subtotal = 0;
-    contenedor.querySelectorAll('.linea-venta').forEach(linea => {
-      const cant = parseFloat(linea.querySelector('.cantidad-input').value) || 0;
-      const precio = parseFloat(linea.querySelector('.precio-input').value) || 0;
-      const st = cant * precio;
-      subtotal += st;
-      linea.querySelector('.linea-subtotal').textContent = fmt(st);
-    });
+      let subtotal = 0;
 
-    const desc = parseFloat(inputDesc.value) || 0;
-    const total = Math.max(0, subtotal - desc);
+      contenedor.querySelectorAll('.linea-venta').forEach(linea => {
+          const cant = parseFloat(linea.querySelector('.cantidad-input').value) || 0;
+          const precio = parseFloat(linea.querySelector('.precio-input').value) || 0;
 
-    txtSubtotal.textContent = fmt(subtotal);
-    txtDesc.textContent = fmt(desc);
-    txtTotal.textContent = fmt(total);
+          const unidad = linea.querySelector('.unidad-select').value;
+
+          actualizarConversion(linea);
+
+          // El cobro siempre utiliza la cantidad comercial solicitada.
+          // Para m² NO se convierte la cantidad a piezas.
+          const st = cant * precio;
+
+          subtotal += st;
+
+          linea.querySelector('.linea-subtotal').textContent = fmt(st);
+      });
+
+      const desc = parseFloat(inputDesc.value) || 0;
+      const total = Math.max(0, subtotal - desc);
+
+      txtSubtotal.textContent = fmt(subtotal);
+      txtDesc.textContent = fmt(desc);
+      txtTotal.textContent = fmt(total);
   }
 
   inputDesc.addEventListener('input', recalcular);
@@ -745,16 +1234,26 @@ document.addEventListener('DOMContentLoaded', function () {
       const prod = linea._producto;
       if (!prod) { hayErrores = true; mensajeError = `Línea ${index + 1}: espera a que cargue el stock del producto.`; return; }
 
-      const unidad  = linea.querySelector('.unidad-select').value;
-      const reqStock = convertirAStock(prod, cantidad, unidad);
+      const unidad = linea.querySelector('.unidad-select').value;
+
+      const esCeramica = ['cerámica', 'ceramica', 'porcelanato']
+          .includes(String(prod.tipo || '').toLowerCase());
+
+      const reqStock = esCeramica && unidad === 'caja'
+    ? cantidad
+    : convertirAStock(prod, cantidad, unidad);
 
       let totalAsignado = 0;
       linea.querySelectorAll('.cantidad-origen').forEach(i => totalAsignado += parseFloat(i.value) || 0);
 
-      if (Math.abs(totalAsignado - reqStock) > 0.01) {
+    if (Math.abs(totalAsignado - reqStock) > 0.01) {
+        const unidadError = esCeramica && unidad === 'caja'
+            ? 'cajas'
+            : prod.unidad_base;
+
         hayErrores = true;
-        mensajeError = `Línea ${index + 1}: debes asignar exactamente ${reqStock} ${prod.unidad_base} de stock (tienes ${totalAsignado}).`;
-      }
+        mensajeError = `Línea ${index + 1}: debes asignar exactamente ${reqStock} ${unidadError} de stock (tienes ${totalAsignado}).`;
+    }
     });
 
     if (hayErrores) {
@@ -771,6 +1270,11 @@ document.addEventListener('DOMContentLoaded', function () {
       const cantidad   = linea.querySelector('.cantidad-input').value;
       const unidad     = linea.querySelector('.unidad-select').value;
       const precio     = linea.querySelector('.precio-input').value;
+
+      const prod = linea._producto;
+
+      const esCeramica = ['cerámica', 'ceramica', 'porcelanato']
+          .includes(String(prod?.tipo || '').toLowerCase());
 
       const add = (name, value) => {
         const h = document.createElement('input');
@@ -789,7 +1293,15 @@ document.addEventListener('DOMContentLoaded', function () {
         if (val <= 0) return;
         add(`items[${idx}][movimientos][${mIdx}][stock_user_id]`, adminSelect.value);
         add(`items[${idx}][movimientos][${mIdx}][deposito_id]`, input.dataset.depositoId);
-        add(`items[${idx}][movimientos][${mIdx}][cantidad]`, val);
+        let cantidadFisica = val;
+        if (esCeramica && unidad === 'caja') {
+            cantidadFisica = val * Number(prod.piezas_por_caja || 0);
+        }
+
+        add(
+            `items[${idx}][movimientos][${mIdx}][cantidad]`,
+            cantidadFisica
+        );
         mIdx++;
       });
       idx++;

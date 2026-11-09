@@ -32,6 +32,38 @@
 
 @push('styles')
 @include('vendedor.ventas.styles_create')
+
+<style>
+    /* Buscador de productos */
+    .buscador-producto-wrap {
+        position: relative;
+        margin-bottom: 0.55rem;
+    }
+
+    .buscador-producto-wrap .mdi-magnify {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--ink-muted);
+        font-size: 1.15rem;
+        pointer-events: none;
+    }
+
+    .buscador-producto {
+        padding-left: 2.35rem !important;
+        height: 42px;
+        font-size: 0.85rem !important;
+    }
+
+    .buscador-producto:focus {
+        border-color: var(--primary);
+    }
+
+    .producto-select {
+        min-height: 42px;
+    }
+</style>
 @endpush
 
 @section('content')
@@ -53,6 +85,7 @@
 
   <form action="{{ route('vendedor.ventas.update', $venta) }}" method="POST" id="formVenta" novalidate>
     @csrf @method('PUT')
+    <input type="hidden" name="admin_id" id="admin_id" value="{{ old('admin_id', $adminId) }}">
 
     {{-- Datos del cliente --}}
     <div class="card-form mb-4">
@@ -64,11 +97,23 @@
             <input type="text" name="cliente_nombre" class="form-control"
                    value="{{ old('cliente_nombre', $venta->cliente_nombre) }}" required>
           </div>
-          <div class="col-md-4 mb-3">
-            <label class="form-label">CI / NIT <span class="required">*</span></label>
-            <input type="text" name="cliente_documento" class="form-control"
-                   value="{{ old('cliente_documento', $venta->cliente_documento) }}" required>
-          </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">
+                    CI / NIT <small class="text-muted">(Opcional)</small>
+                </label>
+
+                <input
+                    type="text"
+                    name="cliente_documento"
+                    class="form-control @error('cliente_documento') is-invalid @enderror"
+                    value="{{ old('cliente_documento', $venta->cliente_documento) }}"
+                    placeholder="Ej: 12345678"
+                >
+
+                @error('cliente_documento')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
           <div class="col-md-3 mb-3">
             <label class="form-label">Teléfono</label>
             <input type="text" name="cliente_telefono" class="form-control"
@@ -101,6 +146,17 @@
     <div class="card-form mb-4">
       <div class="card-head"><i class="mdi mdi-format-list-bulleted"></i> Productos de la venta</div>
       <div class="card-body">
+        @if($adminId)
+            @php
+                $adminSeleccionado = $admins->firstWhere('id', $adminId);
+            @endphp
+
+            <div class="alert alert-info mb-3">
+                <i class="mdi mdi-account-circle me-1"></i>
+                Inventario del administrador:
+                <strong>{{ $adminSeleccionado?->name ?? 'Administrador #' . $adminId }}</strong>
+            </div>
+        @endif
         <div id="contenedorLineas"></div>
         <button type="button" class="btn-add-line" id="btnAgregarLinea">
           <i class="mdi mdi-plus"></i> Agregar producto
@@ -129,419 +185,912 @@
   </form>
 </div>
 
-<template id="templateLinea">
-  {{-- mismo template que en create --}}
-  <div class="linea-venta" data-linea>
-    <div class="linea-head">
-      <div class="d-flex align-items-center gap-2">
-        <span class="linea-num" data-num>1</span>
-        <strong style="font-family:var(--font-display);color:var(--ink);font-size:0.9rem;">Producto</strong>
+
+  <template id="templateLinea">
+    <div class="linea-venta" data-linea>
+      <div class="linea-head">
+        <div class="d-flex align-items-center gap-2">
+          <span class="linea-num" data-num>1</span>
+          <strong style="font-family:var(--font-display);color:var(--ink);font-size:0.9rem;">
+            Producto
+          </strong>
+        </div>
+        <button type="button" class="btn-remove-line" data-remove>
+          <i class="mdi mdi-close"></i>
+        </button>
       </div>
-      <button type="button" class="btn-remove-line" data-remove><i class="mdi mdi-close"></i></button>
-    </div>
-    <div class="row">
-      <div class="col-md-5 mb-2">
-        <label class="form-label">Producto <span class="required">*</span></label>
-        <select class="form-select producto-select" required>
-          <option value="">Seleccione un producto...</option>
-         
-            @foreach($stocks as $s)
 
-                @php
-                    $tipo = mb_strtolower(
-                        trim((string) ($s->producto->tipoProducto?->nombre ?? '')),
-                        'UTF-8'
-                    );
+      <div class="row">
+        <div class="col-md-5 mb-2">
+            <label class="form-label">Producto <span class="required">*</span></label>
 
-                    $esCeramica = in_array(
-                        $tipo,
-                        ['cerámica', 'ceramica', 'porcelanato'],
-                        true
-                    );
+            <div class="buscador-producto-wrap">
+                <i class="mdi mdi-magnify"></i>
 
-                    $totalPiezas = (int) $s->cantidad;
-                    $piezasPorCaja = (int) ($s->producto->piezas_por_caja ?? 0);
-
-                    if ($esCeramica && $piezasPorCaja > 0) {
-                        $cajas = intdiv($totalPiezas, $piezasPorCaja);
-                        $piezasSueltas = $totalPiezas % $piezasPorCaja;
-
-                        $existencia = $cajas . ' cajas y ' .
-                            $piezasSueltas . ' piezas';
-                    } else {
-                        $existencia = rtrim(
-                            rtrim(number_format((float) $s->cantidad, 2, '.', ''), '0'),
-                            '.'
-                        ) . ' ' . $s->producto->unidad_base;
-                    }
-                @endphp
-
-                <option
-                    value="{{ $s->producto->id }}"
-                    data-stock-propio="{{ (float) $s->cantidad }}"
-                    data-unidad-base="{{ $s->producto->unidad_base }}"
-                    data-piezas-por-caja="{{ $s->producto->piezas_por_caja ?? 0 }}"
+                <input
+                    type="text"
+                    class="form-control buscador-producto"
+                    placeholder="Buscar por nombre, marca o medida..."
+                    autocomplete="off"
                 >
-                    {{ $s->producto->nombre }}
-                    @if($s->producto->marca)
-                        · {{ $s->producto->marca }}
-                    @endif
-                    — {{ $existencia }} disponibles
-                </option>
+            </div>
 
-            @endforeach
+            <select class="form-select producto-select" required>
+                <option value="">Seleccionar producto...</option>
+            </select>
+        </div>
 
-        </select>
+        <div class="col-md-2 mb-2">
+          <label class="form-label">Unidad <span class="required">*</span></label>
+          <select class="form-select unidad-select" required disabled>
+            <option value="">Unidad</option>
+          </select>
+        </div>
+
+        <div class="col-md-2 mb-2">
+          <label class="form-label">Cantidad <span class="required">*</span></label>
+          <input
+            type="number"
+            class="form-control cantidad-input"
+            min="0.01"
+            step="0.01"
+            value="1"
+            required
+          >
+        </div>
+
+        <div class="col-md-3 mb-2">
+          <label class="form-label">Precio unitario (Bs.)</label>
+          <input
+            type="number"
+            class="form-control precio-input"
+            readonly
+          >
+        </div>
       </div>
-      <div class="col-md-3 mb-2">
-        <label class="form-label">Cantidad <span class="required">*</span></label>
-        <input type="number" class="form-control cantidad-input" min="0.01" step="0.01" value="1" required>
+
+      <div class="conversion-info small text-muted mt-1" style="display:none;">
+        <i class="mdi mdi-information-outline"></i>
+        <span class="conversion-detalle"></span>
       </div>
-      <div class="col-md-4 mb-2">
-        <label class="form-label">Precio unitario <span class="required">*</span></label>
-        <input type="number" class="form-control precio-input" min="0.01" step="0.01" required>
+
+      <div class="origenes-section mt-3" style="display:none;">
+        <div class="origenes-title">
+          <i class="mdi mdi-source-branch"></i>
+          Asignación de inventario por depósito
+        </div>
+
+        <div class="origenes-lista"></div>
+
+        <div class="alerta-stock mt-2"></div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mt-2">
+        <small class="text-muted">Subtotal línea:</small>
+        <span
+          class="linea-subtotal"
+          style="font-family:var(--font-display);font-weight:700;color:var(--cyan);font-size:1rem;"
+        >
+          Bs. 0.00
+        </span>
       </div>
     </div>
-    <div class="origenes-section" style="display:none;">
-      <div class="origenes-title"><i class="mdi mdi-source-branch"></i> Selecciona de qué admin tomar el stock</div>
-      <div class="origenes-lista"></div>
-      <div class="alerta-stock"></div>
-    </div>
-    <div class="d-flex justify-content-between align-items-center mt-2">
-      <small class="text-muted">Subtotal línea:</small>
-      <span class="linea-subtotal" style="font-family:var(--font-display);font-weight:700;color:var(--cyan);font-size:1rem;">Bs. 0.00</span>
-    </div>
-  </div>
-</template>
+  </template>
 
 <script id="lineasExistentes" type="application/json">{!! json_encode($lineasExistentes ?? []) !!}</script>
 @endsection
 
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  const contenedor = document.getElementById('contenedorLineas');
-  const template   = document.getElementById('templateLinea');
-  const btnAgregar = document.getElementById('btnAgregarLinea');
-  const inputDesc  = document.getElementById('inputDescuento');
-  const txtSubtotal = document.getElementById('txtSubtotal');
-  const txtDesc     = document.getElementById('txtDescuento');
-  const txtTotal    = document.getElementById('txtTotal');
 
-  const lineasExistentes = JSON.parse(document.getElementById('lineasExistentes').textContent) || [];
+document.addEventListener('DOMContentLoaded', async function () {
+    const contenedor = document.getElementById('contenedorLineas');
+    const template = document.getElementById('templateLinea');
+    const btnAgregar = document.getElementById('btnAgregarLinea');
+    const inputDesc = document.getElementById('inputDescuento');
+    const txtSubtotal = document.getElementById('txtSubtotal');
+    const txtDesc = document.getElementById('txtDescuento');
+    const txtTotal = document.getElementById('txtTotal');
+    const form = document.getElementById('formVenta');
 
-  let numLinea = 0;
+    const lineasExistentes = JSON.parse(
+        document.getElementById('lineasExistentes').textContent
+    ) || [];
 
-  function fmt(n) {
-    return 'Bs. ' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  }
+    const adminId = document.getElementById('admin_id').value;
+    let productosAdminCache = [];
+    let numLinea = 0;
 
- 
-async function cargarStockProducto(linea, productoId, cantidadesPrevias = {}) {
-    const origenesSection = linea.querySelector('.origenes-section');
-    const lista = linea.querySelector('.origenes-lista');
-
-    if (!productoId) {
-        origenesSection.style.display = 'none';
-        return;
+    function fmt(n) {
+        return 'Bs. ' + Number(n || 0).toFixed(2)
+            .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     }
 
-    lista.innerHTML = '<div style="padding:1rem;text-align:center;"><span class="spinner-inline"></span></div>';
-    origenesSection.style.display = '';
-
-    const res = await fetch(`{{ url('vendedor/ventas/stock-producto') }}/${productoId}`);
-    const data = await res.json();
-
-    lista.innerHTML = '';
-
-    // Unidad original de la venta: caja, m2 o pieza.
-    const unidadVenta = linea.dataset.unidadVenta || 'pieza';
-
-    const esCeramica = ['cerámica', 'ceramica', 'porcelanato']
-        .includes((data.producto.tipo || '').trim().toLowerCase());
-
-    const piezasPorCaja = parseInt(data.producto.piezas_por_caja || 0, 10);
-
-    // Mostrar cajas cuando la venta se hizo por cajas.
-    const mostrarCajas = esCeramica &&
-        unidadVenta === 'caja' &&
-        piezasPorCaja > 0;
-
-    const unidadMostrar = mostrarCajas
-        ? 'cajas'
-        : data.producto.unidad_base;
-
-    data.stocks.forEach(s => {
-        // El stock real de cada administrador continúa en piezas.
-        const cantidadFisica = parseFloat(s.cantidad) || 0;
-
-        // Cantidad física original asignada a este administrador.
-        const cantidadPreviaFisica = parseFloat(
-            cantidadesPrevias[s.user_id] || 0
+    function esCeramica(producto) {
+        const tipo = (producto?.tipo || '').trim().toLowerCase();
+        return ['cerámica', 'ceramica', 'porcelanato'].includes(tipo);
+    }
+    function usaCantidadEntera(unidad) {
+        return ['caja', 'pieza', 'bolsa'].includes(
+            String(unidad || '').trim().toLowerCase()
         );
+    }
 
-        // Para mostrar cajas, convertimos las piezas a cajas equivalentes.
-        const cantidadDisponibleMostrar = mostrarCajas
-            ? cantidadFisica / piezasPorCaja
-            : cantidadFisica;
+    function redondear(n) {
+        return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    }
+    function formatoCajasPiezas(cantidad, piezasPorCaja) {
+        cantidad = Math.round(Number(cantidad) || 0);
+        piezasPorCaja = Math.floor(Number(piezasPorCaja) || 0);
 
-        const cantidadPreviaMostrar = mostrarCajas
-            ? cantidadPreviaFisica / piezasPorCaja
-            : cantidadPreviaFisica;
-
-        const item = document.createElement('div');
-        item.className = 'origen-item' + (s.es_propio ? ' es-propio' : '');
-        item.dataset.userId = s.user_id;
-        item.dataset.unidadMostrar = unidadMostrar;
-        item.dataset.mostrarCajas = mostrarCajas ? '1' : '0';
-        item.dataset.piezasPorCaja = piezasPorCaja;
-
-        item.innerHTML = `
-            <div class="info">
-                <i class="mdi mdi-account-circle"></i>
-                <span class="name">${s.user_name}</span>
-                ${s.es_propio ? '<span class="label">Mi stock</span>' : ''}
-            </div>
-
-            <div class="disponible">
-                <strong>${Number(cantidadDisponibleMostrar.toFixed(2))}</strong>
-                ${unidadMostrar} disponibles
-            </div>
-
-            <input
-                type="number"
-                class="cantidad-origen"
-                min="0"
-                step="${mostrarCajas ? '1' : '0.01'}"
-                value="${Number(cantidadPreviaMostrar.toFixed(2))}"
-                data-max="${cantidadDisponibleMostrar}"
-                data-max-fisico="${cantidadFisica}"
-                data-user-id="${s.user_id}"
-            >
-        `;
-
-        lista.appendChild(item);
-    });
-
-    lista.querySelectorAll('.cantidad-origen').forEach(input => {
-        if (parseFloat(input.value) > 0) {
-            input.classList.add('tiene-valor');
+        if (piezasPorCaja <= 0) {
+            return `${cantidad} piezas`;
         }
 
-        input.addEventListener('input', function () {
-            const max = parseFloat(this.dataset.max) || 0;
-            const val = parseFloat(this.value) || 0;
+        const cajas = Math.floor(cantidad / piezasPorCaja);
+        const piezas = cantidad % piezasPorCaja;
 
-            if (val > max) this.value = max;
+        if (cajas > 0 && piezas > 0) {
+            return `${cajas} cajas + ${piezas} piezas`;
+        }
 
-            if (val > 0) this.classList.add('tiene-valor');
-            else this.classList.remove('tiene-valor');
+        if (cajas > 0) {
+            return `${cajas} cajas`;
+        }
 
-            validarOrigenes(linea);
-            recalcular();
+        return `${piezas} piezas`;
+    }
+
+    function obtenerCantidadFisica(producto, cantidad, unidad) {
+        cantidad = Number(cantidad) || 0;
+
+        if (unidad === 'caja') {
+            return cantidad * Number(producto.piezas_por_caja || 0);
+        }
+
+        if (unidad === 'm2' && esCeramica(producto)) {
+            const m2Caja = Number(producto.m2_por_caja || 0);
+            const piezasCaja = Number(producto.piezas_por_caja || 0);
+
+            if (m2Caja <= 0 || piezasCaja <= 0) return 0;
+
+            const m2Pieza = m2Caja / piezasCaja;
+            return Math.ceil((cantidad / m2Pieza) - 0.000000001);
+        }
+
+        return cantidad;
+    }
+
+    function calcularPrecio(producto, cantidad, unidad) {
+        cantidad = Number(cantidad) || 0;
+
+        if (cantidad <= 0) {
+            return { precio: 0, subtotal: 0 };
+        }
+
+        if (esCeramica(producto)) {
+            const precios = producto.precios_venta || {};
+            const precioCaja = Number(precios.caja || 0);
+            const m2Caja = Number(producto.m2_por_caja || 0);
+
+            if (unidad === 'caja') {
+                return {
+                    precio: precioCaja,
+                    subtotal: redondear(cantidad * precioCaja)
+                };
+            }
+
+            if (unidad === 'm2') {
+                if (precioCaja <= 0 || m2Caja <= 0) {
+                    return { precio: 0, subtotal: 0 };
+                }
+
+                const precioM2 = precioCaja / m2Caja;
+
+                return {
+                    precio: precioM2,
+                    subtotal: redondear(cantidad * precioM2)
+                };
+            }
+
+            if (unidad === 'pieza') {
+                const precioPieza = Number(precios.pieza || 0);
+
+                return {
+                    precio: precioPieza,
+                    subtotal: redondear(cantidad * precioPieza)
+                };
+            }
+
+            return { precio: 0, subtotal: 0 };
+        }
+
+        const precio = Number(producto.precios_venta?.[unidad] || 0);
+
+        return {
+            precio: precio,
+            subtotal: redondear(cantidad * precio)
+        };
+    }
+
+    async function cargarProductosAdmin() {
+        if (!adminId) {
+            throw new Error('No se encontró el administrador de esta venta.');
+        }
+
+        const res = await fetch(
+            `{{ url('vendedor/ventas/productos-admin') }}/${adminId}`
+        );
+
+        if (!res.ok) {
+            throw new Error('No se pudieron cargar los productos del administrador.');
+        }
+
+        const data = await res.json();
+        productosAdminCache = data.productos || [];
+
+        if (!productosAdminCache.length) {
+            throw new Error('El administrador no tiene productos disponibles actualmente.');
+        }
+    }
+
+    function llenarSelectProductos(select, productoSeleccionado = '') {
+
+        select.innerHTML = '<option value="">Seleccionar producto...</option>';
+
+        productosAdminCache.forEach(producto => {
+
+            const option = document.createElement('option');
+
+            option.value = producto.id;
+            option.textContent = producto.nombre;
+
+            option.dataset.tipo = producto.tipo || '';
+            option.dataset.unidadBase = producto.unidad_base || 'unidad';
+            option.dataset.piezasPorCaja = producto.piezas_por_caja || 0;
+            option.dataset.m2PorCaja = producto.m2_por_caja || 0;
+
+            // Datos utilizados por el buscador.
+            option.dataset.search = [
+                producto.nombre,
+                producto.tipo,
+                producto.marca,
+                producto.medida,
+                producto.modelo,
+                producto.color,
+                producto.acabado
+            ].filter(Boolean).join(' ').toLowerCase();
+
+            select.appendChild(option);
         });
-    });
 
-    validarOrigenes(linea);
-    recalcular();
-}
+        if (productoSeleccionado) {
+            select.value = String(productoSeleccionado);
+        }
+    }
+
+    function obtenerAsignacionesFisicas(linea) {
+        const asignaciones = {};
+
+        const producto = linea._productoData;
+        const unidad = linea.querySelector('.unidad-select').value;
+        const esCeramicaActual = esCeramica(producto);
+        const piezasCaja = Number(producto?.piezas_por_caja || 0);
+
+        linea.querySelectorAll('.cantidad-origen').forEach(input => {
+            const item = input.closest('.origen-item');
+            const depositoId = item.dataset.depositoId;
+
+            let cantidad = Number(input.value) || 0;
+
+            // Si se está trabajando por cajas, convertir a piezas físicas.
+            if (esCeramicaActual && unidad === 'caja') {
+                cantidad *= piezasCaja;
+            }
+
+            asignaciones[depositoId] = cantidad;
+        });
+
+        return asignaciones;
+    }
+   function construirOrigenes(linea, stocks, asignaciones = {}) {
+        const lista = linea.querySelector('.origenes-lista');
+        const producto = linea._productoData;
+
+        lista.innerHTML = '';
+
+        const esCeramicaActual = esCeramica(producto);
+        const piezasCaja = Number(producto.piezas_por_caja || 0);
+        const unidadActual = linea.querySelector('.unidad-select').value;
+
+        const asignacionPorCaja =
+            esCeramicaActual &&
+            unidadActual === 'caja' &&
+            piezasCaja > 0;
+
+        const depositos = [...stocks];
+
+        // Conservar asignaciones anteriores aunque un depósito ya no tenga stock.
+        Object.keys(asignaciones).forEach(depositoId => {
+            const existe = depositos.some(
+                s => String(s.deposito_id) === String(depositoId)
+            );
+
+            if (!existe && Number(asignaciones[depositoId]) > 0) {
+                depositos.push({
+                    user_id: Number(adminId),
+                    user_name: 'Administrador',
+                    deposito_id: Number(depositoId),
+                    deposito_nombre: `Depósito #${depositoId} (sin stock disponible)`,
+                    cantidad: 0
+                });
+            }
+        });
+
+        depositos.forEach(stock => {
+            const cantidadFisica = Number(stock.cantidad || 0);
+
+            // Las asignaciones recibidas siempre están expresadas en piezas físicas.
+            const cantidadPreviaFisica = Number(
+                asignaciones[stock.deposito_id] || 0
+            );
+
+            // Convertir a cajas solamente para mostrar y editar.
+            const cantidadPrevia = asignacionPorCaja
+                ? Math.floor(cantidadPreviaFisica / piezasCaja)
+                : cantidadPreviaFisica;
+
+            const maximoAsignable = asignacionPorCaja
+                ? Math.floor(cantidadFisica / piezasCaja)
+                : cantidadFisica;
+
+            const item = document.createElement('div');
+            item.className = 'origen-item';
+
+            item.dataset.userId = stock.user_id;
+            item.dataset.depositoId = stock.deposito_id;
+            item.dataset.piezasPorCaja = piezasCaja;
+
+            const info = document.createElement('div');
+            info.className = 'info';
+
+            const nombre = document.createElement('span');
+            nombre.className = 'name';
+            nombre.textContent = stock.deposito_nombre || 'Depósito';
+
+            info.appendChild(nombre);
+
+            const disponible = document.createElement('div');
+            disponible.className = 'disponible';
+
+            if (asignacionPorCaja) {
+                disponible.innerHTML =
+                    `<strong>${maximoAsignable}</strong> cajas disponibles`;
+            } else if (esCeramicaActual && piezasCaja > 0) {
+                disponible.innerHTML =
+                    `<strong>${formatoCajasPiezas(cantidadFisica, piezasCaja)}</strong> disponibles`;
+            } else {
+                disponible.innerHTML =
+                    `<strong>${cantidadFisica}</strong> ${producto.unidad_base || 'unidades'} disponibles`;
+            }
+
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.className = 'cantidad-origen';
+            input.min = '0';
+            input.step = '1';
+
+            input.value = String(
+                Math.min(Math.round(cantidadPrevia), maximoAsignable)
+            );
+
+            input.dataset.userId = stock.user_id;
+            input.dataset.max = maximoAsignable;
+            input.dataset.maxFisico = cantidadFisica;
+
+            if (Number(input.value) > 0) {
+                input.classList.add('tiene-valor');
+            }
+
+            const equivalencia = document.createElement('small');
+            equivalencia.className =
+                'asignacion-equivalencia text-muted';
+
+            equivalencia.style.display = 'block';
+            equivalencia.style.marginTop = '4px';
+
+            function actualizarEquivalencia() {
+                const valor = Number(input.value) || 0;
+
+                if (asignacionPorCaja) {
+                    equivalencia.textContent =
+                        `Asignación: ${valor} cajas (${valor * piezasCaja} piezas)`;
+                } else if (esCeramicaActual && piezasCaja > 0) {
+                    equivalencia.textContent =
+                        `Asignación: ${formatoCajasPiezas(valor, piezasCaja)}`;
+                } else {
+                    equivalencia.textContent =
+                        `Asignación: ${valor} ${producto.unidad_base || 'unidades'}`;
+                }
+            }
+
+            actualizarEquivalencia();
+
+            input.addEventListener('input', function () {
+                const max = Number(this.dataset.max || 0);
+                let valor = Number(this.value) || 0;
+
+                valor = Math.round(valor);
+
+                if (valor < 0) valor = 0;
+                if (valor > max) valor = max;
+
+                this.value = String(valor);
+
+                this.classList.toggle('tiene-valor', valor > 0);
+
+                actualizarEquivalencia();
+                validarOrigenes(linea);
+                recalcular();
+            });
+
+            item.appendChild(info);
+            item.appendChild(disponible);
+            item.appendChild(input);
+            item.appendChild(equivalencia);
+
+            lista.appendChild(item);
+        });
+
+        validarOrigenes(linea);
+    }
 
     function validarOrigenes(linea) {
-        const cantidad = parseFloat(
+        const cantidad = Number(
             linea.querySelector('.cantidad-input').value
         ) || 0;
 
-        const sel = linea.querySelector('.producto-select');
-        const opcion = sel.options[sel.selectedIndex];
+        const unidad = linea.querySelector('.unidad-select').value;
+        const producto = linea._productoData;
 
-        const unidad = linea.dataset.unidadVenta || 'pieza';
-        const unidadBase = opcion?.dataset.unidadBase || 'unidades';
+        const esCeramicaActual = esCeramica(producto);
+        const piezasCaja = Number(producto?.piezas_por_caja || 0);
 
-        // Convertir la cantidad vendida a unidades físicas de inventario.
-        let cantidadRequerida = cantidad;
+        const requerida = obtenerCantidadFisica(
+            producto,
+            cantidad,
+            unidad
+        );
 
-        if (unidad === 'caja') {
-            const piezasPorCaja = parseInt(
-                opcion?.dataset.piezasPorCaja || '0',
-                10
-            );
-
-            if (piezasPorCaja > 0) {
-                cantidadRequerida = cantidad * piezasPorCaja;
-            }
-        }
-
-        let total = 0;
+        let asignada = 0;
 
         linea.querySelectorAll('.cantidad-origen').forEach(input => {
-            total += parseFloat(input.value) || 0;
+            let valor = Number(input.value) || 0;
+
+            // Las cajas se convierten a piezas para comparar con el inventario.
+            if (esCeramicaActual && unidad === 'caja') {
+                valor *= piezasCaja;
+            }
+
+            asignada += valor;
         });
 
         const alerta = linea.querySelector('.alerta-stock');
 
-        if (!alerta) return;
+        if (!alerta) return false;
 
-        const diferencia = Math.round(
-            (total - cantidadRequerida) * 100
-        ) / 100;
+        const diferencia = Math.round(asignada - requerida);
 
-        if (Math.abs(diferencia) < 0.01) {
+        let unidadMensaje = 'unidades físicas';
+        let asignadaMostrar = asignada;
+        let diferenciaMostrar = Math.abs(diferencia);
+
+        if (esCeramicaActual && unidad === 'caja' && piezasCaja > 0) {
+            unidadMensaje = 'cajas';
+            asignadaMostrar = asignada / piezasCaja;
+            diferenciaMostrar = Math.abs(diferencia) / piezasCaja;
+        } else if (esCeramicaActual) {
+            unidadMensaje = 'piezas';
+        }
+
+        if (diferencia === 0) {
             alerta.className = 'alerta-stock ok';
-            alerta.innerHTML = `
-                <i class="mdi mdi-check-circle"></i>
-                <span>
-                    Stock asignado:
-                    <strong>${total} ${unidadBase}</strong>
-                </span>
-            `;
+
+            if (esCeramicaActual && unidad === 'caja') {
+                alerta.textContent =
+                    `Stock asignado correctamente: ${asignadaMostrar} cajas (${asignada} piezas).`;
+            } else {
+                alerta.textContent =
+                    `Stock asignado correctamente: ${asignada} ${unidadMensaje}.`;
+            }
+
+            return true;
+
         } else if (diferencia < 0) {
             alerta.className = 'alerta-stock warn';
-            alerta.innerHTML = `
-                <i class="mdi mdi-alert"></i>
-                <span>
-                    Falta asignar:
-                    <strong>${Math.abs(diferencia)} ${unidadBase}</strong>
-                </span>
-            `;
+
+            alerta.textContent =
+                `Falta asignar: ${diferenciaMostrar} ${unidadMensaje}.`;
+
         } else {
             alerta.className = 'alerta-stock danger';
-            alerta.innerHTML = `
-                <i class="mdi mdi-alert-circle"></i>
-                <span>
-                    Exceso de:
-                    <strong>${diferencia} ${unidadBase}</strong>
-                </span>
-            `;
+
+            alerta.textContent =
+                `Hay un exceso de: ${diferenciaMostrar} ${unidadMensaje}.`;
         }
+
+        return false;
     }
 
+    function recalcularLinea(linea) {
+        const cantidadInput = linea.querySelector('.cantidad-input');
 
-  function recalcular() {
-    let subtotal = 0;
-    contenedor.querySelectorAll('.linea-venta').forEach(linea => {
-      const c = parseFloat(linea.querySelector('.cantidad-input').value) || 0;
-      const p = parseFloat(linea.querySelector('.precio-input').value) || 0;
-      subtotal += c * p;
-      linea.querySelector('.linea-subtotal').textContent = fmt(c * p);
-    });
-    const d = parseFloat(inputDesc.value) || 0;
-    txtSubtotal.textContent = fmt(subtotal);
-    txtDesc.textContent = fmt(d);
-    txtTotal.textContent = fmt(Math.max(0, subtotal - d));
-  }
+        cantidadInput.step = '1';
+        cantidadInput.min = '1';
 
-  function agregarLinea(datosPre = null) {
-    numLinea++;
-   const wrapper = document.createElement('div');
-    wrapper.innerHTML = template.innerHTML.trim();
-    const linea = wrapper.firstElementChild;
+        // Permitir que el campo quede vacío mientras el vendedor escribe.
+        if (cantidadInput.value.trim() === '') {
+            linea.querySelector('.precio-input').value = '0.00';
+            linea.querySelector('.linea-subtotal').textContent = fmt(0);
+            linea.querySelector('.conversion-info').style.display = 'none';
+            validarOrigenes(linea);
+            return 0;
+        }
 
-    linea.querySelector('[data-num]').textContent = numLinea;
+        const cantidad = Number(cantidadInput.value);
 
-    linea.querySelector('.producto-select').addEventListener('change', function () {
-      cargarStockProducto(linea, this.value);
-    });
+        if (!Number.isFinite(cantidad) || cantidad < 1) {
+            return 0;
+        }
 
-    linea.querySelector('.cantidad-input').addEventListener('input', () => { validarOrigenes(linea); recalcular(); });
-    linea.querySelector('.precio-input').addEventListener('input', recalcular);
-    linea.querySelector('[data-remove]').addEventListener('click', () => {
-      linea.remove(); recalcular();
-    });
+        const unidad = linea.querySelector('.unidad-select').value;
+        const producto = linea._productoData;
 
-    contenedor.appendChild(linea);
+        if (!producto) return 0;
 
-    
-    if (datosPre) {
-        linea.querySelector('.producto-select').value = datosPre.producto_id;
-        linea.querySelector('.cantidad-input').value = datosPre.cantidad;
-        linea.querySelector('.precio-input').value = datosPre.precio_unitario;
+        const calculo = calcularPrecio(producto, cantidad, unidad);
 
-        // Conservar la unidad original de la venta.
-        linea.dataset.unidadVenta = datosPre.unidad || 'pieza';
+        linea.querySelector('.precio-input').value =
+            calculo.precio.toFixed(2);
 
-        const cantidades = {};
-        (datosPre.movimientos || []).forEach(m => {
-            cantidades[m.stock_user_id] = m.cantidad;
+        linea.querySelector('.linea-subtotal').textContent =
+            fmt(calculo.subtotal);
+
+        const conversionInfo = linea.querySelector('.conversion-info');
+        const conversionDetalle = linea.querySelector('.conversion-detalle');
+
+        if (esCeramica(producto) && unidad === 'm2') {
+            const piezas = obtenerCantidadFisica(producto, cantidad, unidad);
+
+            conversionInfo.style.display = '';
+            conversionDetalle.textContent =
+                `${cantidad} m² requieren ${piezas} piezas físicas.`;
+        } else if (esCeramica(producto) && unidad === 'caja') {
+            const piezas = obtenerCantidadFisica(producto, cantidad, unidad);
+
+            conversionInfo.style.display = '';
+            conversionDetalle.textContent =
+                `${cantidad} cajas equivalen a ${piezas} piezas físicas.`;
+        } else {
+            conversionInfo.style.display = 'none';
+            conversionDetalle.textContent = '';
+        }
+
+        validarOrigenes(linea);
+
+        return calculo.subtotal;
+    }
+
+    function recalcular() {
+        let subtotal = 0;
+
+        contenedor.querySelectorAll('.linea-venta').forEach(linea => {
+            subtotal += recalcularLinea(linea);
         });
 
-        cargarStockProducto(linea, datosPre.producto_id, cantidades);
+        const descuento = Number(inputDesc.value) || 0;
+
+        txtSubtotal.textContent = fmt(subtotal);
+        txtDesc.textContent = fmt(descuento);
+        txtTotal.textContent = fmt(Math.max(0, subtotal - descuento));
     }
 
+    async function cargarStockProducto(linea, productoId, datosPre = null) {
+        const origenesSection = linea.querySelector('.origenes-section');
+        const lista = linea.querySelector('.origenes-lista');
+        const unidadSelect = linea.querySelector('.unidad-select');
 
-    recalcular();
-  }
-
-  btnAgregar.addEventListener('click', () => agregarLinea());
-  inputDesc.addEventListener('input', recalcular);
-
-  if (lineasExistentes.length > 0) {
-    lineasExistentes.forEach(l => agregarLinea(l));
-  } else {
-    agregarLinea();
-  }
-
-  document.getElementById('formVenta').addEventListener('submit', function (e) {
-    if (this.dataset.confirmado === '1') return;
-    e.preventDefault();
-
-    const form = this;
-    form.querySelectorAll('input[name^="items"]').forEach(el => el.remove());
-
-    let idx = 0;
-    contenedor.querySelectorAll('.linea-venta').forEach(linea => {
-      const addH = (n, v) => {
-        const h = document.createElement('input');
-        h.type = 'hidden'; h.name = n; h.value = v;
-        form.appendChild(h);
-      };
-
-        addH(`items[${idx}][producto_id]`, linea.querySelector('.producto-select').value);
-        addH(`items[${idx}][cantidad]`, linea.querySelector('.cantidad-input').value);
-        addH(`items[${idx}][precio_unitario]`, linea.querySelector('.precio-input').value);
-
-        // Conservar la unidad de venta de la línea editada.
-    const unidad = linea.dataset.unidadVenta || 'pieza';
-
-    addH(`items[${idx}][unidad]`, unidad);
-
-    let m = 0;
-
-    linea.querySelectorAll('.cantidad-origen').forEach(inp => {
-        const cantidadIngresada = parseFloat(inp.value) || 0;
-
-        if (cantidadIngresada > 0) {
-            const itemOrigen = inp.closest('.origen-item');
-
-            // Si la interfaz muestra cajas, convertirlas a piezas físicas.
-            const esCaja = itemOrigen?.dataset.mostrarCajas === '1';
-            const piezasPorCaja = parseInt(
-                itemOrigen?.dataset.piezasPorCaja || '0',
-                10
-            );
-
-            const cantidadFisica = esCaja && piezasPorCaja > 0
-                ? cantidadIngresada * piezasPorCaja
-                : cantidadIngresada;
-
-            addH(
-                `items[${idx}][movimientos][${m}][stock_user_id]`,
-                inp.dataset.userId
-            );
-
-            addH(
-                `items[${idx}][movimientos][${m}][cantidad]`,
-                cantidadFisica
-            );
-            m++;
+        if (!productoId) {
+            origenesSection.style.display = 'none';
+            unidadSelect.innerHTML = '<option value="">Unidad</option>';
+            unidadSelect.disabled = true;
+            linea._productoData = null;
+            recalcular();
+            return;
         }
+
+        origenesSection.style.display = '';
+        lista.innerHTML = '<div class="text-muted p-2">Cargando inventario...</div>';
+
+        const res = await fetch(
+            `{{ url('vendedor/ventas/stock-producto') }}/${productoId}?admin_id=${encodeURIComponent(adminId)}`
+        );
+
+        if (!res.ok) {
+            throw new Error('No se pudo consultar el inventario del producto.');
+        }
+
+        const data = await res.json();
+
+        if (!data.producto) {
+            throw new Error('No se recibieron los datos del producto.');
+        }
+
+        linea._productoData = data.producto;
+        linea._stocks = data.stocks || [];
+
+        // Construir unidades permitidas por el controlador.
+        unidadSelect.innerHTML = '';
+
+        (data.producto.unidades_venta || []).forEach(unidad => {
+            const option = document.createElement('option');
+            option.value = unidad;
+
+            const nombres = {
+                caja: 'Caja',
+                m2: 'm²',
+                pieza: 'Pieza',
+                bolsa: 'Bolsa'
+            };
+
+            option.textContent = nombres[unidad] || unidad;
+            unidadSelect.appendChild(option);
+        });
+
+        unidadSelect.disabled = false;
+
+        const unidadAnterior = datosPre?.unidad || unidadSelect.options[0]?.value;
+
+        if ([...unidadSelect.options].some(o => o.value === unidadAnterior)) {
+            unidadSelect.value = unidadAnterior;
+        }
+
+        const asignaciones = {};
+
+        (datosPre?.movimientos || []).forEach(m => {
+            const depositoId = String(m.deposito_id);
+
+            asignaciones[depositoId] =
+                (asignaciones[depositoId] || 0) + Number(m.cantidad || 0);
+        });
+
+        construirOrigenes(linea, linea._stocks, asignaciones);
+
+        origenesSection.style.display = '';
+        recalcular();
+    }
+
+    function agregarLinea(datosPre = null) {
+        numLinea++;
+
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = template.innerHTML.trim();
+
+        const linea = wrapper.firstElementChild;
+        linea.querySelector('[data-num]').textContent = numLinea;
+
+        const productoSelect = linea.querySelector('.producto-select');
+        const unidadSelect = linea.querySelector('.unidad-select');
+        const cantidadInput = linea.querySelector('.cantidad-input');
+        const buscadorProducto = linea.querySelector('.buscador-producto');
+
+        llenarSelectProductos(productoSelect, datosPre?.producto_id);
+
+
+        // ==========================================
+        // BUSCADOR DE PRODUCTOS
+        // ==========================================
+
+        buscadorProducto.addEventListener('input', function () {
+
+            const busqueda = this.value
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim();
+
+            Array.from(productoSelect.options).forEach(option => {
+
+                if (option.value === '') {
+                    option.hidden = false;
+                    return;
+                }
+
+                const texto = (option.dataset.search || '')
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '');
+
+                const coincide = texto.includes(busqueda);
+
+                // Mantener visible el producto seleccionado.
+                option.hidden = !coincide &&
+                    option.value !== productoSelect.value;
+            });
+        });
+
+        productoSelect.addEventListener('change', async function () {
+
+            // Limpiar el buscador.
+            buscadorProducto.value = '';
+
+            // Volver a mostrar todos los productos.
+            Array.from(productoSelect.options).forEach(option => {
+                option.hidden = false;
+            });
+
+            try {
+                await cargarStockProducto(linea, this.value);
+
+            } catch (error) {
+                alert(error.message);
+                console.error(error);
+            }
+        });
+
+        unidadSelect.addEventListener('change', function () {
+            const asignaciones = obtenerAsignacionesFisicas(linea);
+
+            construirOrigenes(
+                linea,
+                linea._stocks || [],
+                asignaciones
+            );
+
+            recalcular();
+        });
+
+        cantidadInput.addEventListener('input', recalcular);
+
+        linea.querySelector('[data-remove]').addEventListener('click', function () {
+            linea.remove();
+            recalcular();
+        });
+
+        contenedor.appendChild(linea);
+
+        if (datosPre) {
+            cantidadInput.value = datosPre.cantidad;
+
+            cargarStockProducto(
+                linea,
+                datosPre.producto_id,
+                datosPre
+            ).catch(error => {
+                alert(error.message);
+                console.error(error);
+            });
+        }
+
+        recalcular();
+    }
+
+    // Cargar productos antes de crear las líneas existentes.
+    try {
+        await cargarProductosAdmin();
+
+        if (lineasExistentes.length > 0) {
+            for (const linea of lineasExistentes) {
+                agregarLinea(linea);
+            }
+        } else {
+            agregarLinea();
+        }
+    } catch (error) {
+        console.error(error);
+        alert(error.message);
+
+        btnAgregar.disabled = true;
+    }
+
+    btnAgregar.addEventListener('click', function () {
+        agregarLinea();
     });
 
-      idx++;
-    });
+    inputDesc.addEventListener('input', recalcular);
 
-    form.dataset.confirmado = '1';
-    form.submit();
-  });
+    form.addEventListener('submit', function (e) {
+        if (form.dataset.confirmado === '1') return;
+
+        e.preventDefault();
+
+        const lineas = [...contenedor.querySelectorAll('.linea-venta')];
+
+        if (!lineas.length) {
+            alert('Debes agregar al menos un producto.');
+            return;
+        }
+
+        for (const linea of lineas) {
+            const productoId = linea.querySelector('.producto-select').value;
+            const unidad = linea.querySelector('.unidad-select').value;
+            const cantidad = Number(linea.querySelector('.cantidad-input').value);
+
+            if (!productoId || !unidad || cantidad <= 0) {
+                alert('Completa el producto, la unidad y la cantidad de cada línea.');
+                return;
+            }
+
+            if (!validarOrigenes(linea)) {
+                alert('La cantidad asignada por depósito no coincide con la cantidad física requerida.');
+                return;
+            }
+        }
+
+        // Eliminar los campos ocultos generados anteriormente.
+        form.querySelectorAll('input[name^="items["]').forEach(el => el.remove());
+
+        function agregarHidden(nombre, valor) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = nombre;
+            input.value = valor;
+            form.appendChild(input);
+        }
+
+        lineas.forEach((linea, idx) => {
+            const productoId = linea.querySelector('.producto-select').value;
+            const cantidad = Number(linea.querySelector('.cantidad-input').value);
+            const unidad = linea.querySelector('.unidad-select').value;
+            const producto = linea._productoData;
+
+            const calculo = calcularPrecio(producto, cantidad, unidad);
+
+            agregarHidden(`items[${idx}][producto_id]`, productoId);
+            agregarHidden(`items[${idx}][cantidad]`, cantidad);
+            agregarHidden(`items[${idx}][unidad]`, unidad);
+            agregarHidden(`items[${idx}][precio_unitario]`, calculo.precio);
+
+            let movimientoIndex = 0;
+
+            linea.querySelectorAll('.cantidad-origen').forEach(input => {
+                const cantidadIngresada = Number(input.value) || 0;
+
+                if (cantidadIngresada <= 0) return;
+
+               const item = input.closest('.origen-item');
+
+                let cantidadFisica = cantidadIngresada;
+
+                // Si la venta es por cajas, convertir la asignación a piezas físicas.
+                if (esCeramica(producto) && unidad === 'caja') {
+                    cantidadFisica *= Number(producto.piezas_por_caja || 0);
+                }
+                agregarHidden(
+                    `items[${idx}][movimientos][${movimientoIndex}][stock_user_id]`,
+                    item.dataset.userId
+                );
+
+                agregarHidden(
+                    `items[${idx}][movimientos][${movimientoIndex}][deposito_id]`,
+                    item.dataset.depositoId
+                );
+
+                agregarHidden(
+                    `items[${idx}][movimientos][${movimientoIndex}][cantidad]`,
+                    cantidadFisica
+                );
+
+                movimientoIndex++;
+            });
+        });
+
+        form.dataset.confirmado = '1';
+        form.submit();
+    });
 });
+</script>
+
+</script>
+
 </script>
 @endpush

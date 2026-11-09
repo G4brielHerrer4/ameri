@@ -76,6 +76,44 @@
   .swal2-confirm, .swal2-cancel { font-weight: 700 !important; padding: 0.7rem 1.5rem !important; border-radius: var(--r-pill) !important; border: none !important; }
   .swal2-confirm { background: linear-gradient(135deg, var(--cyan), var(--cyan-2)) !important; color: var(--cyan-ink) !important; }
   .swal2-cancel { background: var(--bg-2) !important; color: var(--ink) !important; border: 1px solid var(--line) !important; }
+  /* BUSCADOR DE PRODUCTOS */
+  .buscador-producto-wrap {
+      position: relative;
+      margin-bottom: 0.5rem;
+  }
+
+  .buscador-producto-wrap .mdi {
+      position: absolute;
+      left: 0.85rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--ink-muted);
+      font-size: 1rem;
+      pointer-events: none;
+  }
+
+  .buscador-producto {
+      width: 100%;
+      padding: 0.65rem 0.9rem 0.65rem 2.4rem;
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      background: var(--bg-2);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 0.85rem;
+      transition: all 0.25s var(--ease);
+  }
+
+  .buscador-producto:focus {
+      outline: none;
+      border-color: var(--cyan);
+      background: var(--bg-3);
+      box-shadow: 0 0 0 3px var(--glow-soft);
+  }
+
+  .buscador-producto::placeholder {
+      color: var(--ink-muted);
+  }
 </style>
 @endpush
 
@@ -100,18 +138,26 @@
     @csrf
     <div class="card-form mb-4">
       <div class="card-head"><i class="mdi mdi-account-box-outline"></i> Datos del cliente</div>
-      <div class="card-body">
-        <div class="row">
-          <div class="col-md-5 mb-3">
-            <label class="form-label">Nombre del cliente <span class="required">*</span></label>
-            <input type="text" name="cliente_nombre" class="form-control @error('cliente_nombre') is-invalid @enderror" value="{{ old('cliente_nombre') }}" required placeholder="Ej: Juan Pérez">
-            @error('cliente_nombre') <div class="invalid-feedback">{{ $message }}</div> @enderror
-          </div>
-          <div class="col-md-4 mb-3">
-            <label class="form-label">CI / NIT <span class="required">*</span></label>
-            <input type="text" name="cliente_documento" class="form-control @error('cliente_documento') is-invalid @enderror" value="{{ old('cliente_documento') }}" required placeholder="Ej: 12345678">
-            @error('cliente_documento') <div class="invalid-feedback">{{ $message }}</div> @enderror
-          </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-5 mb-3">
+                  <label class="form-label">Nombre del cliente <span class="required">*</span></label>
+                  <input type="text" name="cliente_nombre" class="form-control @error('cliente_nombre') is-invalid @enderror" value="{{ old('cliente_nombre') }}" required placeholder="Ej: Juan Pérez">
+                  @error('cliente_nombre') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                </div>
+              <div class="col-md-4 mb-3">
+          <label class="form-label">CI / NIT <small class="text-muted">(Opcional)</small></label>
+          <input
+              type="text"
+              name="cliente_documento"
+              class="form-control @error('cliente_documento') is-invalid @enderror"
+              value="{{ old('cliente_documento') }}"
+              placeholder="Ej: 12345678"
+          >
+          @error('cliente_documento')
+              <div class="invalid-feedback">{{ $message }}</div>
+          @enderror
+      </div>
           <div class="col-md-3 mb-3">
             <label class="form-label">Teléfono</label>
             <input type="text" name="cliente_telefono" class="form-control" value="{{ old('cliente_telefono') }}" placeholder="Opcional">
@@ -178,15 +224,72 @@
     <div class="row">
       <div class="col-md-5 mb-2">
         <label class="form-label">Producto <span class="required">*</span></label>
+
+        <div class="buscador-producto-wrap">
+            <i class="mdi mdi-magnify"></i>
+            <input
+                type="text"
+                class="buscador-producto"
+                placeholder="Buscar por nombre, marca o medida..."
+                autocomplete="off"
+            >
+        </div>
+
         <select class="form-select producto-select" required>
-          <option value="">Seleccione un producto...</option>
-          @foreach($stocks as $s)
-            <option value="{{ $s->producto->id }}" data-stock-propio="{{ (float) $s->cantidad }}" data-unidad-base="{{ $s->producto->unidad_base }}">
-              {{ $s->producto->nombre }} @if($s->producto->marca) · {{ $s->producto->marca }} @endif — {{ (float) $s->cantidad }} {{ $s->producto->unidad_base }} disponibles
-            </option>
-          @endforeach
+            <option value="">Seleccione un producto...</option>
+
+            @foreach($stocks as $s)
+                @php
+                    $esCeramica = in_array(
+                        mb_strtolower(trim($s->producto->tipoProducto->nombre ?? '')),
+                        ['cerámica', 'ceramica', 'porcelanato']
+                    );
+
+                    $piezasPorCaja = (int) ($s->producto->piezas_por_caja ?? 0);
+                    $cantidadFisica = (int) $s->cantidad;
+
+                    $cajasCompletas = $piezasPorCaja > 0
+                        ? intdiv($cantidadFisica, $piezasPorCaja)
+                        : 0;
+
+                    $piezasSueltas = $piezasPorCaja > 0
+                        ? $cantidadFisica % $piezasPorCaja
+                        : 0;
+
+                    $textoBusqueda = implode(' ', array_filter([
+                        $s->producto->nombre ?? '',
+                        $s->producto->tipoProducto->nombre ?? '',
+                        $s->producto->marca ?? '',
+                        $s->producto->medida ?? '',
+                        $s->producto->modelo ?? '',
+                        $s->producto->color ?? '',
+                        $s->producto->acabado ?? ''
+                    ]));
+                @endphp
+
+                <option
+                    value="{{ $s->producto->id }}"
+                    data-search="{{ $textoBusqueda }}"
+                    data-stock-propio="{{ (float) $s->cantidad }}"
+                    data-unidad-base="{{ $s->producto->unidad_base }}"
+                >
+                    {{ $s->producto->nombre }}
+
+                    @if($s->producto->marca)
+                        · {{ $s->producto->marca }}
+                    @endif
+
+                    —
+
+                    @if($esCeramica && $piezasPorCaja > 0)
+                        {{ $cajasCompletas }} cajas y {{ $piezasSueltas }} piezas disponibles
+                    @else
+                        {{ (float) $s->cantidad }} {{ $s->producto->unidad_base }} disponibles
+                    @endif
+                </option>
+            @endforeach
         </select>
-      </div>
+    </div>
       <div class="col-md-2 mb-2">
         <label class="form-label">Unidad de venta <span class="required">*</span></label>
         <select class="form-select unidad-select" required disabled><option value="">Seleccione...</option></select>
@@ -288,58 +391,77 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function fmt(n) { return 'Bs. ' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 
-  function actualizarPrecio(linea) {
-    const precioInput = linea.querySelector('.precio-input');
-    const ayuda = linea.querySelector('.precio-ayuda');
-    const unidad = linea.querySelector('.unidad-select').value;
-    const producto = linea._producto;
+ function actualizarPrecio(linea) {
+      const precioInput = linea.querySelector('.precio-input');
+      const ayuda = linea.querySelector('.precio-ayuda');
+      const unidad = linea.querySelector('.unidad-select').value;
+      const producto = linea._producto;
 
-    if (!producto || !unidad) {
-      precioInput.value = ''; precioInput.disabled = true;
-      ayuda.textContent = 'Selecciona un producto y una unidad.';
-      recalcular(); return;
-    }
-
-    const precios = producto.precios_venta || {};
-    const tipo = String(producto.tipo || '').trim().toLocaleLowerCase('es');
-    const esCeramicaProducto = ['cerámica', 'ceramica', 'porcelanato'].includes(tipo);
-
-    let precio = null;
-
-    if (esCeramicaProducto) {
-      const precioCaja = Number(precios.caja || 0);
-      const m2PorCaja = Number(producto.m2_por_caja || 0);
-      const piezasPorCaja = Number(producto.piezas_por_caja || 0);
-
-      if (precioCaja <= 0) {
-        precioInput.value = ''; precioInput.disabled = true;
-        ayuda.textContent = 'Configura el precio por caja en el inventario.';
-        recalcular(); return;
+      if (!producto || !unidad) {
+          precioInput.value = '';
+          precioInput.disabled = true;
+          ayuda.textContent = 'Selecciona un producto y una unidad.';
+          recalcular();
+          return;
       }
 
-      if (unidad === 'caja') {
-        precio = precioCaja;
-      } else if ((unidad === 'm2' || unidad === 'pieza') && m2PorCaja > 0 && piezasPorCaja > 0) {
-        precio = precioCaja / piezasPorCaja;
-      }
-    } else {
-      precio = precios[unidad];
-    }
+      const precios = producto.precios_venta || {};
+      const tipo = String(producto.tipo || '').trim().toLocaleLowerCase('es');
+      const esCeramicaProducto = ['cerámica', 'ceramica', 'porcelanato'].includes(tipo);
 
-    if (precio === null || precio === undefined || precio === '' || !Number.isFinite(Number(precio)) || Number(precio) <= 0) {
-      precioInput.value = ''; precioInput.disabled = true;
-      ayuda.textContent = 'No hay un precio válido configurado para esta unidad.';
-    } else {
-      precioInput.value = Number(precio).toFixed(2);
-      precioInput.disabled = false;
+      let precio = null;
 
       if (esCeramicaProducto) {
-        ayuda.textContent = unidad === 'caja' ? 'Precio de venta por caja.' : 'Precio proporcional por pieza.';
+          const precioCaja = Number(precios.caja || 0);
+          const precioPieza = Number(precios.pieza || 0);
+          const m2PorCaja = Number(producto.m2_por_caja || 0);
+
+          if (unidad === 'caja') {
+              precio = precioCaja;
+          } else if (unidad === 'm2' && m2PorCaja > 0) {
+              precio = precioCaja / m2PorCaja;
+          } else if (unidad === 'pieza') {
+              precio = precioPieza;
+          }
       } else {
-        ayuda.textContent = 'Precio configurado en el inventario: ' + fmt(Number(precio));
+          precio = precios[unidad];
       }
-    }
-    recalcular();
+
+      if (
+          precio === null ||
+          precio === undefined ||
+          precio === '' ||
+          !Number.isFinite(Number(precio)) ||
+          Number(precio) <= 0
+      ) {
+          precioInput.value = '';
+          precioInput.disabled = true;
+
+          if (esCeramicaProducto && unidad === 'pieza') {
+              ayuda.textContent = 'Configura el precio por pieza en el inventario.';
+          } else if (esCeramicaProducto && unidad === 'caja') {
+              ayuda.textContent = 'Configura el precio por caja en el inventario.';
+          } else {
+              ayuda.textContent = 'No hay un precio válido configurado para esta unidad.';
+          }
+      } else {
+          precioInput.value = Number(precio).toFixed(2);
+          precioInput.disabled = false;
+
+          if (esCeramicaProducto) {
+              if (unidad === 'caja') {
+                  ayuda.textContent = 'Precio de venta por caja.';
+              } else if (unidad === 'm2') {
+                  ayuda.textContent = 'Precio de venta por metro cuadrado (calculado desde la caja).';
+              } else if (unidad === 'pieza') {
+                  ayuda.textContent = 'Precio de venta por pieza configurado en el inventario.';
+              }
+          } else {
+              ayuda.textContent = 'Precio configurado en el inventario: ' + fmt(Number(precio));
+          }
+      }
+
+      recalcular();
   }
 
   function nombreUnidad(unidad) {
@@ -351,6 +473,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!producto) return false;
     const tipo = String(producto.tipo || '').trim().toLocaleLowerCase('es');
     return ['cerámica', 'ceramica', 'porcelanato'].includes(tipo);
+  }
+  function normalizarCantidad(valor) {
+      return Math.max(0, Math.round(Number(valor) || 0));
   }
 
   function configurarCantidad(linea) {
@@ -695,7 +820,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const diferencia = totalAsignado - requerido;
-    let textoUnidad = esCeramica(linea._producto) ? (unidad === 'cajas' ? 'cajas' : 'pieza') : (unidad === 'bolsa' ? 'bolsas' : 'piezas');
+    let textoUnidad = esCeramica(linea._producto) ? (unidad === 'caja' ? 'cajas' : 'pieza') : (unidad === 'bolsa' ? 'bolsas' : 'piezas');
 
     if (Math.abs(diferencia) <= 0.01) {
       alerta.className = 'alerta-stock ok';
@@ -715,62 +840,116 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function recalcular() {
-    let subtotal = 0;
-    contenedor.querySelectorAll('.linea-venta').forEach(linea => {
-      const producto = linea._producto;
-      const unidad = linea.querySelector('.unidad-select').value;
-      const cantidad = parseFloat(linea.querySelector('.cantidad-input').value) || 0;
-      const precio = parseFloat(linea.querySelector('.precio-input').value) || 0;
-      let subtotalLinea = 0;
+      let subtotal = 0;
 
-      if (producto && cantidad > 0 && precio > 0) {
-        if (esCeramica(producto)) {
-          const precioCaja = Number(producto.precios_venta?.caja || 0);
-          const m2PorCaja = Number(producto.m2_por_caja || 0);
-          const piezasPorCaja = Number(producto.piezas_por_caja || 0);
+      contenedor.querySelectorAll('.linea-venta').forEach(linea => {
+          const producto = linea._producto;
+          const unidad = linea.querySelector('.unidad-select').value;
+          const cantidad = parseFloat(linea.querySelector('.cantidad-input').value) || 0;
+          const precio = parseFloat(linea.querySelector('.precio-input').value) || 0;
 
-          if (precioCaja > 0 && m2PorCaja > 0 && piezasPorCaja > 0) {
-            if (unidad === 'caja') subtotalLinea = cantidad * precioCaja;
-            else if (unidad === 'm2') {
-              const m2PorPieza = m2PorCaja / piezasPorCaja;
-              const piezasNecesarias = Math.ceil((cantidad / m2PorPieza) - 0.000000001);
-              subtotalLinea = piezasNecesarias * (precioCaja / piezasPorCaja);
-            } else if (unidad === 'pieza') {
-              const piezasNecesarias = Math.ceil(cantidad);
-              subtotalLinea = piezasNecesarias * (precioCaja / piezasPorCaja);
-            }
+          let subtotalLinea = 0;
+
+          if (producto && cantidad > 0 && precio > 0) {
+              if (esCeramica(producto)) {
+
+                  if (unidad === 'caja') {
+                      subtotalLinea = cantidad * precio;
+
+                  } else if (unidad === 'm2') {
+                      subtotalLinea = cantidad * precio;
+
+                  } else if (unidad === 'pieza') {
+                      const piezasNecesarias = Math.ceil(cantidad);
+                      subtotalLinea = piezasNecesarias * precio;
+                  }
+
+              } else {
+                  subtotalLinea = cantidad * precio;
+              }
           }
-        } else {
-          subtotalLinea = cantidad * precio;
-        }
-      }
 
-      subtotalLinea = Math.round((subtotalLinea + Number.EPSILON) * 100) / 100;
-      subtotal += subtotalLinea;
-      linea.querySelector('.linea-subtotal').textContent = fmt(subtotalLinea);
-      actualizarConversion(linea);
-      validarOrigenes(linea);
-    });
+          subtotalLinea = Math.round((subtotalLinea + Number.EPSILON) * 100) / 100;
 
-    subtotal = Math.round((subtotal + Number.EPSILON) * 100) / 100;
-    const descuento = Math.max(0, parseFloat(inputDesc.value) || 0);
-    const total = Math.max(0, Math.round((subtotal - descuento + Number.EPSILON) * 100) / 100);
+          subtotal += subtotalLinea;
 
-    txtSubtotal.textContent = fmt(subtotal);
-    txtDesc.textContent = fmt(descuento);
-    txtTotal.textContent = fmt(total);
+          linea.querySelector('.linea-subtotal').textContent = fmt(subtotalLinea);
+
+          actualizarConversion(linea);
+          validarOrigenes(linea);
+      });
+
+      subtotal = Math.round((subtotal + Number.EPSILON) * 100) / 100;
+
+      const descuento = Math.max(0, parseFloat(inputDesc.value) || 0);
+      const total = Math.max(
+          0,
+          Math.round((subtotal - descuento + Number.EPSILON) * 100) / 100
+      );
+
+      txtSubtotal.textContent = fmt(subtotal);
+      txtDesc.textContent = fmt(descuento);
+      txtTotal.textContent = fmt(total);
   }
 
   function agregarLinea() {
-    numLinea++;
-    const tmp = document.createElement('div');
-    tmp.innerHTML = template.innerHTML.trim();
-    const linea = tmp.firstElementChild;
-    linea.querySelector('[data-num]').textContent = numLinea;
+      numLinea++;
 
-    linea.querySelector('.producto-select').addEventListener('change', function () {
-      cargarStockProducto(linea, this.value);
-    });
+      const tmp = document.createElement('div');
+      tmp.innerHTML = template.innerHTML.trim();
+
+      const linea = tmp.firstElementChild;
+
+      linea.querySelector('[data-num]').textContent = numLinea;
+
+      const productoSelect = linea.querySelector('.producto-select');
+      const buscadorProducto = linea.querySelector('.buscador-producto');
+
+      // BUSCADOR DE PRODUCTOS
+      buscadorProducto.addEventListener('input', function () {
+          const texto = this.value
+              .toLocaleLowerCase('es')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .trim();
+
+          const opciones = productoSelect.querySelectorAll('option');
+
+          opciones.forEach(option => {
+              // Mantener visible la opción seleccionada
+              if (option.selected) {
+                  option.hidden = false;
+                  return;
+              }
+
+              if (!option.value) {
+                  option.hidden = false;
+                  return;
+              }
+
+              const contenido = (option.dataset.search || option.textContent)
+                  .toLocaleLowerCase('es')
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '');
+
+              option.hidden = !contenido.includes(texto);
+          });
+      });
+
+      // SELECCIÓN DEL PRODUCTO
+      productoSelect.addEventListener('change', function () {
+
+          // Limpiar buscador
+          buscadorProducto.value = '';
+
+          // Mostrar nuevamente todas las opciones
+          productoSelect.querySelectorAll('option').forEach(option => {
+              option.hidden = false;
+          });
+
+          // Mantener la lógica original de carga de stock
+          cargarStockProducto(linea, this.value);
+      });
 
     linea.querySelector('.cantidad-input').addEventListener('input', function () {
       actualizarConversion(linea); validarOrigenes(linea); recalcular();
@@ -961,7 +1140,17 @@ document.addEventListener('DOMContentLoaded', function () {
         
         addHidden(`items[${idx}][movimientos][${mIdx}][stock_user_id]`, userId);
         addHidden(`items[${idx}][movimientos][${mIdx}][deposito_id]`, depositoId);
-        addHidden(`items[${idx}][movimientos][${mIdx}][cantidad]`, cantidadOrigen);
+        let cantidadFisica = cantidadOrigen;
+
+        if (esCeramica(linea._producto) && unidad === 'caja') {
+            const piezasPorCaja = Number(linea._producto.piezas_por_caja) || 0;
+            cantidadFisica = cantidadOrigen * piezasPorCaja;
+        }
+
+        addHidden(
+            `items[${idx}][movimientos][${mIdx}][cantidad]`,
+            cantidadFisica
+        );
         mIdx++;
       });
       idx++;

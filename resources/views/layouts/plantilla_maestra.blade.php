@@ -34,10 +34,10 @@
       try {
         var savedTheme = localStorage.getItem('ameri-theme') || 'dark';
         var savedColor = localStorage.getItem('ameri-color') || 'cyan';
-        
+
         document.documentElement.setAttribute('data-theme', savedTheme);
         document.documentElement.setAttribute('data-color', savedColor);
-        
+
         var meta = document.querySelector('meta[name="theme-color"]');
         if (meta) meta.setAttribute('content', savedTheme === 'light' ? '#f3f6f7' : '#0a1013');
       } catch (e) {}
@@ -165,7 +165,7 @@
     .app-shell.sidebar-collapsed .navbar-brand-wrapper { width: var(--sidebar-w-min); justify-content: center; padding: 0 0.5rem; }
     .navbar-brand { display: inline-flex; align-items: center; line-height: 0; overflow: hidden; }
     .navbar-brand img { height: 36px; width: auto; max-width: 100%; object-fit: contain; display: block; }
-    
+
     .navbar-menu-wrapper { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 0.75rem; padding: 0 clamp(0.75rem, 2vw, 1.25rem); overflow: visible; background-color: transparent !important; }
     .navbar-toggler, .ameri-theme-toggle, .nav-link.count-indicator {
       width: 38px; height: 38px; padding: 0; margin: 0; border-radius: var(--r-md); border: 1px solid transparent;
@@ -611,7 +611,7 @@
                 <p class="mb-1 mt-3 font-weight-semibold">{{ Auth::user()->name ?? 'Usuario AMERI' }}</p>
                 <p class="fw-light text-muted mb-0">{{ Auth::user()->email ?? 'usuario@ameri.com' }}</p>
               </div>
-              <a class="dropdown-item" href="#"><i class="dropdown-item-icon mdi mdi-account-outline me-2"></i>Mi perfil</a>
+
               @php
                   $mensajesSinLeer = \App\Models\MensajeContacto::where('leido', false)->count();
               @endphp
@@ -660,7 +660,7 @@
             </ul>
           </div>
         </li>
-        
+
         <li class="nav-item">
           <a class="nav-link" href="{{ route('admin.suministros.index') }}">
             <i class="mdi mdi-truck-delivery-outline menu-icon"></i>
@@ -715,7 +715,7 @@
             <span class="menu-title">Filtrar reportes</span>
           </a>
         </li>
-        
+
         <li class="nav-item">
           <a href="{{ route('admin.camion.index') }}" class="nav-link">
             <i class="mdi mdi-truck-outline menu-icon"></i>

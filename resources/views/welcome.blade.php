@@ -1335,7 +1335,7 @@
                         <a href="#products" class="btn-outline">Ver productos</a>
                     </div>
                     <div class="hero-stats hero-fade" style="animation-delay:0.36s">
-                        <div class="hero-stat"><h3>500+</h3><p>Proyectos realizados</p></div>
+                        <div class="hero-stat"><h3>200+</h3><p>Proyectos realizados</p></div>
                         <div class="hero-stat"><h3>10+</h3><p>Años de experiencia</p></div>
                         <div class="hero-stat"><h3>98%</h3><p>Satisfacción del cliente</p></div>
                     </div>
@@ -1463,7 +1463,7 @@
                         <p>Contamos con un equipo de expertos que te asesora en la elección del producto adecuado para tus necesidades.</p>
                         <div class="stats-grid">
                             <div class="stat-item"><h4>10+</h4><p>Años de trayectoria</p></div>
-                            <div class="stat-item"><h4>500+</h4><p>Proyectos</p></div>
+                            <div class="stat-item"><h4>200+</h4><p>Proyectos</p></div>
                             <div class="stat-item"><h4>10+</h4><p>Marcas aliadas</p></div>
                         </div>
                     </div>

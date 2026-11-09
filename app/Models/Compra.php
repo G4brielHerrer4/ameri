@@ -59,4 +59,8 @@ class Compra extends Model
 
         return sprintf('AMERI-%s-%04d', $hoy, $consecutivo);
     }
+    public function archivos()
+    {
+        return $this->hasMany(CompraArchivo::class);
+    }
 }

@@ -567,6 +567,46 @@
     .btn-primary-app,
     .btn-secondary-app { width: 100%; }
   }
+    /* =====================================================
+    BUSCADORES DE PROVEEDOR Y PRODUCTO
+    ===================================================== */
+  .buscador-compra-wrap {
+      position: relative;
+      margin-bottom: 0.45rem;
+  }
+
+  .buscador-compra-wrap .mdi {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--ink-muted);
+      font-size: 1rem;
+      pointer-events: none;
+  }
+
+  .buscador-compra {
+      width: 100%;
+      padding: 0.55rem 0.7rem 0.55rem 2.2rem;
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      background: var(--bg-2);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 0.82rem;
+      transition: all 0.25s var(--ease);
+  }
+
+  .buscador-compra:focus {
+      outline: none;
+      border-color: var(--cyan);
+      background: var(--bg-3);
+      box-shadow: 0 0 0 3px var(--glow-soft);
+  }
+
+  .buscador-compra::placeholder {
+      color: var(--ink-muted);
+  }
 </style>
 @endpush
 
@@ -611,19 +651,40 @@
 
           <div class="col-md-6 mb-3">
             <label class="form-label">
-              Proveedor <span class="required">*</span>
+                Proveedor <span class="required">*</span>
             </label>
+
+            <div class="buscador-compra-wrap">
+                <i class="mdi mdi-magnify"></i>
+                <input
+                    type="text"
+                    id="buscarProveedor"
+                    class="buscador-compra"
+                    placeholder="Buscar proveedor por nombre o NIT..."
+                    autocomplete="off"
+                >
+            </div>
+
             <select name="proveedor_id"
+                    id="proveedorSelect"
                     class="form-select @error('proveedor_id') is-invalid @enderror"
                     required>
-              <option value="">Seleccione un proveedor...</option>
-              @foreach($proveedores as $p)
-                <option value="{{ $p->id }}" {{ old('proveedor_id') == $p->id ? 'selected' : '' }}>
-                  {{ $p->nombre }} — NIT: {{ $p->nit }}
-                </option>
-              @endforeach
+                <option value="">Seleccione un proveedor...</option>
+
+                @foreach($proveedores as $p)
+                    <option
+                        value="{{ $p->id }}"
+                        data-search="{{ $p->nombre }} {{ $p->nit }}"
+                        {{ old('proveedor_id') == $p->id ? 'selected' : '' }}
+                    >
+                        {{ $p->nombre }} — NIT: {{ $p->nit }}
+                    </option>
+                @endforeach
             </select>
-            @error('proveedor_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+
+              @error('proveedor_id')
+                  <div class="invalid-feedback">{{ $message }}</div>
+              @enderror
           </div>
 
           <div class="col-md-6 mb-3">
@@ -787,19 +848,57 @@
 <template id="templateLinea">
   <tr class="linea">
     <td class="input-cell" data-label="Producto">
-      <select name="items[__IDX__][producto_id]" class="form-select producto-select" required>
-        <option value="">Seleccione un producto...</option>
-        @foreach($productos as $prod)
-          <option value="{{ $prod->id }}"
-                  data-unidad="{{ $prod->unidad_compra }}"
-                  data-upp="{{ $prod->unidades_por_paquete }}"
-                  data-unidad-base="{{ $prod->unidad_base }}"
-                  data-detalle="{{ trim(($prod->marca ?? '') . ' ' . ($prod->medida ?? '')) }}">
-            {{ $prod->nombre }} @if($prod->marca) · {{ $prod->marca }} @endif
-          </option>
-        @endforeach
-      </select>
-      <small class="detalle-linea"></small>
+
+        <div class="buscador-compra-wrap">
+            <i class="mdi mdi-magnify"></i>
+            <input
+                type="text"
+                class="buscador-compra buscador-producto"
+                placeholder="Buscar producto..."
+                autocomplete="off"
+            >
+        </div>
+
+        <select name="items[__IDX__][producto_id]"
+                class="form-select producto-select"
+                required>
+
+            <option value="">Seleccione un producto...</option>
+
+            @foreach($productos as $prod)
+                @php
+                    $textoBusqueda = implode(' ', array_filter([
+                        $prod->nombre ?? '',
+                        $prod->tipoProducto->nombre ?? '',
+                        $prod->marca ?? '',
+                        $prod->medida ?? '',
+                        $prod->modelo ?? '',
+                        $prod->color ?? '',
+                        $prod->acabado ?? ''
+                    ]));
+                @endphp
+
+                <option
+                    value="{{ $prod->id }}"
+                    data-search="{{ $textoBusqueda }}"
+                    data-unidad="{{ $prod->unidad_compra }}"
+                    data-upp="{{ $prod->unidades_por_paquete }}"
+                    data-unidad-base="{{ $prod->unidad_base }}"
+                    data-detalle="{{ trim(($prod->marca ?? '') . ' ' . ($prod->medida ?? '')) }}"
+                >
+                    {{ $prod->nombre }}
+                    @if($prod->marca)
+                        · {{ $prod->marca }}
+                    @endif
+                    @if($prod->medida)
+                        — {{ $prod->medida }}
+                    @endif
+                </option>
+            @endforeach
+
+        </select>
+
+        <small class="detalle-linea"></small>
     </td>
 
     <td class="input-cell" data-label="Depósito destino">
@@ -896,6 +995,11 @@ document.addEventListener('DOMContentLoaded', function () {
   const txtDesc      = document.getElementById('txtDescuento');
   const txtTotal     = document.getElementById('txtTotal');
   const checkMismo   = document.getElementById('checkMismoDeposito');
+  /* ==================== BUSCADOR DE PROVEEDORES ==================== */
+  const buscarProveedor = document.getElementById('buscarProveedor');
+  const proveedorSelect = document.getElementById('proveedorSelect');
+
+  configurarBuscador(buscarProveedor, proveedorSelect);
 
   let idx = 0;
 
@@ -915,6 +1019,53 @@ document.addEventListener('DOMContentLoaded', function () {
       const totalStr = total % 1 === 0 ? total : total.toFixed(2);
       span.textContent = totalStr + ' ' + (unidadBase || 'unidad');
     }
+  }
+
+  /* ==================== FILTRAR OPCIONES ==================== */
+function normalizarTexto(texto) {
+    return (texto || '')
+        .toLocaleLowerCase('es')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
+  function configurarBuscador(input, select) {
+      if (!input || !select) return;
+
+      input.addEventListener('input', function () {
+          const texto = normalizarTexto(this.value);
+
+          select.querySelectorAll('option').forEach(option => {
+
+              // Conservar siempre la opción seleccionada
+              if (option.selected) {
+                  option.hidden = false;
+                  return;
+              }
+
+              // Conservar la opción inicial
+              if (!option.value) {
+                  option.hidden = false;
+                  return;
+              }
+
+              const contenido = normalizarTexto(
+                  option.dataset.search || option.textContent
+              );
+
+              option.hidden = !contenido.includes(texto);
+          });
+      });
+
+      // Al seleccionar, limpiar el buscador
+      select.addEventListener('change', function () {
+          input.value = '';
+
+          select.querySelectorAll('option').forEach(option => {
+              option.hidden = false;
+          });
+      });
   }
 
 
@@ -981,6 +1132,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const tmp  = document.createElement('tbody');
     tmp.innerHTML = html.trim();
     const fila = tmp.firstElementChild;
+    // Buscador de productos para esta línea
+    const buscadorProducto = fila.querySelector('.buscador-producto');
+    const productoSelect = fila.querySelector('.producto-select');
+
+    configurarBuscador(buscadorProducto, productoSelect);
 
     // Producto → autollenar unidad, upp, detalle
     fila.querySelector('.producto-select').addEventListener('change', function () {

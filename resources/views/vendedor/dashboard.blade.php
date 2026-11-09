@@ -218,84 +218,8 @@
 </style>
 @endpush
 
+
 @section('content')
-@php
-  $userId = auth()->id();
-
-  /* ====================================================
-     STATS DEL VENDEDOR
-     ==================================================== */
-  $misVentas        = \App\Models\Venta::where('user_id', $userId)->get();
-  $totalVentas      = $misVentas->count();
-  $ventasPendientes = $misVentas->where('estado', 'pendiente')->count();
-  $ventasVendidas   = $misVentas->where('estado', 'vendida')->count();
-  $ventasCanceladas = $misVentas->where('estado', 'cancelada')->count();
-
-  // Ingresos del mes (solo ventas vendidas)
-  $ingresosMes = \App\Models\Venta::where('user_id', $userId)
-      ->where('estado', 'vendida')
-      ->whereMonth('fecha_venta', now()->month)
-      ->whereYear('fecha_venta', now()->year)
-      ->sum('total');
-
-  $notifNoLeidas = \App\Models\Notificacion::where('user_id', $userId)->where('leida', false)->count();
-
-  $ultimasNotif = \App\Models\Notificacion::with('fromUser')
-      ->where('user_id', $userId)
-      ->latest()
-      ->take(5)
-      ->get();
-
-  /* ====================================================
-     VENTAS DE LOS ÚLTIMOS 7 DÍAS (gráfico)
-     ==================================================== */
-  $dias = collect();
-  for ($i = 6; $i >= 0; $i--) {
-      $fecha = now()->subDays($i);
-      $dias->push([
-          'label' => $fecha->translatedFormat('D'),
-          'fecha' => $fecha->toDateString(),
-          'total' => 0,
-      ]);
-  }
-
-  $ventas7dias = \App\Models\Venta::where('user_id', $userId)
-      ->where('estado', 'vendida')
-      ->whereDate('fecha_venta', '>=', now()->subDays(6)->toDateString())
-      ->selectRaw('DATE(fecha_venta) as dia, SUM(total) as total')
-      ->groupBy('dia')
-      ->pluck('total', 'dia');
-
-  $chartLabels = [];
-  $chartData   = [];
-  foreach ($dias as $d) {
-      $chartLabels[] = ucfirst($d['label']);
-      $chartData[]   = (float) ($ventas7dias[$d['fecha']] ?? 0);
-  }
-
-  $hayVentas7dias = array_sum($chartData) > 0;
-
-    /* ====================================================
-    TOP 5 PRODUCTOS VENDIDOS POR EL VENDEDOR
-    (sin unidad_base — usamos venta_detalles.unidad)
-    ==================================================== */
-  $topProductos = \App\Models\VentaDetalle::query()
-      ->join('ventas', 'ventas.id', '=', 'venta_detalles.venta_id')
-      ->join('productos', 'productos.id', '=', 'venta_detalles.producto_id')
-      ->where('ventas.user_id', $userId)
-      ->where('ventas.estado', 'vendida')
-      ->selectRaw('
-          productos.id,
-          productos.nombre,
-          SUM(venta_detalles.cantidad_stock) as cantidad_total,
-          SUM(venta_detalles.subtotal) as monto_total,
-          COUNT(DISTINCT ventas.id) as num_ventas
-      ')
-      ->groupBy('productos.id', 'productos.nombre')
-      ->orderByDesc('monto_total')
-      ->take(5)
-      ->get();
-@endphp
 
 <div class="container-fluid">
 
@@ -304,71 +228,171 @@
     <div class="welcome-info">
       <p class="greeting"><i class="mdi mdi-account-tie"></i> Panel de vendedor</p>
       <h1>Hola, <span class="highlight">{{ Auth::user()->name }}</span></h1>
-     <p>Resumen de tu actividad · {{ now()->locale('es')->translatedFormat('l, d \d\e F \d\e Y') }}</p>
+      <p>Resumen de tu actividad · {{ now()->locale('es')->translatedFormat('l, d \d\e F \d\e Y') }}</p>
     </div>
+
     <div class="welcome-actions">
-      <a href="{{ route('vendedor.ventas.create') }}" class="btn-welcome"><i class="mdi mdi-cart-plus"></i> Nueva venta</a>
-      <a href="{{ route('vendedor.ventas.index') }}" class="btn-welcome btn-welcome-secondary"><i class="mdi mdi-format-list-bulleted"></i> Mis ventas</a>
+      <a href="{{ route('vendedor.ventas.create') }}" class="btn-welcome">
+        <i class="mdi mdi-cart-plus"></i> Nueva venta
+      </a>
+      <a href="{{ route('vendedor.ventas.index') }}" class="btn-welcome btn-welcome-secondary">
+        <i class="mdi mdi-format-list-bulleted"></i> Mis ventas
+      </a>
     </div>
   </div>
 
-  {{-- ==================== STATS ==================== --}}
-  <h6 class="section-title"><i class="mdi mdi-chart-box-outline"></i> Resumen general <span class="line"></span></h6>
+
+  {{-- ==================== FILTROS DEL REPORTE ==================== --}}
+  <div class="dash-card mb-4">
+      <div class="dash-card-head">
+          <div class="dash-card-head-info">
+              <i class="mdi mdi-calendar-range"></i>
+              <div>
+                  <h6>Filtrar resumen de actividad</h6>
+                  <p>Selecciona el rango de fechas que deseas consultar</p>
+              </div>
+          </div>
+      </div>
+
+      <div class="dash-card-body">
+
+          <form action="{{ route('vendedor.dashboard') }}" method="GET"
+                class="row align-items-end g-3">
+
+              <div class="col-md-4">
+                  <label for="desde" class="form-label fw-semibold">
+                      <i class="mdi mdi-calendar-start"></i> Desde
+                  </label>
+
+                  <input
+                      type="date"
+                      name="desde"
+                      id="desde"
+                      class="form-control"
+                      value="{{ $desde->format('Y-m-d') }}"
+                      max="{{ now()->format('Y-m-d') }}"
+                      required
+                  >
+              </div>
+
+              <div class="col-md-4">
+                  <label for="hasta" class="form-label fw-semibold">
+                      <i class="mdi mdi-calendar-end"></i> Hasta
+                  </label>
+
+                  <input
+                      type="date"
+                      name="hasta"
+                      id="hasta"
+                      class="form-control"
+                      value="{{ $hasta->format('Y-m-d') }}"
+                      max="{{ now()->format('Y-m-d') }}"
+                      required
+                  >
+              </div>
+
+              <div class="col-md-4 d-flex gap-2 flex-wrap">
+                  <button type="submit" class="btn-welcome">
+                      <i class="mdi mdi-filter"></i> Filtrar
+                  </button>
+
+                  <a href="{{ route('vendedor.dashboard') }}"
+                    class="btn-welcome btn-welcome-secondary">
+                      <i class="mdi mdi-refresh"></i> Restablecer
+                  </a>
+              </div>
+
+          </form>
+
+          <div class="mt-3">
+              <small class="text-muted">
+                  <i class="mdi mdi-calendar-check"></i>
+                  Mostrando ventas desde
+                  <strong>{{ $desde->format('d/m/Y') }}</strong>
+                  hasta
+                  <strong>{{ $hasta->format('d/m/Y') }}</strong>
+              </small>
+          </div>
+
+      </div>
+  </div>
+
+
+  {{-- ==================== RESUMEN GENERAL ==================== --}}
+  <h6 class="section-title">
+    <i class="mdi mdi-chart-box-outline"></i>
+    Resumen de actividad
+    <span class="line"></span>
+  </h6>
 
   <div class="stats-grid">
+
     <a href="{{ route('vendedor.ventas.index') }}" class="stat-card">
       <div class="stat-card-icon"><i class="mdi mdi-cart-outline"></i></div>
-      <div class="stat-card-label">Total ventas</div>
+      <div class="stat-card-label">Total de ventas</div>
       <div class="stat-card-value">{{ number_format($totalVentas) }}</div>
-      <div class="stat-card-sub"><i class="mdi mdi-format-list-bulleted"></i> registradas</div>
+      <div class="stat-card-sub">
+        <i class="mdi mdi-calendar-range"></i> En el período seleccionado
+      </div>
     </a>
 
     <a href="{{ route('vendedor.ventas.index') }}" class="stat-card stat-pendiente">
       <div class="stat-card-icon"><i class="mdi mdi-clock-outline"></i></div>
       <div class="stat-card-label">Pendientes</div>
       <div class="stat-card-value">{{ number_format($ventasPendientes) }}</div>
-      <div class="stat-card-sub"><i class="mdi mdi-progress-clock"></i> por confirmar</div>
+      <div class="stat-card-sub">
+        <i class="mdi mdi-progress-clock"></i> Por confirmar
+      </div>
     </a>
 
     <a href="{{ route('vendedor.ventas.index') }}" class="stat-card stat-vendida">
       <div class="stat-card-icon"><i class="mdi mdi-check-circle-outline"></i></div>
       <div class="stat-card-label">Vendidas</div>
       <div class="stat-card-value">{{ number_format($ventasVendidas) }}</div>
-      <div class="stat-card-sub"><i class="mdi mdi-check-all"></i> completadas</div>
+      <div class="stat-card-sub">
+        <i class="mdi mdi-check-all"></i> Completadas
+      </div>
     </a>
 
     <div class="stat-card stat-ingresos">
       <div class="stat-card-icon"><i class="mdi mdi-currency-usd"></i></div>
-      <div class="stat-card-label">Ingresos del mes</div>
-      <div class="stat-card-value">Bs. {{ number_format($ingresosMes, 2) }}</div>
-      <div class="stat-card-sub"><i class="mdi mdi-calendar-month-outline"></i> {{ now()->translatedFormat('F Y') }}</div>
+      <div class="stat-card-label">Ingresos del período</div>
+      <div class="stat-card-value">Bs. {{ number_format($ingresosPeriodo, 2) }}</div>
+      <div class="stat-card-sub">
+        <i class="mdi mdi-calendar-check"></i> Solo ventas confirmadas
+      </div>
     </div>
+
   </div>
 
-  {{-- ==================== GRÁFICO Y ACTIVIDAD ==================== --}}
+  {{-- ==================== GRÁFICO Y ACTIVIDAD DE VENTAS ==================== --}}
   <div class="dashboard-grid">
 
-    {{-- Gráfico de los últimos 7 días --}}
+    {{-- GRÁFICO --}}
     <div class="dash-card">
       <div class="dash-card-head">
         <div class="dash-card-head-info">
           <i class="mdi mdi-chart-line"></i>
           <div>
-            <h6>Ventas últimos 7 días</h6>
-            <p>Tu rendimiento semanal</p>
+            <h6>Ventas del período</h6>
+            <p>Importe de tus ventas confirmadas por fecha</p>
           </div>
         </div>
-        <a href="{{ route('vendedor.ventas.index') }}" class="dash-card-link">Ver historial <i class="mdi mdi-arrow-right"></i></a>
+
+        <a href="{{ route('vendedor.ventas.index') }}" class="dash-card-link">
+          Ver historial <i class="mdi mdi-arrow-right"></i>
+        </a>
       </div>
+
       <div class="dash-card-body">
-        @if($hayVentas7dias)
+        @if($hayVentasPeriodo)
           <div class="chart-container">
             <canvas id="ventasChart"></canvas>
           </div>
         @else
           <div class="d-flex flex-column align-items-center justify-content-center h-100 py-5 opacity-75">
             <i class="mdi mdi-chart-line text-muted" style="font-size: 4rem;"></i>
-            <h6 class="mt-3 text-muted">Aún no hay ventas en los últimos 7 días</h6>
+            <h6 class="mt-3 text-muted">No hay ventas confirmadas en este período</h6>
             <a href="{{ route('vendedor.ventas.create') }}" class="btn-welcome mt-3">
               <i class="mdi mdi-plus"></i> Registrar venta
             </a>
@@ -377,64 +401,94 @@
       </div>
     </div>
 
-    {{-- Actividad reciente --}}
+    {{-- ACTIVIDAD DE VENTAS --}}
     <div class="dash-card">
       <div class="dash-card-head">
         <div class="dash-card-head-info">
-          <i class="mdi mdi-bell-ring-outline"></i>
+          <i class="mdi mdi-receipt-text-outline"></i>
           <div>
-            <h6>Actividad reciente</h6>
-            <p>{{ $notifNoLeidas }} sin leer</p>
+            <h6>Actividad de ventas</h6>
+            <p>{{ $totalVentas }} {{ $totalVentas === 1 ? 'venta registrada' : 'ventas registradas' }}</p>
           </div>
         </div>
-        <a href="#" class="dash-card-link" onclick="event.preventDefault();">Ver todas</a>
+
+        <a href="{{ route('vendedor.ventas.index') }}" class="dash-card-link">
+          Ver todas <i class="mdi mdi-arrow-right"></i>
+        </a>
       </div>
+
       <div class="dash-card-body">
-        @if($ultimasNotif->count() > 0)
+        @if($ventasPeriodo->count() > 0)
           <div class="activity-list">
-            @foreach($ultimasNotif as $n)
+
+            @foreach($ventasPeriodo->take(8) as $venta)
               @php
-                $tipoClase = match($n->tipo) {
-                    'stock_faltante' => 'tipo-faltante',
-                    'stock_prestado' => 'tipo-prestado',
-                    default => '',
+                $estadoClase = match($venta->estado) {
+                    'vendida' => 'text-success',
+                    'pendiente' => 'text-warning',
+                    'cancelada' => 'text-danger',
+                    default => 'text-muted',
                 };
-                $tipoIcono = match($n->tipo) {
-                    'stock_faltante' => 'mdi-alert-circle-outline',
-                    'stock_prestado' => 'mdi-arrow-down-bold-circle-outline',
-                    'stock_devuelto' => 'mdi-arrow-up-bold-circle-outline',
+
+                $estadoIcono = match($venta->estado) {
+                    'vendida' => 'mdi-check-circle',
+                    'pendiente' => 'mdi-clock-outline',
+                    'cancelada' => 'mdi-close-circle',
                     default => 'mdi-information-outline',
                 };
               @endphp
+
               <div class="activity-item">
-                <div class="activity-icon {{ $tipoClase }}"><i class="mdi {{ $tipoIcono }}"></i></div>
+                <div class="activity-icon">
+                  <i class="mdi mdi-receipt"></i>
+                </div>
+
                 <div class="activity-body">
                   <p class="activity-title">
-                    @if(!$n->leida) <span class="dot"></span> @endif {{ $n->titulo }}
+                    Venta #{{ $venta->numero_venta ?? $venta->id }}
                   </p>
-                  <p class="activity-msg">{{ \Illuminate\Support\Str::limit($n->mensaje, 70) }}</p>
+
+                  <p class="activity-msg">
+                    {{ $venta->cliente_nombre ?? 'Cliente sin nombre' }}
+                    · Bs. {{ number_format($venta->total, 2) }}
+                  </p>
+
                   <div class="activity-meta">
-                    @if($n->fromUser) <span class="from"><i class="mdi mdi-account-circle-outline"></i> {{ $n->fromUser->name }}</span> @endif
-                    <span><i class="mdi mdi-clock-outline"></i> {{ $n->created_at->diffForHumans() }}</span>
+                    <span>
+                      <i class="mdi mdi-calendar"></i>
+                      {{ \Carbon\Carbon::parse($venta->fecha_venta)->format('d/m/Y') }}
+                    </span>
+
+                    <span class="{{ $estadoClase }}">
+                      <i class="mdi {{ $estadoIcono }}"></i>
+                      {{ ucfirst($venta->estado) }}
+                    </span>
                   </div>
                 </div>
               </div>
             @endforeach
+
           </div>
         @else
           <div class="text-center py-4 text-muted">
-            <i class="mdi mdi-bell-sleep-outline" style="font-size: 3rem; opacity: 0.4;"></i>
-            <p class="mt-2 mb-0">No hay notificaciones recientes</p>
+            <i class="mdi mdi-receipt-text-outline" style="font-size: 3rem; opacity: 0.4;"></i>
+            <p class="mt-2 mb-0">No registraste ventas en este período.</p>
           </div>
         @endif
       </div>
     </div>
+
   </div>
 
   {{-- ==================== ESTADO DE TUS VENTAS ==================== --}}
-  <h6 class="section-title"><i class="mdi mdi-chart-donut"></i> Estado de tus ventas <span class="line"></span></h6>
+  <h6 class="section-title">
+    <i class="mdi mdi-chart-donut"></i>
+    Estado de tus ventas
+    <span class="line"></span>
+  </h6>
 
   <div class="row mb-4">
+
     <div class="col-md-6 col-lg-3 mb-3">
       <div class="estado-ventas-item ev-total h-100">
         <div class="estado-ventas-icon"><i class="mdi mdi-format-list-bulleted"></i></div>
@@ -444,6 +498,7 @@
         </div>
       </div>
     </div>
+
     <div class="col-md-6 col-lg-3 mb-3">
       <div class="estado-ventas-item ev-pendiente h-100">
         <div class="estado-ventas-icon"><i class="mdi mdi-clock-outline"></i></div>
@@ -453,6 +508,7 @@
         </div>
       </div>
     </div>
+
     <div class="col-md-6 col-lg-3 mb-3">
       <div class="estado-ventas-item ev-vendida h-100">
         <div class="estado-ventas-icon"><i class="mdi mdi-check-circle-outline"></i></div>
@@ -462,6 +518,7 @@
         </div>
       </div>
     </div>
+
     <div class="col-md-6 col-lg-3 mb-3">
       <div class="estado-ventas-item ev-cancelada h-100">
         <div class="estado-ventas-icon"><i class="mdi mdi-close-circle-outline"></i></div>
@@ -471,73 +528,92 @@
         </div>
       </div>
     </div>
+
   </div>
 
   {{-- ==================== TOP PRODUCTOS ==================== --}}
-  <h6 class="section-title"><i class="mdi mdi-trophy-outline"></i> Tus productos más vendidos <span class="line"></span></h6>
+  <h6 class="section-title">
+    <i class="mdi mdi-trophy-outline"></i>
+    Tus productos más vendidos
+    <span class="line"></span>
+  </h6>
 
   <div class="row mb-4">
     <div class="col-lg-12">
       <div class="dash-card">
+
         <div class="dash-card-head">
           <div class="dash-card-head-info">
             <i class="mdi mdi-star-outline"></i>
             <div>
               <h6>Top 5 productos</h6>
-              <p>Basado en ventas confirmadas</p>
+              <p>Productos vendidos en el período seleccionado</p>
             </div>
           </div>
         </div>
+
         <div class="dash-card-body">
           @if($topProductos->count() > 0)
             <div class="top-productos">
+
               @foreach($topProductos as $i => $p)
                 <div class="top-producto-item">
+
                   <div class="top-producto-rank">{{ $i + 1 }}</div>
+
                   <div class="top-producto-info">
                     <p class="top-producto-name">{{ $p->nombre }}</p>
                     <p class="top-producto-meta">
-                      {{ number_format($p->cantidad_total, 0) }} {{ $p->unidad_base }} vendidas
-                      · {{ $p->num_ventas }} {{ $p->num_ventas == 1 ? 'venta' : 'ventas' }}
+                      {{ number_format($p->cantidad_total, 0) }} unidades
+                      · {{ $p->num_ventas }}
+                      {{ $p->num_ventas == 1 ? 'venta' : 'ventas' }}
                     </p>
                   </div>
+
                   <div class="top-producto-total">
                     Bs. {{ number_format($p->monto_total, 2) }}
                   </div>
+
                 </div>
               @endforeach
+
             </div>
           @else
             <div class="text-center py-4 text-muted">
               <i class="mdi mdi-trophy-outline" style="font-size: 3rem; opacity: 0.4;"></i>
-              <p class="mt-2 mb-0">Aún no tienes productos vendidos</p>
+              <p class="mt-2 mb-0">No hay productos vendidos en este período.</p>
             </div>
           @endif
         </div>
+
       </div>
     </div>
   </div>
 
   {{-- ==================== ACCIONES RÁPIDAS ==================== --}}
-  <h6 class="section-title"><i class="mdi mdi-lightning-bolt-outline"></i> Acciones rápidas <span class="line"></span></h6>
+  <h6 class="section-title">
+    <i class="mdi mdi-lightning-bolt-outline"></i>
+    Acciones rápidas
+    <span class="line"></span>
+  </h6>
 
   <div class="quick-actions">
+
     <a href="{{ route('vendedor.ventas.create') }}" class="quick-action">
       <div class="quick-action-icon"><i class="mdi mdi-cart-plus"></i></div>
       <span class="quick-action-label">Nueva venta</span>
     </a>
+
     <a href="{{ route('vendedor.ventas.index') }}" class="quick-action">
       <div class="quick-action-icon"><i class="mdi mdi-format-list-bulleted"></i></div>
       <span class="quick-action-label">Mis ventas</span>
     </a>
-    <a href="{{ route('vendedor.ventas.index') }}" class="quick-action">
+
+    <a href="{{ route('vendedor.ventas.index',  ['filtro' => 'pendiente']) }}" class="quick-action">
       <div class="quick-action-icon"><i class="mdi mdi-clock-outline"></i></div>
       <span class="quick-action-label">Pendientes</span>
     </a>
-    <a href="#" class="quick-action" onclick="event.preventDefault();">
-      <div class="quick-action-icon"><i class="mdi mdi-bell-outline"></i></div>
-      <span class="quick-action-label">Notificaciones</span>
-    </a>
+
   </div>
 
 </div>
@@ -545,71 +621,117 @@
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    @if($hayVentas7dias)
-        const ctx = document.getElementById('ventasChart').getContext('2d');
 
-        const isDark    = document.documentElement.getAttribute('data-theme') === 'dark';
-        const textColor = isDark ? '#92a7ad' : '#52666d';
-        const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
-        const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--cyan').trim() || '#00d4ff';
+    @if($hayVentasPeriodo)
+        const canvas = document.getElementById('ventasChart');
 
-        // Degradado para las barras
-        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-        gradient.addColorStop(0, primaryColor);
-        gradient.addColorStop(1, 'rgba(0, 212, 255, 0.15)');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
 
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: @json($chartLabels),
-                datasets: [{
-                    label: 'Ventas (Bs)',
-                    data: @json($chartData),
-                    backgroundColor: gradient,
-                    borderRadius: 6,
-                    barThickness: 36,
-                    hoverBackgroundColor: primaryColor,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: isDark ? '#0f171b' : '#ffffff',
-                        titleColor: isDark ? '#e6eff1' : '#0f1f24',
-                        bodyColor: isDark ? '#92a7ad' : '#52666d',
-                        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                        borderWidth: 1,
-                        padding: 10,
-                        displayColors: false,
-                        callbacks: {
-                            label: function(context) {
-                                return ' Bs. ' + context.parsed.y.toLocaleString('es-BO');
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const textColor = isDark ? '#92a7ad' : '#52666d';
+            const gridColor = isDark
+                ? 'rgba(255, 255, 255, 0.05)'
+                : 'rgba(0, 0, 0, 0.05)';
+
+            const primaryColor =
+                getComputedStyle(document.documentElement)
+                    .getPropertyValue('--cyan').trim() || '#00d4ff';
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, primaryColor);
+            gradient.addColorStop(1, 'rgba(0, 212, 255, 0.15)');
+
+            new Chart(ctx, {
+                type: 'bar',
+
+                data: {
+                    labels: @json($chartLabels),
+
+                    datasets: [{
+                        label: 'Ventas (Bs)',
+                        data: @json($chartData),
+                        backgroundColor: gradient,
+                        borderRadius: 6,
+                        maxBarThickness: 36,
+                        hoverBackgroundColor: primaryColor
+                    }]
+                },
+
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+
+                        tooltip: {
+                            backgroundColor: isDark ? '#0f171b' : '#ffffff',
+                            titleColor: isDark ? '#e6eff1' : '#0f1f24',
+                            bodyColor: isDark ? '#92a7ad' : '#52666d',
+                            borderColor: isDark
+                                ? 'rgba(255,255,255,0.1)'
+                                : 'rgba(0,0,0,0.1)',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: false,
+
+                            callbacks: {
+                                label: function(context) {
+                                    return ' Bs. ' +
+                                        context.parsed.y.toLocaleString('es-BO', {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        });
+                                }
+                            }
+                        }
+                    },
+
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+
+                            grid: {
+                                color: gridColor,
+                                drawBorder: false
+                            },
+
+                            ticks: {
+                                color: textColor,
+                                callback: function(value) {
+                                    return 'Bs. ' + value;
+                                }
+                            }
+                        },
+
+                        x: {
+                            grid: {
+                                display: false,
+                                drawBorder: false
+                            },
+
+                            ticks: {
+                                color: textColor,
+                                font: {
+                                    weight: 'bold'
+                                },
+
+                                autoSkip: true,
+                                maxTicksLimit: 12
                             }
                         }
                     }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: gridColor, drawBorder: false },
-                        ticks: {
-                            color: textColor,
-                            callback: function(value) { return 'Bs ' + value; }
-                        }
-                    },
-                    x: {
-                        grid: { display: false, drawBorder: false },
-                        ticks: { color: textColor, font: { weight: 'bold' } }
-                    }
                 }
-            }
-        });
+            });
+        }
     @endif
+
 });
 </script>
 @endpush

@@ -822,6 +822,17 @@
                      aria-label="Ver detalle">
                     <i class="mdi mdi-eye"></i>
                   </a>
+                  {{-- IMPRIMIR RECIBO --}}
+                  @if ($venta->estado === 'vendida')
+                      <a href="{{ route('admin.ventas.recibo', $venta) }}"
+                        class="action-btn receipt"
+                        title="Imprimir recibo"
+                        aria-label="Imprimir recibo"
+                        target="_blank"
+                        rel="noopener">
+                          <i class="mdi mdi-printer"></i>
+                      </a>
+                  @endif
 
                   {{-- EDITAR --}}
                   @if($venta->estado === 'pendiente' && $venta->user_id === auth()->id())

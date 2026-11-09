@@ -9,6 +9,8 @@ use App\Models\Deposito;
 use App\Models\Producto;
 use App\Models\Proveedor;
 use App\Models\Stock;
+use App\Models\CompraArchivo;
+use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -127,9 +129,108 @@ class CompraController extends Controller
             'proveedor',
             'detalles.producto.tipoProducto.categoria',
             'detalles.deposito',
+            'archivos',
         ]);
 
         return view('admin.compras.show', compact('compra'));
+    }
+    public function subirArchivos(Request $request, Compra $compra)
+    {
+        // Solo permitir comprobantes en compras recibidas
+        if ($compra->estado !== 'recibida') {
+            return back()->with(
+                'error',
+                'Solo puedes adjuntar comprobantes a compras recibidas.'
+            );
+        }
+
+        $request->validate([
+            'archivos' => ['required', 'array', 'min:1', 'max:10'],
+            'archivos.*' => [
+                'required',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:5120',
+            ],
+        ], [
+            'archivos.required' => 'Selecciona al menos una fotografía.',
+            'archivos.array' => 'Los archivos seleccionados no son válidos.',
+            'archivos.max' => 'Puedes subir un máximo de 10 fotografías por envío.',
+            'archivos.*.image' => 'Todos los archivos deben ser imágenes.',
+            'archivos.*.mimes' => 'Solo se permiten imágenes JPG, JPEG, PNG y WEBP.',
+            'archivos.*.max' => 'Cada fotografía debe pesar como máximo 5 MB.',
+        ]);
+
+        $rutasGuardadas = [];
+
+        try {
+            foreach ($request->file('archivos') as $archivo) {
+
+                $ruta = $archivo->store(
+                    'compras/' . $compra->id,
+                    'public'
+                );
+
+                $rutasGuardadas[] = $ruta;
+
+                CompraArchivo::create([
+                    'compra_id' => $compra->id,
+                    'ruta' => $ruta,
+                    'nombre_original' => $archivo->getClientOriginalName(),
+                ]);
+            }
+
+            return back()->with(
+                'success',
+                'Los comprobantes se guardaron correctamente.'
+            );
+
+        } catch (\Throwable $e) {
+
+            // Limpiar archivos físicos si ocurrió un error
+            if (!empty($rutasGuardadas)) {
+                Storage::disk('public')->delete($rutasGuardadas);
+            }
+
+            return back()->with(
+                'error',
+                'Ocurrió un error al guardar los comprobantes.'
+            );
+        }
+    }
+
+    public function eliminarArchivo(Compra $compra, CompraArchivo $archivo)
+    {
+        // Verificar que el archivo realmente pertenezca a esta compra
+        if ($archivo->compra_id !== $compra->id) {
+            abort(404);
+        }
+
+        // Solo permitir administrar comprobantes de compras recibidas
+        if ($compra->estado !== 'recibida') {
+            return back()->with(
+                'error',
+                'No puedes eliminar comprobantes de una compra que no está recibida.'
+            );
+        }
+
+        try {
+            Storage::disk('public')->delete($archivo->ruta);
+
+            $archivo->delete();
+
+            return back()->with(
+                'success',
+                'Comprobante eliminado correctamente.'
+            );
+
+        } catch (\Throwable $e) {
+
+            return back()->with(
+                'error',
+                'No se pudo eliminar el comprobante.'
+            );
+        }
     }
 
     public function edit(Compra $compra)
@@ -307,7 +408,7 @@ class CompraController extends Controller
         }
     }
 
-    public function destroy(Compra $compra)
+   public function destroy(Compra $compra)
     {
         if ($compra->estado === 'recibida') {
             return redirect()
@@ -315,6 +416,14 @@ class CompraController extends Controller
                 ->with('error', 'No se puede eliminar una compra recibida. Cámbiala a cancelada primero.');
         }
 
+        // Eliminar fotografías físicas asociadas
+        $rutas = $compra->archivos()->pluck('ruta')->toArray();
+
+        if (!empty($rutas)) {
+            Storage::disk('public')->delete($rutas);
+        }
+
+        // Eliminar la compra y sus registros relacionados
         $compra->delete();
 
         return redirect()
