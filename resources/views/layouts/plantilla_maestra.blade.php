@@ -808,6 +808,50 @@ select option:checked {
       .navbar-dropdown.show { position: fixed !important; top: var(--navbar-h) !important; left: 0.5rem !important; right: 0.5rem !important; width: auto !important; min-width: 0 !important; max-width: none !important; margin-top: 0.5rem !important; transform: none !important; }
       .notif-dropdown-list { max-height: 55vh; }
     }
+
+/* ==========================================
+   TOASTR - TEMA CLARO Y OSCURO AMERI
+   ========================================== */
+
+/* Fondo y texto de las notificaciones */
+#toast-container > .toast {
+    opacity: 1 !important;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15) !important;
+    border-radius: 10px !important;
+}
+
+/* Tema claro */
+html[data-theme="light"] #toast-container > .toast-success {
+    background-color: #e8f7ed !important;
+    color: #176b38 !important;
+    border: 1px solid #a8dfb9 !important;
+}
+
+html[data-theme="light"] #toast-container > .toast-error {
+    background-color: #fdecec !important;
+    color: #a52222 !important;
+    border: 1px solid #f2b5b5 !important;
+}
+
+/* Tema oscuro */
+html[data-theme="dark"] #toast-container > .toast-success {
+    background-color: #163d2b !important;
+    color: #b9f5ce !important;
+    border: 1px solid #286b48 !important;
+}
+
+html[data-theme="dark"] #toast-container > .toast-error {
+    background-color: #482126 !important;
+    color: #ffd0d0 !important;
+    border: 1px solid #803b43 !important;
+}
+
+/* Texto de la notificación */
+#toast-container .toast-message {
+    color: inherit !important;
+    opacity: 1 !important;
+}
+
   </style>
 
   @stack('styles')

@@ -1022,13 +1022,8 @@
                 </div>
               </td>
             </tr>
-          @empty
-            <tr>
-              <td colspan="{{ 4 + $depositos->count() + 1 }}" class="text-center py-5">
-                <i class="mdi mdi-warehouse" style="font-size:44px;opacity:0.3;color:var(--ink-faint);"></i>
-                <p class="mt-2 mb-0" style="color:var(--ink-muted);">Aún no tienes productos en tu inventario.</p>
-              </td>
-            </tr>
+         @empty
+              {{-- DataTables mostrará el mensaje de tabla vacía --}}
           @endforelse
           </tbody>
         </table>
