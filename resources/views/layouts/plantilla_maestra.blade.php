@@ -45,6 +45,369 @@
   </script>
 
   <style>
+
+/* ============================================================
+   AMERI - MEJORA VISUAL DINÁMICA
+   Respeta tema claro/oscuro y las cuatro paletas
+   ============================================================ */
+
+/* ---------- PANELES Y TARJETAS ---------- */
+
+.card {
+    background:
+        linear-gradient(
+            145deg,
+            color-mix(in srgb, var(--primary) 4%, var(--bg-1)),
+            var(--bg-1) 65%
+        ) !important;
+    border: 1px solid var(--line) !important;
+    border-top: 2px solid var(--line-strong) !important;
+    box-shadow:
+        0 5px 18px var(--shadow),
+        0 0 18px var(--glow-soft) !important;
+    transition: border-color var(--t), box-shadow var(--t), transform var(--t);
+}
+
+.card:hover {
+    border-color: var(--line-strong) !important;
+    box-shadow:
+        0 8px 24px var(--shadow),
+        0 0 20px var(--glow-soft) !important;
+}
+
+.card-header {
+    background:
+        linear-gradient(
+            110deg,
+            color-mix(in srgb, var(--primary) 13%, var(--bg-2)),
+            var(--bg-2)
+        ) !important;
+    border-bottom: 1px solid var(--line-strong) !important;
+    color: var(--ink) !important;
+    padding: 1rem 1.15rem;
+}
+
+.card-header h1,
+.card-header h2,
+.card-header h3,
+.card-header h4,
+.card-header h5,
+.card-header h6 {
+    color: var(--ink) !important;
+}
+
+.card-header .mdi,
+.card-header i {
+    color: var(--primary) !important;
+}
+
+/* ---------- ENCABEZADOS Y TÍTULOS ---------- */
+
+.content-wrapper h2,
+.content-wrapper h3 {
+    font-family: var(--font-display);
+}
+
+.content-wrapper h2 .mdi,
+.content-wrapper h3 .mdi,
+.content-wrapper h4 .mdi {
+    color: var(--primary);
+}
+
+.page-title,
+.section-title {
+    border-left: 4px solid var(--primary);
+    padding-left: 12px;
+}
+
+/* ---------- BOTONES ---------- */
+
+.btn {
+    box-shadow: 0 2px 7px rgba(0, 0, 0, 0.10);
+    transition:
+        transform var(--t),
+        box-shadow var(--t),
+        filter var(--t),
+        background var(--t);
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary,
+.btn-gradient-primary {
+    background: linear-gradient(
+        135deg,
+        var(--primary),
+        var(--primary-2)
+    ) !important;
+    border-color: var(--primary) !important;
+    color: var(--primary-ink) !important;
+    box-shadow: 0 4px 13px var(--glow-soft);
+}
+
+.btn-primary:hover,
+.btn-gradient-primary:hover {
+    filter: brightness(1.10);
+    box-shadow: 0 5px 17px var(--glow);
+}
+
+.btn-outline-primary {
+    border: 1px solid var(--line-strong) !important;
+    color: var(--primary) !important;
+    background: var(--glow-soft) !important;
+}
+
+.btn-outline-primary:hover {
+    background: var(--primary) !important;
+    color: var(--primary-ink) !important;
+}
+
+.btn-secondary {
+    background: var(--bg-3) !important;
+    border-color: var(--line-strong) !important;
+}
+
+.btn-light {
+    background: var(--bg-2) !important;
+    color: var(--ink) !important;
+    border-color: var(--line) !important;
+}
+
+.btn-light:hover {
+    background: var(--glow-soft) !important;
+    border-color: var(--line-strong) !important;
+    color: var(--primary) !important;
+}
+
+/* ---------- FORMULARIOS Y COMBOBOX ---------- */
+
+.form-control,
+.form-select,
+textarea.form-control,
+select {
+    background-color: var(--bg-2) !important;
+    color: var(--ink) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: var(--r-md) !important;
+    min-height: 40px;
+}
+
+.form-control:hover,
+.form-select:hover,
+select:hover {
+    border-color: var(--line-strong) !important;
+}
+
+.form-control:focus,
+.form-select:focus,
+select:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px var(--glow-soft) !important;
+}
+
+.form-select option,
+select option {
+    background-color: var(--bg-1);
+    color: var(--ink);
+}
+
+.form-select option:checked,
+select option:checked {
+    background: var(--primary);
+    color: var(--primary-ink);
+}
+
+.input-group-text {
+    background: var(--glow-soft) !important;
+    color: var(--primary) !important;
+    border-color: var(--line-strong) !important;
+}
+
+/* Select2, si alguna vista lo utiliza */
+
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple {
+    background: var(--bg-2) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: var(--r-md) !important;
+    min-height: 40px;
+}
+
+.select2-container--default .select2-selection__rendered {
+    color: var(--ink) !important;
+    line-height: 38px !important;
+}
+
+.select2-container--default .select2-selection__arrow {
+    height: 38px !important;
+}
+
+.select2-dropdown {
+    background: var(--bg-1) !important;
+    border: 1px solid var(--line-strong) !important;
+    box-shadow: 0 10px 25px var(--shadow);
+}
+
+.select2-results__option {
+    background: var(--bg-1) !important;
+    color: var(--ink) !important;
+}
+
+.select2-results__option--highlighted {
+    background: var(--glow-soft) !important;
+    color: var(--primary) !important;
+}
+
+/* ---------- TABLAS ---------- */
+
+.table thead th {
+    background:
+        linear-gradient(
+            110deg,
+            color-mix(in srgb, var(--primary) 15%, var(--bg-2)),
+            var(--bg-2)
+        ) !important;
+    color: var(--primary) !important;
+    border-bottom: 2px solid var(--line-strong) !important;
+    font-weight: 700;
+    letter-spacing: 0.025em;
+}
+
+.table tbody tr {
+    transition: background var(--t);
+}
+
+.table tbody tr:hover {
+    background: var(--glow-soft) !important;
+}
+
+.table tbody tr:hover td {
+    color: var(--ink) !important;
+}
+
+.table-responsive {
+    border-radius: var(--r-md);
+}
+
+/* ---------- DROPDOWNS ---------- */
+
+.dropdown-menu {
+    background: var(--bg-1) !important;
+    border: 1px solid var(--line-strong) !important;
+    box-shadow: 0 12px 30px var(--shadow) !important;
+    border-radius: var(--r-lg) !important;
+    padding: 0.4rem;
+}
+
+.dropdown-item {
+    color: var(--ink) !important;
+    border-radius: var(--r-sm);
+    transition: background var(--t), color var(--t);
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background: var(--glow-soft) !important;
+    color: var(--primary) !important;
+}
+
+.dropdown-item .mdi {
+    color: var(--primary);
+}
+
+/* ---------- BADGES ---------- */
+
+.badge-primary,
+.badge-gradient-primary {
+    background: var(--primary) !important;
+    color: var(--primary-ink) !important;
+}
+
+.badge {
+    border: 1px solid var(--line);
+    letter-spacing: 0.02em;
+}
+
+/* ---------- PAGINACIÓN Y DATA TABLES ---------- */
+
+.pagination .page-item.active .page-link {
+    background: linear-gradient(
+        135deg,
+        var(--primary),
+        var(--primary-2)
+    ) !important;
+    border-color: var(--primary) !important;
+    color: var(--primary-ink) !important;
+    box-shadow: 0 3px 10px var(--glow-soft);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: var(--primary) !important;
+    color: var(--primary-ink) !important;
+    border-color: var(--primary) !important;
+}
+
+/* ---------- ALERTAS ---------- */
+
+.alert {
+    border-left: 4px solid var(--primary);
+    box-shadow: 0 3px 12px var(--shadow);
+}
+
+.alert-success {
+    border-left-color: var(--success);
+}
+
+.alert-danger {
+    border-left-color: var(--error);
+}
+
+.alert-warning {
+    border-left-color: var(--warning);
+}
+
+/* ---------- SELECTOR DE PALETA ---------- */
+
+.theme-dot {
+    box-shadow: 0 2px 7px rgba(0, 0, 0, 0.20);
+}
+
+.theme-dot.active {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+}
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 767.98px) {
+    .card-header {
+        padding: 0.85rem;
+    }
+
+    .btn {
+        max-width: 100%;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .card {
+        border-radius: var(--r-md);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card,
+    .btn,
+    .table tbody tr {
+        transition: none !important;
+    }
+}
+
     /* =====================================================
        VARIABLES BASE Y TEMAS
        ===================================================== */

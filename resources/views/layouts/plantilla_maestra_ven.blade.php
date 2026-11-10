@@ -1,4 +1,4 @@
-{{-- resources/views/layouts/plantilla_vendedor.blade.php --}}
+{{-- resources/views/layouts/plantilla_ven.blade.php --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="dark" data-color="cyan">
 <head>

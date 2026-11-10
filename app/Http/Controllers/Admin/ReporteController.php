@@ -161,7 +161,7 @@ class ReporteController extends Controller
         // 11. LISTADOS PARA FILTROS
         // ============================================================
         $rolesVenta = Role::query()
-            ->whereIn('slug', ['admin', 'vendedor'])
+            ->whereIn('slug',  ['admin', 'administrador', 'vendedor'])
             ->pluck('id');
 
         $vendedores = User::query()

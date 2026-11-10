@@ -156,8 +156,8 @@ class VentaController extends Controller
                 'user_id'           => auth()->id(),
                 'numero_venta'      => Venta::generarNumeroVenta(),
                 'cliente_nombre'    => $request->cliente_nombre,
-                'cliente_documento' => $request->cliente_documento,
-                'cliente_telefono'  => $request->cliente_telefono,
+                'cliente_documento' => $request->cliente_documento ?: '',
+                'cliente_telefono'  => $request->cliente_telefono ?: '',
                 'fecha_venta'       => $request->fecha_venta,
                 'subtotal'          => 0,
                 'descuento'         => $request->descuento ?? 0,
@@ -188,22 +188,23 @@ class VentaController extends Controller
                 }
 
                 $movimientos = $item['movimientos'] ?? [];
-                foreach ($movimientos as $mov) {
-                    $stockUsuario = Stock::where('user_id', $mov['stock_user_id'])
-                        ->where('producto_id', $producto->id)
-                        ->where('deposito_id', $mov['deposito_id']) // 🔥 Validamos la tienda
-                        ->whereHas('user.role', function ($q) { $q->where('slug', 'administrador'); })
-                        ->first();
 
-                    if (!$stockUsuario || (float) $stockUsuario->cantidad < (float) $mov['cantidad']) {
-                        throw new \Exception('No hay suficiente stock en la tienda seleccionada para ' . $producto->nombre);
-                    }
-                }
+                $forzarVenta = filter_var(
+                    $item['forzar_venta'] ?? false,
+                    FILTER_VALIDATE_BOOLEAN
+                );
 
-                $totalMovimientos = collect($movimientos)->sum(fn($mov) => (float) ($mov['cantidad'] ?? 0));
-                if (abs($totalMovimientos - $cantidadStock) > 0.01) {
-                    throw new \Exception('El stock asignado no coincide con la cantidad física requerida.');
-                }
+                $totalMovimientos = $this->validarMovimientosVenta(
+                    $producto,
+                    $movimientos,
+                    $cantidadStock,
+                    $forzarVenta,
+                    $unidad
+                );
+
+                // Cuando se fuerza, se registra lo realmente asignado.
+                // Cuando no se fuerza, este total será exactamente el requerido.
+                $cantidadStock = $totalMovimientos;
 
                 $calculoPrecio = $this->calcularPrecioLinea($producto, $cantidad, $unidad);
                 $precioUnit = $calculoPrecio['precio_unitario'];
@@ -226,6 +227,7 @@ class VentaController extends Controller
 
                 // Cantidad física descontada del inventario
                 'cantidad_stock'  => $cantidadStock,
+                'forzar_venta' => $forzarVenta,
 
                 'precio_unitario' => $precioUnit,
                 'subtotal'        => $lineSubtotal,
@@ -372,6 +374,7 @@ class VentaController extends Controller
                 'unidad' => $detalle->unidad_venta ?? $detalle->unidad,
 
                 'precio_unitario' => (float) $detalle->precio_unitario,
+                'forzar_venta' => (bool) $detalle->forzar_venta,
 
                 'movimientos' => $detalle->movimientos->map(function ($mov) {
                     return [
@@ -403,8 +406,8 @@ class VentaController extends Controller
         try {
             $venta->update([
                 'cliente_nombre'    => $request->cliente_nombre,
-                'cliente_documento' => $request->cliente_documento,
-                'cliente_telefono'  => $request->cliente_telefono,
+                'cliente_documento' => $request->cliente_documento ?: '',
+                'cliente_telefono'  => $request->cliente_telefono ?: '',
                 'fecha_venta'       => $request->fecha_venta,
                 'descuento'         => $request->descuento ?? 0,
                 'observaciones'     => $request->observaciones,
@@ -430,26 +433,30 @@ class VentaController extends Controller
                     $cantidadStock = (int) ceil(($cantidad / $m2PorPieza) - 0.000000001);
                 }
 
-                $movimientos = $item['movimientos'] ?? [];
-                foreach ($movimientos as $mov) {
-                    $stockUsuario = Stock::with('user')->where('user_id', $mov['stock_user_id'])
-                        ->where('producto_id', $producto->id)
-                        ->where('deposito_id', $mov['deposito_id']) // 🔥
-                        ->first();
-                    if (!$stockUsuario || (float) $stockUsuario->cantidad < (float) $mov['cantidad']) {
-                        throw new \Exception('No hay suficiente stock en la tienda seleccionada.');
-                    }
-                }
+               $movimientos = $item['movimientos'] ?? [];
 
-                $totalMovimientos = collect($movimientos)->sum(fn($mov) => (float) ($mov['cantidad'] ?? 0));
-                if (abs($totalMovimientos - $cantidadStock) > 0.01) throw new \Exception('El stock asignado no coincide.');
+                $forzarVenta = filter_var(
+                    $item['forzar_venta'] ?? false,
+                    FILTER_VALIDATE_BOOLEAN
+                );
+
+                $totalMovimientos = $this->validarMovimientosVenta(
+                    $producto,
+                    $movimientos,
+                    $cantidadStock,
+                    $forzarVenta,
+                    $unidad
+                );
+
+                // Cuando se fuerza, se registra lo realmente asignado.
+                // Cuando no se fuerza, este total será exactamente el requerido.
+                $cantidadStock = $totalMovimientos;
 
                 $calculoPrecio = $this->calcularPrecioLinea($producto, $cantidad, $unidad);
                 $subtotal += $calculoPrecio['subtotal'];
 
                 $cantidadRegistrada = $cantidad;
                 $unidadRegistrada = $unidad;
-                if ($esCeramica && $unidad === 'm2') { $cantidadRegistrada = $cantidadStock; $unidadRegistrada = 'pieza'; }
 
                 $detalle = VentaDetalle::create([
                     'venta_id'        => $venta->id,
@@ -459,6 +466,7 @@ class VentaController extends Controller
                     'cantidad_stock'  => $cantidadStock,
                     'cantidad_venta' => $cantidad,
                     'unidad_venta'   => $unidad,
+                    'forzar_venta' => $forzarVenta,
                     'precio_unitario' => $calculoPrecio['precio_unitario'],
                     'subtotal'        => $calculoPrecio['subtotal'],
                 ]);
@@ -764,6 +772,135 @@ class VentaController extends Controller
         return ['cantidad_stock' => $cantidad, 'cajas' => 0, 'piezas' => $cantidad, 'm2_reales' => 0];
     }
 
+    private function validarMovimientosVenta(
+        Producto $producto,
+        array $movimientos,
+        float $cantidadRequerida,
+        bool $forzarVenta,
+        string $unidad
+    ): float {
+        if (empty($movimientos)) {
+            throw new \Exception(
+                'Debes asignar al menos un origen de inventario.'
+            );
+        }
+
+        $tipo = mb_strtolower(
+            trim((string) ($producto->tipoProducto?->nombre ?? '')),
+            'UTF-8'
+        );
+
+        $esCeramica = in_array(
+            $tipo,
+            ['cerámica', 'ceramica', 'porcelanato'],
+            true
+        );
+
+        // Solo cerámica/porcelanato por m² y productos no cerámicos.
+        $unidadPermiteForzar = !$esCeramica || $unidad === 'm2';
+
+        if ($forzarVenta && !$unidadPermiteForzar) {
+            throw new \Exception(
+                'Solo se puede forzar cerámica o porcelanato cuando la venta es por m².'
+            );
+        }
+
+        $agrupados = collect($movimientos)->groupBy(function ($mov) {
+            return (int) ($mov['stock_user_id'] ?? 0)
+                . '-'
+                . (int) ($mov['deposito_id'] ?? 0);
+        });
+
+        $totalAsignado = 0;
+
+        foreach ($agrupados as $grupo) {
+            $primero = $grupo->first();
+
+            $stockUserId = (int) ($primero['stock_user_id'] ?? 0);
+            $depositoId = (int) ($primero['deposito_id'] ?? 0);
+
+            $cantidadOrigen = $grupo->sum(
+                fn ($mov) => (float) ($mov['cantidad'] ?? 0)
+            );
+
+            if ($stockUserId <= 0 || $depositoId <= 0) {
+                throw new \Exception('El origen de inventario no es válido.');
+            }
+
+            if ($cantidadOrigen <= 0) {
+                throw new \Exception('Las cantidades asignadas deben ser mayores a cero.');
+            }
+
+            // Las unidades físicas siempre deben ser enteras.
+            if (abs($cantidadOrigen - round($cantidadOrigen)) > 0.000001) {
+                throw new \Exception(
+                    'El inventario debe asignarse en cantidades enteras de piezas o bolsas.'
+                );
+            }
+
+            $stock = Stock::where('user_id', $stockUserId)
+                ->where('producto_id', $producto->id)
+                ->where('deposito_id', $depositoId)
+                ->whereHas('user.role', function ($q) {
+                    $q->where('slug', 'administrador');
+                })
+                ->lockForUpdate()
+                ->first();
+
+            if (!$stock) {
+                throw new \Exception(
+                    'El origen de inventario seleccionado no es válido para '
+                    . $producto->nombre . '.'
+                );
+            }
+
+            if ((float) $stock->cantidad < $cantidadOrigen) {
+                throw new \Exception(
+                    'No hay suficiente stock en la tienda seleccionada para '
+                    . $producto->nombre . '.'
+                );
+            }
+
+            $totalAsignado += $cantidadOrigen;
+        }
+
+        $totalAsignado = (float) round($totalAsignado);
+
+        if ($totalAsignado <= 0) {
+            throw new \Exception(
+                'Debes asignar una cantidad de inventario mayor a cero.'
+            );
+        }
+
+        if ($totalAsignado > $cantidadRequerida) {
+            throw new \Exception(
+                'No puedes asignar más inventario del que requiere la venta.'
+            );
+        }
+
+        $esAsignacionParcial = $totalAsignado < $cantidadRequerida;
+
+        if ($esAsignacionParcial && !$forzarVenta) {
+            throw new \Exception(
+                'El inventario asignado es insuficiente. Debes completar la asignación o autorizar Forzar venta.'
+            );
+        }
+
+        if ($esAsignacionParcial && !$unidadPermiteForzar) {
+            throw new \Exception(
+                'Esta unidad de venta requiere una asignación exacta de inventario.'
+            );
+        }
+
+        if ($forzarVenta && !$esAsignacionParcial) {
+            throw new \Exception(
+                'Forzar venta solo se utiliza cuando existe una asignación parcial de inventario.'
+            );
+        }
+
+        return $totalAsignado;
+    }
+
     private function rules(): array
     {
         return [
@@ -777,6 +914,7 @@ class VentaController extends Controller
             'items.*.producto_id' => ['required', 'integer', 'exists:productos,id'],
             'items.*.cantidad' => ['required', 'numeric', 'min:0.01'],
             'items.*.unidad' => ['required', 'string', 'in:caja,m2,pieza,bolsa'],
+            'items.*.forzar_venta' => ['nullable', 'boolean'],
             'items.*.movimientos' => ['required', 'array', 'min:1'],
             'items.*.movimientos.*.stock_user_id' => ['required', 'integer', 'exists:users,id'],
             'items.*.movimientos.*.deposito_id' => ['required', 'integer', 'exists:depositos,id'], // 🔥

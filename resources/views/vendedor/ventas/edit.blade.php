@@ -263,6 +263,7 @@
         <div class="origenes-lista"></div>
 
         <div class="alerta-stock mt-2"></div>
+        <div class="panel-forzar-container mt-2"></div>
       </div>
 
       <div class="d-flex justify-content-between align-items-center mt-2">
@@ -493,6 +494,142 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         return asignaciones;
     }
+
+    function actualizarBotonForzarVenta(linea) {
+        const panel = linea.querySelector('.panel-forzar-container');
+
+        if (!panel) return;
+
+        const producto = linea._productoData;
+        const unidad = linea.querySelector('.unidad-select').value;
+        const cantidad = Number(
+            linea.querySelector('.cantidad-input').value
+        ) || 0;
+
+        if (!producto || cantidad <= 0 || !unidad) {
+            panel.innerHTML = '';
+            linea.dataset.forzarVenta = '0';
+            return;
+        }
+
+        const esCeramicaActual = esCeramica(producto);
+
+        // Cerámica: únicamente por m².
+        // Otros productos: únicamente por pieza o bolsa.
+        const permiteForzar = esCeramicaActual
+            ? unidad === 'm2'
+            : ['pieza', 'bolsa'].includes(unidad);
+
+        if (!permiteForzar) {
+            panel.innerHTML = '';
+            linea.dataset.forzarVenta = '0';
+            return;
+        }
+
+        const requerida = obtenerCantidadFisica(
+            producto,
+            cantidad,
+            unidad
+        );
+
+        const asignaciones = obtenerAsignacionesFisicas(linea);
+
+        const asignada = Object.values(asignaciones).reduce(
+            (total, valor) => total + Number(valor || 0),
+            0
+        );
+
+        const esParcial =
+            asignada > 0 &&
+            asignada < requerida - 0.000001;
+
+        if (!esParcial) {
+            linea.dataset.forzarVenta = '0';
+            panel.innerHTML = '';
+            return;
+        }
+
+        panel.innerHTML = '';
+
+        const autorizado = linea.dataset.forzarVenta === '1';
+
+        if (autorizado) {
+            panel.innerHTML = `
+                <div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <span>
+                        <i class="mdi mdi-check-circle"></i>
+                        <strong>Forzar venta autorizado.</strong>
+                        Se conservará el precio completo y solo se descontará el inventario asignado.
+                    </span>
+
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-quitar-forzado">
+                        Quitar autorización
+                    </button>
+                </div>
+            `;
+
+            panel.querySelector('.btn-quitar-forzado')
+                .addEventListener('click', function () {
+                    linea.dataset.forzarVenta = '0';
+                    actualizarBotonForzarVenta(linea);
+                });
+
+            return;
+        }
+
+        panel.innerHTML = `
+            <div class="alert alert-warning">
+                <div class="mb-2">
+                    <strong>
+                        <i class="mdi mdi-alert-circle-outline"></i>
+                        Inventario insuficiente
+                    </strong>
+                    <div class="small mt-1">
+                        Requerido: ${requerida} unidades físicas.
+                        Asignado: ${asignada} unidades físicas.
+                        Faltante: ${requerida - asignada}.
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-warning btn-sm btn-autorizar-forzado">
+                    <i class="mdi mdi-check-circle-outline"></i>
+                    Forzar venta
+                </button>
+            </div>
+        `;
+
+        panel.querySelector('.btn-autorizar-forzado')
+            .addEventListener('click', async function () {
+
+                const mensaje =
+                    'Se conservará la cantidad comercial y el precio completo. ' +
+                    'Solamente se descontará el inventario que hayas asignado.';
+
+                let confirmar = false;
+
+                if (typeof Swal !== 'undefined') {
+                    const resultado = await Swal.fire({
+                        title: '¿Forzar esta venta?',
+                        text: mensaje,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, forzar venta',
+                        cancelButtonText: 'Cancelar'
+                    });
+
+                    confirmar = resultado.isConfirmed;
+                } else {
+                    confirmar = window.confirm(mensaje);
+                }
+
+                if (!confirmar) return;
+
+                linea.dataset.forzarVenta = '1';
+
+                actualizarBotonForzarVenta(linea);
+            });
+    }
+
    function construirOrigenes(linea, stocks, asignaciones = {}) {
         const lista = linea.querySelector('.origenes-lista');
         const producto = linea._productoData;
@@ -617,7 +754,10 @@ document.addEventListener('DOMContentLoaded', async function () {
             actualizarEquivalencia();
 
             input.addEventListener('input', function () {
-                const max = Number(this.dataset.max || 0);
+
+            linea.dataset.forzarVenta = '0';
+
+            const max = Number(this.dataset.max || 0);
                 let valor = Number(this.value) || 0;
 
                 valor = Math.round(valor);
@@ -677,8 +817,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         const alerta = linea.querySelector('.alerta-stock');
 
-        if (!alerta) return false;
+        actualizarBotonForzarVenta(linea);
 
+        if (!alerta) return false;
         const diferencia = Math.round(asignada - requerida);
 
         let unidadMensaje = 'unidades físicas';
@@ -927,6 +1068,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             Array.from(productoSelect.options).forEach(option => {
                 option.hidden = false;
             });
+            linea.dataset.forzarVenta = '0';
 
             try {
                 await cargarStockProducto(linea, this.value);
@@ -938,6 +1080,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
 
         unidadSelect.addEventListener('change', function () {
+
+            linea.dataset.forzarVenta = '0';
+
             const asignaciones = obtenerAsignacionesFisicas(linea);
 
             construirOrigenes(
@@ -949,7 +1094,12 @@ document.addEventListener('DOMContentLoaded', async function () {
             recalcular();
         });
 
-        cantidadInput.addEventListener('input', recalcular);
+        cantidadInput.addEventListener('input', function () {
+
+            linea.dataset.forzarVenta = '0';
+
+            recalcular();
+        });
 
         linea.querySelector('[data-remove]').addEventListener('click', function () {
             linea.remove();
@@ -1011,17 +1161,77 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
 
         for (const linea of lineas) {
+
             const productoId = linea.querySelector('.producto-select').value;
             const unidad = linea.querySelector('.unidad-select').value;
-            const cantidad = Number(linea.querySelector('.cantidad-input').value);
+            const cantidad = Number(
+                linea.querySelector('.cantidad-input').value
+            );
 
-            if (!productoId || !unidad || cantidad <= 0) {
+            const producto = linea._productoData;
+
+            if (!productoId || !unidad || cantidad <= 0 || !producto) {
                 alert('Completa el producto, la unidad y la cantidad de cada línea.');
                 return;
             }
 
-            if (!validarOrigenes(linea)) {
-                alert('La cantidad asignada por depósito no coincide con la cantidad física requerida.');
+            const esCeramicaActual = esCeramica(producto);
+
+            const permiteForzar = esCeramicaActual
+                ? unidad === 'm2'
+                : ['pieza', 'bolsa'].includes(unidad);
+
+            const requerida = obtenerCantidadFisica(
+                producto,
+                cantidad,
+                unidad
+            );
+
+            const asignaciones = obtenerAsignacionesFisicas(linea);
+
+            const asignada = Object.values(asignaciones).reduce(
+                (total, valor) => total + Number(valor || 0),
+                0
+            );
+
+            const forzarVenta = linea.dataset.forzarVenta === '1';
+
+            const esParcial =
+                asignada > 0 &&
+                asignada < requerida - 0.000001;
+
+            const hayExceso = asignada > requerida + 0.000001;
+
+            if (asignada <= 0) {
+                alert(`Debes asignar inventario para ${producto.nombre}.`);
+                return;
+            }
+
+            if (hayExceso) {
+                alert(`No puedes asignar más inventario del requerido para ${producto.nombre}.`);
+                return;
+            }
+
+            if (esParcial && !permiteForzar) {
+                alert(
+                    `La venta de ${producto.nombre} requiere inventario exacto. ` +
+                    'No se permite forzar por caja o pieza de cerámica.'
+                );
+                return;
+            }
+
+            if (esParcial && !forzarVenta) {
+                alert(
+                    `Falta inventario para ${producto.nombre}. ` +
+                    'Debes completar la asignación o autorizar Forzar venta.'
+                );
+                return;
+            }
+
+            if (forzarVenta && !esParcial) {
+                alert(
+                    `La autorización de Forzar venta para ${producto.nombre} ya no es necesaria.`
+                );
                 return;
             }
         }
@@ -1049,6 +1259,10 @@ document.addEventListener('DOMContentLoaded', async function () {
             agregarHidden(`items[${idx}][cantidad]`, cantidad);
             agregarHidden(`items[${idx}][unidad]`, unidad);
             agregarHidden(`items[${idx}][precio_unitario]`, calculo.precio);
+            agregarHidden(
+                `items[${idx}][forzar_venta]`,
+                linea.dataset.forzarVenta === '1' ? '1' : '0'
+            );
 
             let movimientoIndex = 0;
 
@@ -1088,9 +1302,5 @@ document.addEventListener('DOMContentLoaded', async function () {
         form.submit();
     });
 });
-</script>
-
-</script>
-
 </script>
 @endpush

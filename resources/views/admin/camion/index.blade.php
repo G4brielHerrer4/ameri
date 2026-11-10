@@ -506,6 +506,57 @@
     .camion-panel .dataTables_wrapper .dataTables_scroll {
         width: 100%;
     }
+    /* VISOR INTERNO DE COMPROBANTES */
+    .camion-comprobante-modal .modal-content {
+        background: var(--bg-1, #ffffff);
+        color: var(--ink, #222222);
+        border: 1px solid var(--line, #dddddd);
+        border-radius: 16px;
+    }
+
+    .camion-comprobante-modal .modal-header,
+    .camion-comprobante-modal .modal-footer {
+        border-color: var(--line, #dddddd);
+    }
+
+    .camion-comprobante-modal .modal-body {
+        min-height: 300px;
+        background: var(--bg-2, #f5f5f5);
+        padding: 16px;
+    }
+
+    #comprobanteImagen {
+        display: block;
+        max-width: 100%;
+        max-height: 70vh;
+        width: auto;
+        height: auto;
+        margin: 0 auto;
+        object-fit: contain;
+        border-radius: 8px;
+    }
+
+    #comprobantePdf {
+        width: 100%;
+        height: 70vh;
+        border: 0;
+        background: white;
+        border-radius: 8px;
+    }
+
+    @media (max-width: 576px) {
+        .camion-comprobante-modal .modal-dialog {
+            margin: 10px;
+        }
+
+        #comprobantePdf {
+            height: 65vh;
+        }
+
+        #comprobanteImagen {
+            max-height: 65vh;
+        }
+    }
 </style>
 @endpush
 
@@ -907,13 +958,21 @@
 
                             <td>
                                 @if($gasto->comprobante)
-                                    <a class="camion-btn secondary small"
-                                       href="{{ route('admin.camion.gastos.comprobante', $gasto) }}"
-                                       target="_blank"
-                                       rel="noopener">
+                                    @php
+                                        $extensionComprobante = strtolower(
+                                            pathinfo($gasto->comprobante, PATHINFO_EXTENSION)
+                                        );
+                                    @endphp
+
+                                    <button
+                                        type="button"
+                                        class="camion-btn secondary small js-ver-comprobante"
+                                        data-url="{{ route('admin.camion.gastos.comprobante', $gasto) }}"
+                                        data-tipo="{{ $extensionComprobante === 'pdf' ? 'pdf' : 'imagen' }}"
+                                    >
                                         <i class="mdi mdi-file-eye-outline"></i>
-                                        Ver
-                                    </a>
+                                        Ver comprobante
+                                    </button>
                                 @else
                                     —
                                 @endif
@@ -957,6 +1016,65 @@
         </div>
     </div>
 
+</div>
+{{-- MODAL PARA VISUALIZAR COMPROBANTES --}}
+<div class="modal fade camion-comprobante-modal"
+     id="modalComprobante"
+     tabindex="-1"
+     aria-labelledby="tituloModalComprobante"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="tituloModalComprobante">
+                    <i class="mdi mdi-file-eye-outline"></i>
+                    Comprobante del gasto
+                </h5>
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Cerrar">
+                </button>
+            </div>
+
+            <div class="modal-body">
+
+                <div id="comprobanteImagenContenedor"
+                     class="text-center">
+
+                    <img
+                        id="comprobanteImagen"
+                        src=""
+                        alt="Comprobante del gasto"
+                        style="display:none;"
+                    >
+
+                </div>
+
+                <iframe
+                    id="comprobantePdf"
+                    src=""
+                    title="Comprobante PDF"
+                    style="display:none;"
+                ></iframe>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button"
+                        class="camion-btn secondary"
+                        data-bs-dismiss="modal">
+                    <i class="mdi mdi-close"></i>
+                    Cerrar
+                </button>
+            </div>
+
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -1099,5 +1217,68 @@ if (typeof jQuery !== 'undefined' &&
 } else {
     console.warn('DataTables no está cargado en la plantilla principal.');
 }
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const modalElemento = document.getElementById('modalComprobante');
+
+    if (!modalElemento || typeof bootstrap === 'undefined') {
+        console.error('No se encontró Bootstrap o el modal de comprobantes.');
+        return;
+    }
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalElemento);
+
+    const imagen = document.getElementById('comprobanteImagen');
+    const pdf = document.getElementById('comprobantePdf');
+
+    // Abrir comprobante desde la tabla, incluso después de redibujar DataTables.
+    document.addEventListener('click', function (e) {
+
+        const boton = e.target.closest('.js-ver-comprobante');
+
+        if (!boton) return;
+
+        const url = boton.dataset.url;
+        const tipo = boton.dataset.tipo;
+
+        imagen.removeAttribute('src');
+        imagen.style.display = 'none';
+
+        pdf.removeAttribute('src');
+        pdf.style.display = 'none';
+
+        if (tipo === 'pdf') {
+
+            pdf.src = url;
+            pdf.style.display = 'block';
+
+        } else {
+
+            imagen.src = url;
+            imagen.style.display = 'block';
+
+            imagen.onerror = function () {
+                imagen.style.display = 'none';
+                console.error('No se pudo cargar el comprobante.');
+            };
+        }
+
+        modal.show();
+    });
+
+    // Limpiar el contenido al cerrar.
+    modalElemento.addEventListener('hidden.bs.modal', function () {
+
+        imagen.removeAttribute('src');
+        imagen.style.display = 'none';
+
+        pdf.removeAttribute('src');
+        pdf.style.display = 'none';
+
+    });
+
+});
 </script>
 @endsection

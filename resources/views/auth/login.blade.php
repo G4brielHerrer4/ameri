@@ -513,10 +513,7 @@
 
                 <div class="form-group">
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                        <label class="checkbox-wrapper">
-                            <input type="checkbox" name="remember" id="remember_me">
-                            <span>Recordarme</span>
-                        </label>
+                       
                         @if (Route::has('password.request'))
                             <a class="forgot-link" href="{{ route('password.request') }}">
                                 ¿Olvidaste tu contraseña?

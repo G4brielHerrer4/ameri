@@ -38,7 +38,16 @@
   .origen-item { display: grid; grid-template-columns: 1fr 130px 110px; align-items: center; gap: 0.75rem; padding: 0.6rem 0.75rem; border-radius: var(--r-sm); background: var(--bg-1); border: 1px solid var(--line); margin-bottom: 0.5rem; }
   .origen-item .info { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
   .origen-item .info .mdi { color: var(--primary); font-size: 1.05rem; flex-shrink: 0; }
-  .origen-item .info .name { font-weight: 600; color: var(--ink); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .origen-item .info .name {
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 0.85rem;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
   .origen-item .disponible { font-size: 0.8rem; color: var(--ink-muted); text-align: right; font-family: var(--font-display); }
   .origen-item input.cantidad-origen { background: var(--bg-2); border: 1px solid var(--line); color: var(--ink); border-radius: var(--r-sm); padding: 0.45rem 0.6rem; font-size: 0.85rem; width: 100%; text-align: right; font-family: var(--font-display); font-weight: 600; }
   .origen-item input.cantidad-origen.tiene-valor { border-color: var(--line-strong); background: color-mix(in srgb, var(--primary) 8%, transparent); }
@@ -229,8 +238,69 @@
         transform: rotate(90deg);
     }
 }
+.btn-panel.btn-forzar {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    color: #fff;
+}
+
+.btn-panel.btn-forzar:hover {
+    background: #92400e;
+}
+
+.panel-forzar {
+    margin-top: 0.75rem;
+}
+/* Adaptación de selección de administradores en celulares */
+@media (max-width: 576px) {
+  .origen-item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.6rem;
+    padding: 0.8rem;
+  }
+
+  .origen-item .info {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .origen-item .info .name {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    overflow-wrap: anywhere;
+    font-size: 0.95rem;
+  }
+
+  .origen-item .disponible {
+    width: 100%;
+  }
+
+  .origen-item > div:last-child {
+    width: 100%;
+  }
+
+  .origen-item input.cantidad-origen {
+    width: 100%;
+  }
+}
 </style>
 @endpush
+@if (session('error'))
+    <div class="alert alert-danger">
+        {{ session('error') }}
+    </div>
+@endif
+
+@if ($errors->any())
+    <div class="alert alert-danger">
+        <strong>Hay errores de validación:</strong>
+        <ul>
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
 
 @section('content')
 <div class="container-fluid">
@@ -408,6 +478,7 @@
       <div class="alerta-stock"></div>
       <div class="panel-faltante-container"></div>
       <div class="panel-interna-container"></div>
+      <div class="panel-forzar-container"></div>
     </div>
 
     <div class="d-flex justify-content-between align-items-center mt-2">
@@ -615,6 +686,124 @@ document.addEventListener('DOMContentLoaded', function () {
 
       detalle.innerHTML = contenido;
       panel.style.display = contenido ? 'block' : 'none';
+  }
+
+    /* ================== Forzar venta ================== */
+
+  function actualizarBotonForzarVenta(linea) {
+      const contenedor = linea.querySelector('.panel-forzar-container');
+      const producto = linea._producto;
+      const unidad = linea.querySelector('.unidad-select').value;
+      const cantidad = parseFloat(linea.querySelector('.cantidad-input').value) || 0;
+
+      if (!producto || !unidad || cantidad <= 0) {
+          contenedor.innerHTML = '';
+          linea.dataset.forzarVenta = '0';
+          return;
+      }
+
+      const tipo = String(producto.tipo || '').trim().toLowerCase();
+
+      const esCeramica = [
+          'cerámica',
+          'ceramica',
+          'porcelanato'
+      ].includes(tipo);
+
+      // Cerámica y porcelanato solo permiten forzar cuando se venden por m².
+      // Los demás productos pueden forzarse por pieza o bolsa.
+      const permitido = esCeramica
+          ? unidad === 'm2'
+          : ['pieza', 'bolsa'].includes(unidad);
+
+      if (!permitido) {
+          contenedor.innerHTML = '';
+          linea.dataset.forzarVenta = '0';
+          return;
+      }
+
+      const requerido = esCeramica && unidad === 'caja'
+          ? cantidad
+          : convertirAStock(producto, cantidad, unidad);
+
+      let asignado = 0;
+
+      linea.querySelectorAll('.cantidad-origen').forEach(input => {
+          asignado += Number(input.value || 0);
+      });
+
+      const parcial = asignado > 0 && asignado < requerido - 0.01;
+
+      if (!parcial) {
+          contenedor.innerHTML = '';
+          linea.dataset.forzarVenta = '0';
+          return;
+      }
+
+      contenedor.innerHTML = `
+          <div class="panel-venta faltante panel-forzar">
+              <div class="panel-titulo">
+                  <i class="mdi mdi-alert-circle"></i>
+                  Inventario insuficiente
+              </div>
+
+              <div class="panel-texto">
+                  Tienes asignados <strong>${asignado}</strong> de
+                  <strong>${requerido}</strong> unidades físicas requeridas.
+
+                  Puedes registrar la venta con la cantidad comercial completa,
+                  pero solamente se descontará el inventario que hayas asignado.
+
+                  <br><br>
+                  <strong>Importante:</strong> el cliente seguirá figurando con
+                  la cantidad y el precio completos de la venta.
+              </div>
+
+              <div class="panel-acciones">
+                  <button type="button" class="btn-panel btn-forzar">
+                      <i class="mdi mdi-lightning-bolt"></i>
+                      Forzar venta con ${asignado} unidades asignadas
+                  </button>
+              </div>
+          </div>
+      `;
+
+      const boton = contenedor.querySelector('.btn-forzar');
+
+      boton.addEventListener('click', function () {
+          Swal.fire({
+              title: '¿Forzar esta venta?',
+              html: `
+                  <p>La venta se registrará con la cantidad comercial completa.</p>
+                  <p>Se descontarán solamente <strong>${asignado}</strong>
+                  de las <strong>${requerido}</strong> unidades físicas requeridas.</p>
+                  <p><strong>¿Deseas continuar?</strong></p>
+              `,
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonText: 'Sí, forzar venta',
+              cancelButtonText: 'Cancelar',
+              buttonsStyling: false,
+              customClass: {
+                  confirmButton: 'swal2-confirm',
+                  cancelButton: 'swal2-cancel'
+              }
+          }).then(result => {
+              if (!result.isConfirmed) return;
+
+              linea.dataset.forzarVenta = '1';
+
+              Swal.fire({
+                  title: 'Forzado habilitado',
+                  text: 'Esta línea podrá registrarse con el inventario parcial asignado.',
+                  icon: 'success',
+                  buttonsStyling: false,
+                  customClass: {
+                      confirmButton: 'swal2-confirm'
+                  }
+              });
+          });
+      });
   }
 
   /* ================== Cambio de admin ================== */
@@ -884,6 +1073,7 @@ document.addEventListener('DOMContentLoaded', function () {
             this.value = val;
             if (val > 0) this.classList.add('tiene-valor');
             else this.classList.remove('tiene-valor');
+            linea.dataset.forzarVenta = '0';
             validarOrigenes(linea);
             recalcular();
           });
@@ -891,6 +1081,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       unidadSelect.onchange = function () {
+        linea.dataset.forzarVenta = '0';
           configurarCantidad(linea);
           actualizarPrecio(linea);
           actualizarMaximosOrigen(linea);
@@ -899,6 +1090,7 @@ document.addEventListener('DOMContentLoaded', function () {
       };
 
       cantidadInput.oninput = function () {
+        linea.dataset.forzarVenta = '0';
         validarOrigenes(linea);
         recalcular();
       };
@@ -961,115 +1153,123 @@ document.addEventListener('DOMContentLoaded', function () {
 
   /* ================== Validar orígenes ================== */
   function validarOrigenes(linea) {
-      const alerta         = linea.querySelector('.alerta-stock');
-      const inputs         = linea.querySelectorAll('.cantidad-origen');
-      const panelFaltante  = linea.querySelector('.panel-faltante-container');
-      const panelInterna   = linea.querySelector('.panel-interna-container');
+    const alerta         = linea.querySelector('.alerta-stock');
+    const inputs         = linea.querySelectorAll('.cantidad-origen');
+    const panelFaltante  = linea.querySelector('.panel-faltante-container');
+    const panelInterna   = linea.querySelector('.panel-interna-container');
 
-      const producto      = linea._producto;
-      const unidadVenta   = linea.querySelector('.unidad-select').value;
-      const cantidadInput = parseFloat(linea.querySelector('.cantidad-input').value) || 0;
+    const producto      = linea._producto;
+    const unidadVenta   = linea.querySelector('.unidad-select').value;
+    const cantidadInput = parseFloat(linea.querySelector('.cantidad-input').value) || 0;
 
-      alerta.innerHTML = '';
-      alerta.className = 'alerta-stock';
-      panelFaltante.innerHTML = '';
-      panelInterna.innerHTML = '';
+    alerta.innerHTML = '';
+    alerta.className = 'alerta-stock';
+    panelFaltante.innerHTML = '';
+    panelInterna.innerHTML = '';
 
-      if (!producto || cantidadInput <= 0) return;
+    if (!producto || cantidadInput <= 0) {
+        actualizarBotonForzarVenta(linea);
+        return;
+    }
 
-      const esCeramica = ['cerámica', 'ceramica', 'porcelanato']
-          .includes(String(producto.tipo || '').toLowerCase());
+    const esCeramica = ['cerámica', 'ceramica', 'porcelanato']
+        .includes(String(producto.tipo || '').toLowerCase());
 
-      // Si se vende por cajas, la asignación también se calcula en cajas.
-      const requeridoStock = esCeramica && unidadVenta === 'caja'
-          ? cantidadInput
-          : convertirAStock(producto, cantidadInput, unidadVenta);
+    const requeridoStock = esCeramica && unidadVenta === 'caja'
+        ? cantidadInput
+        : convertirAStock(producto, cantidadInput, unidadVenta);
 
-      const unidadMostrar = esCeramica && unidadVenta === 'caja'
-          ? 'cajas'
-          : producto.unidad_base;
+    const unidadMostrar = esCeramica && unidadVenta === 'caja'
+        ? 'cajas'
+        : producto.unidad_base;
 
-      const stockTotalAdmin = Number(linea._stockTotalAdmin || 0);
-      const piezasPorCaja = Number(producto.piezas_por_caja || 0);
+    const stockTotalAdmin = Number(linea._stockTotalAdmin || 0);
+    const piezasPorCaja = Number(producto.piezas_por_caja || 0);
 
-      // Convertir el stock total físico a cajas completas para comparar.
-      const stockTotalDisponible = esCeramica && unidadVenta === 'caja'
-          && piezasPorCaja > 0
-          ? Math.floor(stockTotalAdmin / piezasPorCaja)
-          : stockTotalAdmin;
+    const stockTotalDisponible = esCeramica &&
+        unidadVenta === 'caja' &&
+        piezasPorCaja > 0
+        ? Math.floor(stockTotalAdmin / piezasPorCaja)
+        : stockTotalAdmin;
 
-      let totalAsignado = 0;
-      inputs.forEach(i => {
-          totalAsignado += parseFloat(i.value) || 0;
-      });
+    let totalAsignado = 0;
 
-      const faltaAsignar = +(requeridoStock - totalAsignado).toFixed(2);
-      const faltaReal = Math.max(
-          0,
-          +(requeridoStock - stockTotalDisponible).toFixed(2)
-      );
+    inputs.forEach(input => {
+        totalAsignado += parseFloat(input.value) || 0;
+    });
 
-      // 1) Todo correcto
-      if (Math.abs(faltaAsignar) <= 0.01 && faltaReal <= 0.01) {
-          alerta.className = 'alerta-stock ok';
-          alerta.innerHTML = `
-              <i class="mdi mdi-check-circle"></i>
-              Stock asignado correctamente
-              (${totalAsignado} / ${requeridoStock} ${unidadMostrar}).
-          `;
-          return;
-      }
+    const faltaAsignar = +(requeridoStock - totalAsignado).toFixed(2);
 
-      // 2) Falta asignar entre tiendas, pero el administrador sí tiene suficiente
-      if (faltaReal <= 0.01 && faltaAsignar > 0) {
-          alerta.className = 'alerta-stock warn';
-          alerta.innerHTML = `
-              <i class="mdi mdi-alert"></i>
-              Te falta asignar
-              <strong>${faltaAsignar} ${unidadMostrar}</strong>
-              entre las tiendas.
-          `;
-          return;
-      }
+    const faltaReal = Math.max(
+        0,
+        +(requeridoStock - stockTotalDisponible).toFixed(2)
+    );
 
-      // 3) Se pasó de la cantidad solicitada
-      if (faltaAsignar < -0.01) {
-          alerta.className = 'alerta-stock warn';
-          alerta.innerHTML = `
-              <i class="mdi mdi-alert-circle"></i>
-              Te pasaste por
-              <strong>${Math.abs(faltaAsignar)} ${unidadMostrar}</strong>.
-          `;
-          return;
-      }
+    // IMPORTANTE:
+    // Actualizamos el botón ANTES de cualquier return.
+    actualizarBotonForzarVenta(linea);
 
-      // 4) El administrador no tiene suficiente stock total
-      if (faltaReal > 0.01) {
-          alerta.className = 'alerta-stock error';
-          alerta.innerHTML = `
-              <i class="mdi mdi-close-circle"></i>
-              Necesitas <strong>${requeridoStock} ${unidadMostrar}</strong> y
-              <strong>${linea._adminInfo.name}</strong> solo tiene
-              <strong>${stockTotalDisponible} ${unidadMostrar}</strong>.
-              <strong>Faltan ${faltaReal} ${unidadMostrar}</strong>.
-          `;
+    // 1. Asignación completa
+    if (Math.abs(faltaAsignar) <= 0.01 && faltaReal <= 0.01) {
+        alerta.className = 'alerta-stock ok';
+        alerta.innerHTML = `
+            <i class="mdi mdi-check-circle"></i>
+            Stock asignado correctamente
+            (${totalAsignado} / ${requeridoStock} ${unidadMostrar}).
+        `;
+        return;
+    }
 
-          panelFaltante.innerHTML = renderPanelFaltante(
-              linea,
-              producto,
-              faltaReal,
-              requeridoStock,
-              stockTotalDisponible,
-              unidadMostrar
-          );
+    // 2. El administrador tiene suficiente, pero falta asignar entre depósitos
+    if (faltaReal <= 0.01 && faltaAsignar > 0) {
+        alerta.className = 'alerta-stock warn';
+        alerta.innerHTML = `
+            <i class="mdi mdi-alert"></i>
+            Te falta asignar
+            <strong>${faltaAsignar} ${unidadMostrar}</strong>
+            entre las tiendas.
+        `;
+        return;
+    }
 
-          bindPanelFaltante(linea, producto, unidadMostrar);
+    // 3. Se asignó más de lo solicitado
+    if (faltaAsignar < -0.01) {
+        alerta.className = 'alerta-stock warn';
+        alerta.innerHTML = `
+            <i class="mdi mdi-alert-circle"></i>
+            Te pasaste por
+            <strong>${Math.abs(faltaAsignar)} ${unidadMostrar}</strong>.
+        `;
+        return;
+    }
 
-          if (linea._otrosStocks && linea._otrosStocks.length > 0) {
-              panelInterna.innerHTML = renderPanelOtrosAdmins(linea._otrosStocks);
-          }
-      }
-  }
+    // 4. El administrador no tiene suficiente inventario
+    if (faltaReal > 0.01) {
+        alerta.className = 'alerta-stock error';
+        alerta.innerHTML = `
+            <i class="mdi mdi-close-circle"></i>
+            Necesitas <strong>${requeridoStock} ${unidadMostrar}</strong> y
+            <strong>${linea._adminInfo.name}</strong> solo tiene
+            <strong>${stockTotalDisponible} ${unidadMostrar}</strong>.
+            <strong>Faltan ${faltaReal} ${unidadMostrar}</strong>.
+        `;
+
+        panelFaltante.innerHTML = renderPanelFaltante(
+            linea,
+            producto,
+            faltaReal,
+            requeridoStock,
+            stockTotalDisponible,
+            unidadMostrar
+        );
+
+        bindPanelFaltante(linea, producto, unidadMostrar);
+
+        if (linea._otrosStocks && linea._otrosStocks.length > 0) {
+            panelInterna.innerHTML = renderPanelOtrosAdmins(linea._otrosStocks);
+        }
+    }
+}
 
   /* ================== Panel: falta stock ================== */
   function renderPanelFaltante(linea, producto, faltante, total, stock, unidad) {
@@ -1246,13 +1446,44 @@ document.addEventListener('DOMContentLoaded', function () {
       let totalAsignado = 0;
       linea.querySelectorAll('.cantidad-origen').forEach(i => totalAsignado += parseFloat(i.value) || 0);
 
-    if (Math.abs(totalAsignado - reqStock) > 0.01) {
+    const forzarVenta = linea.dataset.forzarVenta === '1';
+
+    const puedeForzar = esCeramica
+        ? unidad === 'm2'
+        : ['pieza', 'bolsa'].includes(unidad);
+
+    const esParcial = totalAsignado > 0 &&
+        totalAsignado < reqStock - 0.01;
+
+    if (totalAsignado > reqStock + 0.01) {
+        hayErrores = true;
+        mensajeError = `Línea ${index + 1}: no puedes asignar más de ${reqStock} unidades físicas.`;
+        return;
+    }
+
+    if (esParcial && (!forzarVenta || !puedeForzar)) {
         const unidadError = esCeramica && unidad === 'caja'
             ? 'cajas'
             : prod.unidad_base;
 
         hayErrores = true;
-        mensajeError = `Línea ${index + 1}: debes asignar exactamente ${reqStock} ${unidadError} de stock (tienes ${totalAsignado}).`;
+        mensajeError = forzarVenta
+            ? `Línea ${index + 1}: no está permitido forzar la venta de este producto con esta unidad.`
+            : `Línea ${index + 1}: debes asignar exactamente ${reqStock} ${unidadError}, o habilitar Forzar venta si el producto lo permite.`;
+
+        return;
+    }
+
+    if (forzarVenta && !esParcial) {
+        hayErrores = true;
+        mensajeError = `Línea ${index + 1}: Forzar venta solamente se permite cuando existe una asignación parcial.`;
+        return;
+    }
+
+    if (totalAsignado <= 0) {
+        hayErrores = true;
+        mensajeError = `Línea ${index + 1}: debes asignar al menos una unidad de inventario.`;
+        return;
     }
     });
 
@@ -1286,6 +1517,7 @@ document.addEventListener('DOMContentLoaded', function () {
       add(`items[${idx}][cantidad]`, cantidad);
       add(`items[${idx}][unidad]`, unidad);
       add(`items[${idx}][precio_unitario]`, precio);
+      add(`items[${idx}][forzar_venta]`,linea.dataset.forzarVenta === '1' ? '1' : '0');
 
       let mIdx = 0;
       linea.querySelectorAll('.cantidad-origen').forEach(input => {

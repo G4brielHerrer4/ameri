@@ -175,8 +175,15 @@ class VentaVendedorController extends Controller
     {
         $validator = Validator::make($request->all(), $this->rules(), $this->messages());
         if ($validator->fails()) {
-            return redirect()->route('vendedor.ventas.create')->withErrors($validator)->withInput();
-        }
+    \Log::error('ERROR VALIDACION VENTA VENDEDOR', [
+        'errores' => $validator->errors()->toArray(),
+        'datos' => $request->except('_token'),
+    ]);
+
+    return redirect()->route('vendedor.ventas.create')
+        ->withErrors($validator)
+        ->withInput();
+}
 
         DB::beginTransaction();
         try {
@@ -190,8 +197,8 @@ class VentaVendedorController extends Controller
                 'user_id'           => auth()->id(),
                 'numero_venta'      => Venta::generarNumeroVenta(),
                 'cliente_nombre'    => $request->cliente_nombre,
-                'cliente_documento' => $request->cliente_documento,
-                'cliente_telefono'  => $request->cliente_telefono,
+                'cliente_documento' => $request->cliente_documento ?? '',
+                'cliente_telefono'  => $request->cliente_telefono ?? '',
                 'fecha_venta'       => $request->fecha_venta,
                 'subtotal'          => 0,
                 'descuento'         => $request->descuento ?? 0,
@@ -217,11 +224,16 @@ class VentaVendedorController extends Controller
                 ->with('success', 'Venta registrada como pendiente.');
         } catch (\Throwable $e) {
             DB::rollBack();
+              \Log::error('ERROR REGISTRANDO VENTA VENDEDOR', [
+                'mensaje' => $e->getMessage(),
+                'archivo' => $e->getFile(),
+                'linea' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return redirect()->route('vendedor.ventas.create')
                 ->withInput()->with('error', 'Error: ' . $e->getMessage());
         }
     }
-
 
     /**
      * POST /vendedor/ventas/notificar-faltante
@@ -383,6 +395,8 @@ class VentaVendedorController extends Controller
                 'unidad' => $d->unidad_venta ?? $d->unidad,
 
                 'precio_unitario' => (float) $d->precio_unitario,
+                // Recuperar si esta línea fue forzada.
+                'forzar_venta' => (bool) $d->forzar_venta,
 
                 'movimientos' => $d->movimientos->map(function ($m) {
                     return [
@@ -445,8 +459,8 @@ class VentaVendedorController extends Controller
 
             $venta->update([
                 'cliente_nombre'    => $request->cliente_nombre,
-                'cliente_documento' => $request->cliente_documento,
-                'cliente_telefono'  => $request->cliente_telefono,
+                'cliente_documento' => $request->cliente_documento ?? '',
+                'cliente_telefono'  => $request->cliente_telefono ?? '',
                 'fecha_venta'       => $request->fecha_venta,
                 'descuento'         => $request->descuento ?? 0,
                 'observaciones'     => $request->observaciones,
@@ -672,100 +686,200 @@ class VentaVendedorController extends Controller
     /* =========================================================
        PROCESAR LÍNEAS (compartido store / update)
        ========================================================= */
-    private function procesarLineas(Venta $venta, array $items, int $adminId): float
+   private function procesarLineas(Venta $venta, array $items, int $adminId): float
     {
         $subtotal = 0;
 
         foreach ($items as $item) {
             $producto = Producto::with('tipoProducto')->findOrFail($item['producto_id']);
+
             $cantidad = (float) $item['cantidad'];
-            $unidad   = $item['unidad'];
+            $unidad   = (string) $item['unidad'];
 
-            $tipo       = mb_strtolower(trim((string) ($producto->tipoProducto?->nombre ?? '')), 'UTF-8');
-            $esCeramica = in_array($tipo, ['cerámica', 'ceramica', 'porcelanato'], true);
+            $tipo = mb_strtolower(
+                trim((string) ($producto->tipoProducto?->nombre ?? '')),
+                'UTF-8'
+            );
 
-            $conversion    = $this->calcularCantidadStock($producto, $cantidad, $unidad);
-            $cantidadStock = (float) $conversion['cantidad_stock'];
+            $esCeramica = in_array(
+                $tipo,
+                ['cerámica', 'ceramica', 'porcelanato'],
+                true
+            );
 
-            if ($esCeramica && $unidad === 'm2') {
-                $m2PorCaja     = (float) ($producto->m2_por_caja ?? 0);
-                $piezasPorCaja = (int) ($producto->piezas_por_caja ?? 0);
-                if ($m2PorCaja <= 0 || $piezasPorCaja <= 0) {
-                    throw new \Exception('Faltan m² o piezas por caja.');
-                }
-                $m2PorPieza    = $m2PorCaja / $piezasPorCaja;
-                $cantidadStock = (int) ceil(($cantidad / $m2PorPieza) - 0.000000001);
-            }
+            // Cantidad física total que debería requerir la venta.
+            $conversion = $this->calcularCantidadStock(
+                $producto,
+                $cantidad,
+                $unidad
+            );
 
+            $cantidadRequerida = (float) $conversion['cantidad_stock'];
+
+            // El vendedor solo puede tomar inventario del administrador elegido.
             $movimientos = $item['movimientos'] ?? [];
 
-            foreach ($movimientos as $mov) {
-                // 🔥 SOLO el admin elegido
-                if ((int) $mov['stock_user_id'] !== $adminId) {
-                    throw new \Exception('Como vendedor solo puedes tomar stock del administrador seleccionado.');
+            if (empty($movimientos)) {
+                throw new \Exception(
+                    'Debes asignar inventario del administrador seleccionado para '
+                    . $producto->nombre . '.'
+                );
+            }
+
+            $forzarVenta = filter_var(
+                $item['forzar_venta'] ?? false,
+                FILTER_VALIDATE_BOOLEAN
+            );
+
+            // Solo se permite forzar productos no cerámicos o cerámica por m².
+            $unidadPermiteForzar = !$esCeramica || $unidad === 'm2';
+
+            if ($forzarVenta && !$unidadPermiteForzar) {
+                throw new \Exception(
+                    'Solo puedes forzar cerámica o porcelanato cuando la venta es por m².'
+                );
+            }
+
+            // Agrupar por depósito para evitar validar por separado
+            // movimientos duplicados del mismo origen.
+            $movimientosPorDeposito = collect($movimientos)->groupBy(
+                fn ($mov) => (int) ($mov['deposito_id'] ?? 0)
+            );
+
+            $totalAsignado = 0;
+            $movimientosValidados = [];
+
+            foreach ($movimientosPorDeposito as $depositoId => $grupo) {
+                $depositoId = (int) $depositoId;
+
+                $stockUserId = (int) ($grupo->first()['stock_user_id'] ?? 0);
+
+                if ($stockUserId !== $adminId) {
+                    throw new \Exception(
+                        'Como vendedor solo puedes tomar stock del administrador seleccionado.'
+                    );
+                }
+
+                if ($depositoId <= 0) {
+                    throw new \Exception('El depósito seleccionado no es válido.');
+                }
+
+                $cantidadOrigen = (float) $grupo->sum(
+                    fn ($mov) => (float) ($mov['cantidad'] ?? 0)
+                );
+
+                if ($cantidadOrigen <= 0) {
+                    throw new \Exception(
+                        'Las cantidades asignadas deben ser mayores a cero.'
+                    );
+                }
+
+                // El inventario físico se maneja en piezas o bolsas enteras.
+                if (abs($cantidadOrigen - round($cantidadOrigen)) > 0.000001) {
+                    throw new \Exception(
+                        'El inventario debe asignarse en cantidades enteras de piezas o bolsas.'
+                    );
                 }
 
                 $stock = Stock::where('user_id', $adminId)
                     ->where('producto_id', $producto->id)
-                    ->where('deposito_id', $mov['deposito_id'])
+                    ->where('deposito_id', $depositoId)
+                    ->lockForUpdate()
                     ->first();
 
-                if (!$stock || (float) $stock->cantidad < (float) $mov['cantidad']) {
+                if (!$stock) {
                     throw new \Exception(
-                        'Stock insuficiente del administrador seleccionado para ' . $producto->nombre .
-                        '. Se requiere venta interna.'
+                        'No existe inventario de ' . $producto->nombre .
+                        ' en el depósito seleccionado.'
                     );
                 }
+
+                if ((float) $stock->cantidad < $cantidadOrigen) {
+                    throw new \Exception(
+                        'Stock insuficiente de ' . $producto->nombre .
+                        ' en el depósito seleccionado. Disponible: ' .
+                        $stock->cantidad . ', asignado: ' . $cantidadOrigen . '.'
+                    );
+                }
+
+                $totalAsignado += $cantidadOrigen;
+
+                $movimientosValidados[] = [
+                    'stock_user_id' => $adminId,
+                    'deposito_id'   => $depositoId,
+                    'cantidad'      => $cantidadOrigen,
+                ];
             }
 
-            $totalMovimientos = collect($movimientos)->sum(fn($m) => (float) ($m['cantidad'] ?? 0));
-            if (abs($totalMovimientos - $cantidadStock) > 0.01) {
-                throw new \Exception('El stock asignado no coincide con la cantidad física requerida.');
+            $totalAsignado = (float) round($totalAsignado);
+
+            if ($totalAsignado <= 0) {
+                throw new \Exception(
+                    'Debes asignar una cantidad de inventario mayor a cero.'
+                );
             }
 
+            if ($totalAsignado > $cantidadRequerida) {
+                throw new \Exception(
+                    'No puedes asignar más inventario del que requiere la venta de '
+                    . $producto->nombre . '.'
+                );
+            }
+
+            $asignacionParcial = $totalAsignado < $cantidadRequerida;
+
+            if ($asignacionParcial && !$forzarVenta) {
+                throw new \Exception(
+                    'El inventario asignado de ' . $producto->nombre .
+                    ' es insuficiente. Completa la asignación o autoriza Forzar venta.'
+                );
+            }
+
+            if ($asignacionParcial && !$unidadPermiteForzar) {
+                throw new \Exception(
+                    'Esta venta requiere una asignación exacta de inventario. No se permite forzar por caja o pieza.'
+                );
+            }
+
+            if ($forzarVenta && !$asignacionParcial) {
+                throw new \Exception(
+                    'Forzar venta solo se utiliza cuando la asignación de inventario es parcial.'
+                );
+            }
+
+            // El precio se calcula con la cantidad comercial COMPLETA.
+            // No se reduce el importe por haber forzado la venta.
             $calculoPrecio = $this->calcularPrecioLinea(
-            $producto,
-            $cantidad,
-            $unidad,
-            $adminId
-        );
-            $subtotal     += $calculoPrecio['subtotal'];
+                $producto,
+                $cantidad,
+                $unidad,
+                $adminId
+            );
 
-            $cantidadRegistrada = $cantidad;
-            $unidadRegistrada   = $unidad;
-            if ($esCeramica && $unidad === 'm2') {
-                $cantidadRegistrada = $cantidadStock;
-                $unidadRegistrada   = 'pieza';
-            }
+            $subtotal += $calculoPrecio['subtotal'];
 
+            // Se conserva la cantidad y unidad comercial originales.
+            // cantidad_stock representa únicamente el inventario realmente asignado.
             $detalle = VentaDetalle::create([
                 'venta_id'        => $venta->id,
                 'producto_id'     => $producto->id,
-
-                // Datos que conserva el sistema actualmente
-                'cantidad'        => $cantidadRegistrada,
-                'unidad'          => $unidadRegistrada,
-
-                // Cantidad física utilizada para el inventario
-                'cantidad_stock'  => $cantidadStock,
-
-                // Datos originales ingresados por el vendedor
+                'cantidad'        => $cantidad,
+                'unidad'          => $unidad,
+                'cantidad_stock'  => $totalAsignado,
                 'cantidad_venta'  => $cantidad,
                 'unidad_venta'    => $unidad,
-
+                'forzar_venta'    => $forzarVenta,
                 'precio_unitario' => $calculoPrecio['precio_unitario'],
                 'subtotal'        => $calculoPrecio['subtotal'],
             ]);
 
-            foreach ($movimientos as $mov) {
-                $cantMov = (float) ($mov['cantidad'] ?? 0);
-                if ($cantMov <= 0) continue;
-
+            // Guardar exclusivamente las cantidades físicas realmente asignadas.
+            foreach ($movimientosValidados as $mov) {
                 VentaMovimiento::create([
                     'venta_detalle_id' => $detalle->id,
                     'stock_user_id'    => $mov['stock_user_id'],
                     'deposito_id'      => $mov['deposito_id'],
-                    'cantidad'         => $cantMov,
+                    'cantidad'         => $mov['cantidad'],
                 ]);
             }
         }
@@ -961,6 +1075,7 @@ class VentaVendedorController extends Controller
             'items.*.producto_id' => ['required', 'integer', 'exists:productos,id'],
             'items.*.cantidad'    => ['required', 'numeric', 'min:0.01'],
             'items.*.unidad'      => ['required', 'string', 'in:caja,m2,pieza,bolsa'],
+            'items.*.forzar_venta' => ['nullable', 'boolean'],
             'items.*.movimientos' => ['required', 'array', 'min:1'],
             'items.*.movimientos.*.stock_user_id' => ['required', 'integer', 'exists:users,id'],
             'items.*.movimientos.*.deposito_id'   => ['required', 'integer', 'exists:depositos,id'],

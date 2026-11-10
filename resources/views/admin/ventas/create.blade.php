@@ -29,7 +29,16 @@
   .origen-item.es-propio { background: color-mix(in srgb, var(--cyan) 6%, transparent); border-color: var(--line-strong); }
   .origen-item .info { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
   .origen-item .info .mdi { color: var(--cyan); font-size: 1.05rem; flex-shrink: 0; }
-  .origen-item .info .name { font-weight: 600; color: var(--ink); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .origen-item .info .name {
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 0.85rem;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
   .origen-item .info .label { font-size: 0.68rem; color: var(--cyan); background: var(--glow-soft); padding: 0.1rem 0.45rem; border-radius: var(--r-pill); font-weight: 700; text-transform: uppercase; margin-left: 0.3rem; }
   .stock-conversion { display: flex; flex-direction: column; gap: 0.15rem; text-align: right; }
   .stock-conversion .stock-principal { color: var(--ink); font-family: var(--font-display); font-weight: 700; }
@@ -114,6 +123,39 @@
   .buscador-producto::placeholder {
       color: var(--ink-muted);
   }
+  /* Adaptación de selección de administradores en celulares */
+@media (max-width: 576px) {
+  .origen-item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.6rem;
+    padding: 0.8rem;
+  }
+
+  .origen-item .info {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .origen-item .info .name {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    overflow-wrap: anywhere;
+    font-size: 0.95rem;
+  }
+
+  .origen-item .disponible {
+    width: 100%;
+  }
+
+  .origen-item > div:last-child {
+    width: 100%;
+  }
+
+  .origen-item input.cantidad-origen {
+    width: 100%;
+  }
+}
 </style>
 @endpush
 
@@ -319,6 +361,7 @@
       <div class="origenes-lista"></div>
       <div class="alerta-stock"></div>
       <div class="alerta-interna-container"></div>
+      <div class="panel-forzar-container mt-2"></div>
     </div>
 
     <div class="d-flex justify-content-between align-items-center mt-2">
@@ -593,6 +636,115 @@ document.addEventListener('DOMContentLoaded', function () {
     return conversion.cantidadStock;
   }
 
+    function actualizarPanelForzarVenta(linea) {
+      const panel = linea.querySelector('.panel-forzar-container');
+      const producto = linea._producto;
+      const unidad = linea.querySelector('.unidad-select').value;
+      const cantidad = parseFloat(linea.querySelector('.cantidad-input').value) || 0;
+
+      if (!panel || !producto || !unidad || cantidad <= 0) {
+          if (panel) panel.innerHTML = '';
+          linea.dataset.forzarVenta = '0';
+          return;
+      }
+
+      const permiteForzar = esCeramica(producto)
+          ? unidad === 'm2'
+          : ['pieza', 'bolsa'].includes(unidad);
+
+      if (!permiteForzar) {
+          panel.innerHTML = '';
+          linea.dataset.forzarVenta = '0';
+          return;
+      }
+
+      const requerido = obtenerCantidadAsignacion(linea);
+      const asignado = Array.from(linea.querySelectorAll('.cantidad-origen'))
+          .reduce((total, input) => total + (parseFloat(input.value) || 0), 0);
+
+      const esParcial = asignado > 0 && asignado < requerido - 0.000001;
+
+      if (!esParcial) {
+          panel.innerHTML = '';
+          linea.dataset.forzarVenta = '0';
+          return;
+      }
+
+      if (linea.dataset.forzarVenta === '1') {
+          panel.innerHTML = `
+              <div class="alerta-stock ok">
+                  <i class="mdi mdi-check-circle"></i>
+                  <span>
+                      <strong>Forzar venta autorizado.</strong>
+                      Se conservará el precio completo y solo se descontará
+                      el inventario asignado (${asignado} de ${requerido}).
+                      Si utilizas stock ajeno, seguirá siendo necesaria la Venta Interna.
+                      <button type="button" class="btn-quitar-forzado"
+                          style="margin-left:8px;border:0;background:none;color:inherit;text-decoration:underline;font-weight:700;">
+                          Quitar autorización
+                      </button>
+                  </span>
+              </div>
+          `;
+
+          panel.querySelector('.btn-quitar-forzado').addEventListener('click', function () {
+              linea.dataset.forzarVenta = '0';
+              actualizarPanelForzarVenta(linea);
+          });
+
+          return;
+      }
+
+      panel.innerHTML = `
+          <div class="alerta-stock warn">
+              <i class="mdi mdi-alert"></i>
+              <span>
+                  Has asignado <strong>${asignado}</strong> de
+                  <strong>${requerido}</strong> unidades físicas.
+                  Puedes forzar la venta conservando el precio comercial completo.
+                  <button type="button" class="btn-forzar-venta"
+                      style="margin-left:8px;border:0;border-radius:5px;padding:5px 10px;background:var(--warning);color:#1a1200;font-weight:700;">
+                      Forzar venta
+                  </button>
+              </span>
+          </div>
+      `;
+
+      panel.querySelector('.btn-forzar-venta').addEventListener('click', async function () {
+          let confirmado = false;
+
+          if (typeof Swal !== 'undefined') {
+              const resultado = await Swal.fire({
+                  title: '¿Forzar esta venta?',
+                  html: `
+                      <p>La venta conservará la cantidad y el precio comercial completos.</p>
+                      <p>Solo se descontarán <strong>${asignado}</strong> de
+                      <strong>${requerido}</strong> unidades físicas asignadas.</p>
+                      <p style="color:var(--warning);">
+                          Si hay stock de otro administrador, deberás completar
+                          igualmente el proceso de Venta Interna.
+                      </p>
+                  `,
+                  icon: 'warning',
+                  showCancelButton: true,
+                  confirmButtonText: 'Sí, forzar venta',
+                  cancelButtonText: 'Cancelar'
+              });
+
+              confirmado = resultado.isConfirmed;
+          } else {
+              confirmado = confirm(
+                  `¿Forzar la venta? Se descontarán ${asignado} de ${requerido} unidades físicas, conservando el precio completo.`
+              );
+          }
+
+          if (confirmado) {
+              linea.dataset.forzarVenta = '1';
+              actualizarPanelForzarVenta(linea);
+          }
+      });
+  }
+
   function obtenerMaximoOrigen(linea, stock) {
     const producto = linea._producto;
     const unidad = linea.querySelector('.unidad-select').value;
@@ -734,6 +886,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         lista.querySelectorAll('.cantidad-origen').forEach(input => {
           input.addEventListener('input', function () {
+            linea.dataset.forzarVenta = '0';
             const max = parseFloat(this.dataset.max) || 0;
             let val = parseFloat(this.value) || 0;
             if (val < 0) val = 0;
@@ -762,6 +915,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       unidadSelect.onchange = function () {
+        linea.dataset.forzarVenta = '0';
         configurarCantidad(linea);
         alertaInternaContainer.innerHTML = ''; 
         
@@ -814,6 +968,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const unidad = linea.querySelector('.unidad-select').value;
     const conversion = calcularConversion(linea);
     const requerido = obtenerCantidadAsignacion(linea);
+
+    actualizarPanelForzarVenta(linea);
 
     if (requerido <= 0) {
       alerta.className = 'alerta-stock'; alerta.innerHTML = ''; return;
@@ -938,6 +1094,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       // SELECCIÓN DEL PRODUCTO
       productoSelect.addEventListener('change', function () {
+        linea.dataset.forzarVenta = '0';
 
           // Limpiar buscador
           buscadorProducto.value = '';
@@ -952,7 +1109,10 @@ document.addEventListener('DOMContentLoaded', function () {
       });
 
     linea.querySelector('.cantidad-input').addEventListener('input', function () {
-      actualizarConversion(linea); validarOrigenes(linea); recalcular();
+      linea.dataset.forzarVenta = '0';
+      actualizarConversion(linea); 
+      validarOrigenes(linea); 
+      recalcular();
     });
 
     linea.querySelector('.precio-input').addEventListener('input', recalcular);
@@ -1042,11 +1202,49 @@ document.addEventListener('DOMContentLoaded', function () {
       inputs.forEach(input => { totalAsignado += parseFloat(input.value) || 0; });
       const requerido = obtenerCantidadAsignacion(linea);
 
-      if (Math.abs(totalAsignado - requerido) > 0.01) {
-        hayErrores = true;
-        const unidadOrigen = esCeramica(producto) ? (unidad === 'pieza' ? 'piezas' : 'cajas') : (unidad === 'bolsa' ? 'bolsas' : 'piezas');
-        mensajeError = `Línea ${index + 1}: debes asignar ${requerido} ${unidadOrigen}. Asignaste ${totalAsignado}.`;
-        return;
+      const permiteForzar = esCeramica(producto)
+    ? unidad === 'm2'
+    : ['pieza', 'bolsa'].includes(unidad);
+
+      const forzarVenta = linea.dataset.forzarVenta === '1';
+
+      const esParcial = totalAsignado > 0 &&
+          totalAsignado < requerido - 0.000001;
+
+      const hayExceso = totalAsignado > requerido + 0.000001;
+
+      const unidadOrigen = esCeramica(producto)
+          ? (unidad === 'caja' ? 'cajas' : 'piezas')
+          : (unidad === 'bolsa' ? 'bolsas' : 'piezas');
+
+      if (totalAsignado <= 0) {
+          hayErrores = true;
+          mensajeError = `Línea ${index + 1}: debes asignar al menos una unidad de inventario.`;
+          return;
+      }
+
+      if (hayExceso) {
+          hayErrores = true;
+          mensajeError = `Línea ${index + 1}: asignaste ${totalAsignado}, pero solo necesitas ${requerido} ${unidadOrigen}. No puedes asignar más de lo requerido.`;
+          return;
+      }
+
+      if (esParcial && !permiteForzar) {
+          hayErrores = true;
+          mensajeError = `Línea ${index + 1}: esta unidad de venta requiere una asignación exacta de ${requerido} ${unidadOrigen}. No se permite forzar esta venta.`;
+          return;
+      }
+
+      if (esParcial && !forzarVenta) {
+          hayErrores = true;
+          mensajeError = `Línea ${index + 1}: falta asignar inventario. Debes autorizar Forzar venta o completar la asignación.`;
+          return;
+      }
+
+      if (forzarVenta && !esParcial) {
+          hayErrores = true;
+          mensajeError = `Línea ${index + 1}: la autorización de Forzar venta ya no corresponde a una asignación parcial.`;
+          return;
       }
 
       if (cantidadStock <= 0) {
@@ -1129,6 +1327,7 @@ document.addEventListener('DOMContentLoaded', function () {
       addHidden(`items[${idx}][cantidad]`, cantidad);
       addHidden(`items[${idx}][unidad]`, unidad);
       addHidden(`items[${idx}][precio_unitario]`, precio);
+      addHidden(`items[${idx}][forzar_venta]`,linea.dataset.forzarVenta === '1' ? '1' : '0');
 
       let mIdx = 0;
       linea.querySelectorAll('.cantidad-origen').forEach(input => {

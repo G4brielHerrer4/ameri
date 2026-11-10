@@ -235,6 +235,7 @@
 
       <div class="origenes-lista"></div>
       <div class="alerta-stock"></div>
+      <div class="panel-forzar-container mt-2"></div>
     </div>
 
     <div class="d-flex justify-content-between align-items-center mt-2">
@@ -309,6 +310,39 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         return cantidad;
+    }
+
+    function obtenerFactorAsignacion(producto, unidad) {
+        if (tipoCeramica(producto) && unidad === 'caja') {
+            return Number(producto.piezas_por_caja || 0);
+        }
+
+        return 1;
+    }
+
+    function obtenerTextoCantidadCeramica(producto, cantidadPiezas) {
+
+        const piezasPorCaja = Number(producto.piezas_por_caja || 0);
+
+        if (piezasPorCaja <= 0) {
+            return cantidadPiezas + ' piezas';
+        }
+
+        const cajas = Math.floor(cantidadPiezas / piezasPorCaja);
+        const piezas = cantidadPiezas % piezasPorCaja;
+
+        let texto = '';
+
+        if (cajas > 0) {
+            texto += cajas + (cajas === 1 ? ' caja' : ' cajas');
+        }
+
+        if (piezas > 0) {
+            texto += (texto ? ' y ' : '') +
+                piezas + (piezas === 1 ? ' pieza' : ' piezas');
+        }
+
+        return texto || '0 piezas';
     }
 
     function obtenerUnidades(producto) {
@@ -435,246 +469,397 @@ document.addEventListener('DOMContentLoaded', function () {
         return String(userId) + '-' + String(depositoId);
     }
 
-    async function cargarStockProducto(
-        linea,
-        productoId,
-        movimientosPrevios = [],
-        unidadAnterior = ''
-    ) {
+    function actualizarPanelForzarVenta(linea, requerido, asignado) {
 
-        const seccion = linea.querySelector('.origenes-section');
-        const lista = linea.querySelector('.origenes-lista');
-        const alerta = linea.querySelector('.alerta-stock');
+        const panel = linea.querySelector('.panel-forzar-container');
+        const producto = linea._producto;
+        const unidad = linea.querySelector('.unidad-select').value;
 
-        linea._producto = null;
+        if (!panel || !producto) return;
 
-        if (!productoId) {
-            seccion.style.display = 'none';
+        const permiteForzar = tipoCeramica(producto)
+            ? unidad === 'm2'
+            : ['pieza', 'bolsa'].includes(unidad);
+
+        if (!permiteForzar) {
+            panel.innerHTML = '';
+            linea.dataset.forzarVenta = '0';
             return;
         }
 
-        seccion.style.display = '';
-        lista.innerHTML = '<div class="p-3 text-center">Cargando inventario...</div>';
+        const esParcial =
+            asignado > 0 &&
+            asignado < requerido - 0.001;
 
-        try {
+        if (!esParcial) {
+            panel.innerHTML = '';
+            linea.dataset.forzarVenta = '0';
+            return;
+        }
 
-            const response = await fetch(`${urlStock}/${productoId}`);
+        if (linea.dataset.forzarVenta === '1') {
 
-            if (!response.ok) {
-                throw new Error('No se pudo consultar el inventario.');
-            }
+            panel.innerHTML = `
+                <div class="alert alert-success py-2 mb-2">
+                    <i class="mdi mdi-check-circle"></i>
+                    Venta forzada autorizada.  Se descontarán
+                    <strong>${asignado}</strong> de
+                    <strong>${requerido}</strong> unidades físicas.
+                    Se conservará el importe comercial completo.
+                    <button type="button"
+                        class="btn btn-sm btn-outline-danger ms-2 btn-quitar-forzado">
+                        Quitar autorización
+                    </button>
+                </div>
+            `;
 
-            const data = await response.json();
-
-            const producto = data.producto;
-
-            linea._producto = producto;
-
-            actualizarUnidades(linea, producto, unidadAnterior);
-
-            const movimientosMap = {};
-
-            movimientosPrevios.forEach(m => {
-                const key = claveMovimiento(m.stock_user_id, m.deposito_id);
-
-                movimientosMap[key] =
-                    (movimientosMap[key] || 0) + Number(m.cantidad || 0);
-            });
-
-            lista.innerHTML = '';
-
-            (data.stocks || []).forEach(s => {
-
-                const key = claveMovimiento(s.user_id, s.deposito_id);
-
-                const cantidadPrevia = movimientosMap[key] || 0;
-
-                const item = document.createElement('div');
-                item.className = 'origen-item' + (s.es_propio ? ' es-propio' : '');
-
-                const info = document.createElement('div');
-                info.className = 'info';
-
-                const nombre = document.createElement('span');
-                nombre.className = 'name';
-                nombre.textContent = s.user_name || 'Administrador';
-
-                const deposito = document.createElement('small');
-                deposito.className = 'text-muted d-block';
-                deposito.textContent = s.deposito_nombre || 'Depósito';
-
-                info.appendChild(nombre);
-                info.appendChild(deposito);
-
-                if (s.es_propio) {
-                    const etiqueta = document.createElement('span');
-                    etiqueta.className = 'label';
-                    etiqueta.textContent = 'Mi stock';
-                    info.appendChild(etiqueta);
-                }
-
-               const disponible = document.createElement('div');
-              disponible.className = 'disponible';
-
-              const cantidadDisponible = Number(s.cantidad) || 0;
-
-              if (tipoCeramica(data.producto)) {
-
-                  const piezasPorCaja = Number(data.producto.piezas_por_caja || 0);
-
-                  if (piezasPorCaja > 0) {
-
-                      const cajas = Math.floor(cantidadDisponible / piezasPorCaja);
-                      const piezas = cantidadDisponible % piezasPorCaja;
-
-                      let equivalencia = '';
-
-                      if (cajas > 0) {
-                          equivalencia += cajas + (cajas === 1 ? ' caja' : ' cajas');
-                      }
-
-                      if (piezas > 0) {
-                          equivalencia += (cajas > 0 ? ' y ' : '') +
-                              piezas + (piezas === 1 ? ' pieza' : ' piezas');
-                      }
-
-                      disponible.innerHTML =
-                          '<strong>' + cantidadDisponible.toLocaleString() +
-                          ' piezas</strong>' +
-                          '<small class="d-block text-muted">' +
-                          (equivalencia || '0 piezas') +
-                          '</small>';
-
-                  } else {
-
-                      disponible.textContent = cantidadDisponible + ' piezas';
-
-                  }
-
-              } else {
-
-                  disponible.innerHTML =
-                      '<strong>' + cantidadDisponible.toLocaleString() +
-                      '</strong> ' + (data.producto.unidad_base || 'unidades');
-              }
-
-                const input = document.createElement('input');
-
-                input.type = 'number';
-                input.className = 'cantidad-origen';
-                input.min = '0';
-                input.step = '1';
-                input.value = cantidadPrevia;
-                input.dataset.max = s.cantidad;
-                input.dataset.userId = s.user_id;
-                input.dataset.depositoId = s.deposito_id;
-
-                item.appendChild(info);
-                item.appendChild(disponible);
-                item.appendChild(input);
-
-                lista.appendChild(item);
-
-                delete movimientosMap[key];
-            });
-
-            // Si había movimientos anteriores cuyo origen ya no aparece
-            // en el inventario disponible, informamos en vez de perderlos.
-            const movimientosNoDisponibles = Object.keys(movimientosMap);
-
-            if (movimientosNoDisponibles.length > 0) {
-
-                alerta.className = 'alerta-stock danger';
-                alerta.textContent =
-                    'Hay asignaciones anteriores cuyo stock ya no está disponible. Revisa los depósitos antes de actualizar.';
-
-            }
-
-            lista.querySelectorAll('.cantidad-origen').forEach(input => {
-
-                input.addEventListener('input', function () {
-
-                    const max = Number(this.dataset.max) || 0;
-                    let valor = Number(this.value) || 0;
-
-                    if (valor > max) {
-                        valor = max;
-                        this.value = max;
-                    }
-
-                    validarOrigenes(linea);
-                    recalcular();
+            panel.querySelector('.btn-quitar-forzado')
+                .addEventListener('click', function () {
+                    linea.dataset.forzarVenta = '0';
+                    actualizarPanelForzarVenta(linea, requerido, asignado);
                 });
 
-                if (Number(input.value) > 0) {
-                    input.classList.add('tiene-valor');
-                }
-            });
+            return;
+        }
 
-            if (unidadAnterior) {
-                linea.querySelector('.unidad-select').value = unidadAnterior;
+        panel.innerHTML = `
+            <div class="alert alert-warning py-2 mb-2">
+                <i class="mdi mdi-alert"></i>
+                Asignación incompleta: ${asignado} de ${requerido}
+                unidades físicas.
+                <button type="button"
+                    class="btn btn-sm btn-warning ms-2 btn-forzar-venta">
+                    Forzar venta
+                </button>
+            </div>
+        `;
+
+        panel.querySelector('.btn-forzar-venta')
+    .addEventListener('click', function () {
+
+        Swal.fire({
+            title: 'Confirmar venta forzada',
+            html: `
+                <p>
+                   
+                </p>
+
+                <div class="text-start mt-3">
+                    <strong>Al confirmar esta operación:</strong>
+                    <ul class="mt-2">
+                       
+                    </ul>
+                </div>
+
+                <p class="mb-0">
+                    ¿Deseas continuar con esta operación?
+                </p>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, confirmar venta',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#198754',
+            cancelButtonColor: '#6c757d',
+            reverseButtons: true,
+            focusCancel: true
+        }).then((result) => {
+
+            if (result.isConfirmed) {
+                linea.dataset.forzarVenta = '1';
+
+                actualizarPanelForzarVenta(
+                    linea,
+                    requerido,
+                    asignado
+                );
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Autorización concedida',
+                    text: 'La venta continuará con el inventario asignado.',
+                    timer: 1800,
+                    showConfirmButton: false
+                });
             }
 
-            actualizarPrecio(linea);
-            validarOrigenes(linea);
-
-        } catch (error) {
-
-            console.error(error);
-
-            lista.innerHTML =
-                '<div class="alert alert-danger">No se pudo cargar el inventario del producto.</div>';
-        }
+        });
+    });
     }
 
-    function validarOrigenes(linea) {
+    async function cargarStockProducto(
+    linea,
+    productoId,
+    movimientosPrevios = [],
+    unidadAnterior = ''
+) {
+    const seccion = linea.querySelector('.origenes-section');
+    const lista = linea.querySelector('.origenes-lista');
+    const alerta = linea.querySelector('.alerta-stock');
 
-        const alerta = linea.querySelector('.alerta-stock');
+    linea._producto = null;
 
-        if (!linea._producto) return;
+    if (!productoId) {
+        seccion.style.display = 'none';
+        return;
+    }
 
-        const cantidad = Number(
-            linea.querySelector('.cantidad-input').value
-        ) || 0;
+    seccion.style.display = '';
+    lista.innerHTML = '<div class="p-3 text-center">Cargando inventario...</div>';
+
+    try {
+        const response = await fetch(`${urlStock}/${productoId}`);
+
+        if (!response.ok) {
+            throw new Error('No se pudo consultar el inventario.');
+        }
+
+        const data = await response.json();
+        const producto = data.producto;
+
+        linea._producto = producto;
+
+        actualizarUnidades(linea, producto, unidadAnterior);
 
         const unidad = linea.querySelector('.unidad-select').value;
+        const factor = obtenerFactorAsignacion(producto, unidad);
 
-        const requerido = calcularCantidadFisica(
-            linea._producto,
-            cantidad,
-            unidad
-        );
+        if (factor <= 0) {
+            throw new Error('El producto no tiene una conversión válida de piezas por caja.');
+        }
 
-        let total = 0;
+        linea.dataset.unidadAsignacion = unidad;
 
-        linea.querySelectorAll('.cantidad-origen').forEach(input => {
-            total += Number(input.value) || 0;
+        // Los movimientos anteriores siempre están guardados en piezas físicas.
+        const movimientosMap = {};
+
+        movimientosPrevios.forEach(m => {
+            const key = claveMovimiento(m.stock_user_id, m.deposito_id);
+
+            movimientosMap[key] =
+                (movimientosMap[key] || 0) + Number(m.cantidad || 0);
         });
 
-        const unidadBase = linea._producto.unidad_base || 'unidades';
+        lista.innerHTML = '';
 
-        if (Math.abs(total - requerido) < 0.001 && requerido > 0) {
+        (data.stocks || []).forEach(s => {
+            const key = claveMovimiento(s.user_id, s.deposito_id);
 
-            alerta.className = 'alerta-stock ok';
-            alerta.innerHTML =
-                '<i class="mdi mdi-check-circle"></i> Stock asignado: <strong>' +
-                total + ' ' + unidadBase + '</strong>';
+            const cantidadPreviaFisica = movimientosMap[key] || 0;
+            const cantidadDisponible = Number(s.cantidad) || 0;
 
-        } else if (total < requerido) {
+            // El campo se expresa en cajas o en la unidad física correspondiente.
+            const cantidadPrevia = cantidadPreviaFisica / factor;
 
-            alerta.className = 'alerta-stock warn';
-            alerta.innerHTML =
-                '<i class="mdi mdi-alert"></i> Falta asignar <strong>' +
-                (requerido - total) + ' ' + unidadBase + '</strong>';
+            // Si la unidad es caja, solamente se permiten cajas completas.
+            const maximoAsignable = Math.floor(
+                cantidadDisponible / factor
+            );
 
-        } else {
+            const item = document.createElement('div');
+            item.className = 'origen-item' + (s.es_propio ? ' es-propio' : '');
 
+            const info = document.createElement('div');
+            info.className = 'info';
+
+            const nombre = document.createElement('span');
+            nombre.className = 'name';
+            nombre.textContent = s.user_name || 'Administrador';
+
+            const deposito = document.createElement('small');
+            deposito.className = 'text-muted d-block';
+            deposito.textContent = s.deposito_nombre || 'Depósito';
+
+            info.appendChild(nombre);
+            info.appendChild(deposito);
+
+            if (s.es_propio) {
+                const etiqueta = document.createElement('span');
+                etiqueta.className = 'label';
+                etiqueta.textContent = 'Mi stock';
+                info.appendChild(etiqueta);
+            }
+
+            const disponible = document.createElement('div');
+            disponible.className = 'disponible';
+
+            if (tipoCeramica(producto)) {
+                const piezasPorCaja = Number(producto.piezas_por_caja || 0);
+
+                if (piezasPorCaja > 0) {
+                    const equivalencia = obtenerTextoCantidadCeramica(
+                        producto,
+                        cantidadDisponible
+                    );
+
+                    disponible.innerHTML =
+                        '<strong>' + cantidadDisponible.toLocaleString() +
+                        ' piezas</strong>' +
+                        '<small class="d-block text-muted">' +
+                        equivalencia +
+                        '</small>';
+                } else {
+                    disponible.textContent = cantidadDisponible + ' piezas';
+                }
+            } else {
+                disponible.innerHTML =
+                    '<strong>' + cantidadDisponible.toLocaleString() +
+                    '</strong> ' + (producto.unidad_base || 'unidades');
+            }
+
+            const input = document.createElement('input');
+
+            input.type = 'number';
+            input.className = 'cantidad-origen';
+            input.min = '0';
+            input.step = '1';
+            input.value = cantidadPrevia;
+            input.max = maximoAsignable;
+
+            input.dataset.max = maximoAsignable;
+            input.dataset.stockFisicoMax = cantidadDisponible;
+            input.dataset.userId = s.user_id;
+            input.dataset.depositoId = s.deposito_id;
+
+            // Indicamos visualmente la unidad del campo.
+            input.title = unidad === 'caja'
+                ? 'Cantidad asignada en cajas'
+                : 'Cantidad asignada en ' + unidad;
+
+            item.appendChild(info);
+            item.appendChild(disponible);
+            item.appendChild(input);
+
+            lista.appendChild(item);
+
+            delete movimientosMap[key];
+        });
+
+        const movimientosNoDisponibles = Object.keys(movimientosMap);
+
+        if (movimientosNoDisponibles.length > 0) {
             alerta.className = 'alerta-stock danger';
-            alerta.innerHTML =
-                '<i class="mdi mdi-alert-circle"></i> Exceso de <strong>' +
-                (total - requerido) + ' ' + unidadBase + '</strong>';
+            alerta.textContent =
+                'Hay asignaciones anteriores cuyo stock ya no está disponible. Revisa los depósitos antes de actualizar.';
         }
+
+        lista.querySelectorAll('.cantidad-origen').forEach(input => {
+            input.addEventListener('input', function () {
+                linea.dataset.forzarVenta = '0';
+
+                const max = Number(this.dataset.max) || 0;
+                let valor = Number(this.value) || 0;
+
+                if (valor > max) {
+                    valor = max;
+                    this.value = max;
+                }
+
+                validarOrigenes(linea);
+                recalcular();
+            });
+
+            if (Number(input.value) > 0) {
+                input.classList.add('tiene-valor');
+            }
+        });
+
+        actualizarPrecio(linea);
+        validarOrigenes(linea);
+
+    } catch (error) {
+        console.error(error);
+
+        lista.innerHTML =
+            '<div class="alert alert-danger">' +
+            'No se pudo cargar el inventario del producto.' +
+            '</div>';
     }
+}
+
+   function validarOrigenes(linea) {
+    const producto = linea._producto;
+    if (!producto) return;
+
+    const cantidad = Number(
+        linea.querySelector('.cantidad-input')?.value || 0
+    );
+
+    const unidad = linea.querySelector('.unidad-select')?.value || '';
+
+    const requerido = calcularCantidadFisica(
+        producto,
+        cantidad,
+        unidad
+    );
+
+    const factor = obtenerFactorAsignacion(producto, unidad);
+
+    const totalIngresado = Array.from(
+        linea.querySelectorAll('.cantidad-origen')
+    ).reduce((total, input) => {
+        return total + (Number(input.value) || 0);
+    }, 0);
+
+    // Convertimos lo ingresado a piezas físicas.
+    const totalAsignado = totalIngresado * factor;
+
+    const alerta = linea.querySelector('.alerta-stock');
+    if (!alerta) return;
+
+    actualizarPanelForzarVenta(linea, requerido, totalAsignado);
+
+    const esCeramica = tipoCeramica(producto);
+
+    const faltante = requerido - totalAsignado;
+    const exceso = totalAsignado - requerido;
+
+    const formatearCantidad = numero => {
+        return Number.isInteger(numero)
+            ? numero.toString()
+            : Number(numero.toFixed(2)).toString();
+    };
+
+    const mostrarCantidad = cantidadPiezas => {
+        if (esCeramica && unidad === 'caja') {
+            return obtenerTextoCantidadCeramica(
+                producto,
+                Math.round(cantidadPiezas)
+            );
+        }
+
+        if (esCeramica) {
+            return `${formatearCantidad(cantidadPiezas)} piezas`;
+        }
+
+        return `${formatearCantidad(cantidadPiezas)} ${
+            producto.unidad_base || 'unidades'
+        }`;
+    };
+
+    if (Math.abs(faltante) < 0.000001) {
+        alerta.innerHTML = `
+            <div class="alert alert-success">
+                <strong>Stock asignado correctamente:</strong>
+                ${mostrarCantidad(totalAsignado)}
+            </div>
+        `;
+    } else if (faltante > 0) {
+        alerta.innerHTML = `
+            <div class="alert alert-warning">
+                <strong>Falta asignar:</strong>
+                ${mostrarCantidad(faltante)}
+            </div>
+        `;
+    } else {
+        alerta.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>Exceso de asignación:</strong>
+                ${mostrarCantidad(exceso)}
+            </div>
+        `;
+    }
+}
 
     function recalcular() {
 
@@ -750,6 +935,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
         selectProducto.addEventListener('change', function () {
+            linea.dataset.forzarVenta = '0';
 
             // Limpiar el buscador.
             buscadorProducto.value = '';
@@ -766,10 +952,39 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         selectUnidad.addEventListener('change', function () {
-            actualizarPrecio(linea);
+    linea.dataset.forzarVenta = '0';
+
+    const unidadNueva = this.value;
+    const unidadAnterior = linea.dataset.unidadAsignacion || '';
+
+    if (unidadNueva !== unidadAnterior) {
+
+        // Al cambiar la unidad, limpiamos las asignaciones anteriores
+        // para evitar interpretar piezas como cajas o viceversa.
+        linea.querySelectorAll('.cantidad-origen').forEach(input => {
+            input.value = 0;
+            input.classList.remove('tiene-valor');
+
+            const stockFisico = Number(input.dataset.stockFisicoMax) || 0;
+            const factor = obtenerFactorAsignacion(
+                linea._producto,
+                unidadNueva
+            );
+
+            const maximo = Math.floor(stockFisico / factor);
+
+            input.dataset.max = maximo;
+            input.max = maximo;
         });
 
+        linea.dataset.unidadAsignacion = unidadNueva;
+    }
+
+    actualizarPrecio(linea);
+});
+
         inputCantidad.addEventListener('input', function () {
+            linea.dataset.forzarVenta = '0';
 
             if (Number(this.value) < 0) {
                 this.value = 0;
@@ -866,14 +1081,55 @@ document.addEventListener('DOMContentLoaded', function () {
                 unidad
             );
 
-            let totalMovimientos = 0;
+            const factor = obtenerFactorAsignacion(producto, unidad);
+
+            let totalIngresado = 0;
 
             linea.querySelectorAll('.cantidad-origen').forEach(input => {
-                totalMovimientos += Number(input.value) || 0;
+                totalIngresado += Number(input.value) || 0;
             });
 
-            if (Math.abs(totalMovimientos - requerido) > 0.001) {
+            const totalMovimientos = totalIngresado * factor;
+
+            const permiteForzar = tipoCeramica(producto)
+                ? unidad === 'm2'
+                : ['pieza', 'bolsa'].includes(unidad);
+
+            const forzarVenta = linea.dataset.forzarVenta === '1';
+
+            const esParcial = totalMovimientos > 0 &&
+                totalMovimientos < requerido - 0.001;
+
+            const hayExceso = totalMovimientos > requerido + 0.001;
+
+            if (totalMovimientos <= 0) {
                 valido = false;
+                alert(`Línea ${idx + 1}: debes asignar una cantidad mayor que cero.`);
+                return;
+            }
+
+            if (hayExceso) {
+                valido = false;
+                alert(`Línea ${idx + 1}: la cantidad asignada supera el inventario requerido.`);
+                return;
+            }
+
+            if (esParcial && !permiteForzar) {
+                valido = false;
+                alert(`Línea ${idx + 1}: este producto y unidad requieren asignación exacta.`);
+                return;
+            }
+
+            if (esParcial && !forzarVenta) {
+                valido = false;
+                alert(`Línea ${idx + 1}: debes utilizar el botón Forzar venta para permitir una asignación parcial.`);
+                return;
+            }
+
+            if (forzarVenta && !esParcial) {
+                valido = false;
+                alert(`Línea ${idx + 1}: la autorización de Forzar venta ya no es necesaria. Revisa la asignación.`);
+                return;
             }
         });
 
@@ -911,12 +1167,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 `items[${idx}][precio_unitario]`,
                 linea.querySelector('.precio-input').value
             );
+            agregarHidden(`items[${idx}][forzar_venta]`,linea.dataset.forzarVenta === '1' ? '1' : '0');
 
             let movimientoIndex = 0;
 
+            const producto = linea._producto;
+            const unidad = linea.querySelector('.unidad-select').value;
+
+            const factor = obtenerFactorAsignacion(producto, unidad);
+
             linea.querySelectorAll('.cantidad-origen').forEach(input => {
 
-                const cantidad = Number(input.value) || 0;
+                // El campo puede estar expresado en cajas.
+                // El movimiento siempre se envía en piezas físicas.
+                const cantidad = (Number(input.value) || 0) * factor;
 
                 if (cantidad <= 0) return;
 

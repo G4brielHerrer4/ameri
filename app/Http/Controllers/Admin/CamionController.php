@@ -344,26 +344,39 @@ class CamionController extends Controller
      * REGISTRAR GASTO
      * =========================================
      */
+   /**
+ * =========================================
+ * GUARDAR GASTO DEL CAMIÓN
+ * =========================================
+ */
     public function guardarGasto(Request $request)
     {
         $datos = $this->validarGasto($request);
 
-        if (($datos['tipo_gasto'] ?? null) !== 'combustible') {
-            $datos['tipo_combustible'] = null;
-        }
-
+        // Guardar el comprobante en su carpeta exclusiva.
         if ($request->hasFile('comprobante')) {
-            $datos['comprobante'] = $request->file('comprobante')
-                ->store('camion/comprobantes', 'local');
+
+            $archivo = $request->file('comprobante');
+
+            $nombreArchivo = 'camion_' . uniqid() . '.' .
+                strtolower($archivo->getClientOriginalExtension());
+
+            $ruta = $archivo->storeAs(
+                'camion/comprobantes',
+                $nombreArchivo,
+                'local'
+            );
+
+            $datos['comprobante'] = $ruta;
         }
 
-       $datos['user_id'] = auth()->id();
+        $datos['user_id'] = auth()->id();
 
         CamionGasto::create($datos);
 
         return redirect()
             ->route('admin.camion.index')
-            ->with('success', 'Gasto registrado correctamente.');
+            ->with('success', 'Gasto del camión registrado correctamente.');
     }
 
     /**
@@ -493,12 +506,11 @@ class CamionController extends Controller
         );
     }
 
-    /**
-     * =========================================
-     * MOSTRAR COMPROBANTE
-     * Desde una ruta protegida.
-     * =========================================
-     */
+/**
+ * =========================================
+ * MOSTRAR COMPROBANTE
+ * =========================================
+ */
     public function comprobante(CamionGasto $gasto)
     {
         abort_unless($gasto->comprobante, 404);
@@ -510,13 +522,40 @@ class CamionController extends Controller
             404
         );
 
+        $disk = Storage::disk('local');
+
+        abort_unless($disk->exists($ruta), 404);
+
+        $archivo = $disk->path($ruta);
+
+        abort_unless(is_file($archivo), 404);
+
+        $mime = $disk->mimeType($ruta);
+
+        $tiposPermitidos = [
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+            'application/pdf',
+        ];
+
         abort_unless(
-            Storage::disk('local')->exists($ruta),
-            404
+            in_array($mime, $tiposPermitidos, true),
+            415
         );
 
-        return Storage::disk('local')->response($ruta);
+        // Limpiar cualquier salida accidental antes de enviar el archivo.
+        if (ob_get_level() > 0 && ob_get_length() > 0) {
+            ob_clean();
+        }
+
+        return response()->file($archivo, [
+            'Content-Type' => $mime,
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
+        ]);
     }
+
    /**
  * =========================================
  * EXPORTAR REPORTE DEL CAMIÓN A PDF

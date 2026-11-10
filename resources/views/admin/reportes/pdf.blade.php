@@ -734,6 +734,17 @@
     .page-break {
       page-break-before: always;
     }
+    .badge-forzada {
+    display: inline-block;
+    background: #fff1e6;
+    color: #c2410c;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 6.5px;
+    font-weight: bold;
+    margin-left: 5px;
+    vertical-align: middle;
+}
   </style>
 </head>
 <body>
@@ -802,92 +813,122 @@
       |--------------------------------------------------------------------------
       */
 
-      $formatearCantidadVenta = function ($detalle) use ($formatearCantidadBase) {
+     $formatearCantidadVenta = function ($detalle) use ($formatearCantidadBase) {
 
-          $producto = $detalle->producto;
+        $producto = $detalle->producto;
 
-          $unidad = strtolower(trim(
-              $detalle->unidad_venta
-              ?? $detalle->unidad
-              ?? ''
-          ));
+        $unidad = strtolower(trim(
+            $detalle->unidad_venta
+            ?? $detalle->unidad
+            ?? ''
+        ));
 
-          $cantidad = (float) (
-              $detalle->cantidad_venta
-              ?? $detalle->cantidad
-              ?? 0
-          );
+        $cantidad = (float) (
+            $detalle->cantidad_venta
+            ?? $detalle->cantidad
+            ?? 0
+        );
 
-          $cantidadStock = (float) (
-              $detalle->cantidad_stock
-              ?? $cantidad
-          );
+        $cantidadStock = (float) (
+            $detalle->cantidad_stock
+            ?? $cantidad
+        );
 
-          $unidadCompra = $producto?->unidad_compra ?? 'unidad';
+        $unidadCompra = $producto?->unidad_compra ?? 'unidad';
 
-          // Cerámicas y porcelanatos
-          if ($unidadCompra === 'caja') {
+        $esForzada = (bool) ($detalle->forzar_venta ?? false);
 
-              if ($unidad === 'm2' || $unidad === 'm²') {
 
-                  $cantidadTexto = number_format(
-                      $cantidad,
-                      fmod($cantidad, 1) == 0 ? 0 : 2
-                  );
+        // =====================================================
+        // CERÁMICAS Y PORCELANATOS
+        // =====================================================
+        if ($unidadCompra === 'caja') {
 
-                  return $cantidadTexto . ' m² (' .
-                      $formatearCantidadBase($producto, $cantidadStock) .
-                  ')';
-              }
+            // Venta comercial por m²:
+            // Se conserva la cantidad comercial y se muestra
+            // la cantidad física realmente asignada.
+            if ($unidad === 'm2' || $unidad === 'm²') {
 
-              if ($unidad === 'caja') {
+                $cantidadTexto = number_format(
+                    $cantidad,
+                    fmod($cantidad, 1) == 0 ? 0 : 2
+                );
 
-                  $cantidadTexto = number_format(
-                      $cantidad,
-                      fmod($cantidad, 1) == 0 ? 0 : 2
-                  );
+                return $cantidadTexto . ' m² (' .
+                    $formatearCantidadBase($producto, $cantidadStock) .
+                ')';
+            }
 
-                  return $cantidadTexto . (
-                      $cantidad == 1 ? ' caja' : ' cajas'
-                  );
-              }
+            // Venta comercial por cajas.
+            if ($unidad === 'caja') {
 
-              if ($unidad === 'pieza') {
-                  return $formatearCantidadBase(
-                      $producto,
-                      $cantidadStock
-                  );
-              }
+                $cantidadTexto = number_format(
+                    $cantidad,
+                    fmod($cantidad, 1) == 0 ? 0 : 2
+                );
 
-              return $formatearCantidadBase(
-                  $producto,
-                  $cantidadStock
-              );
-          }
+                return $cantidadTexto . (
+                    $cantidad == 1 ? ' caja' : ' cajas'
+                );
+            }
 
-          // Cemento cola y pastinas
-          if ($unidadCompra === 'bolsa') {
+            // Venta comercial por piezas.
+            if ($unidad === 'pieza') {
 
-              $cantidadTexto = number_format(
-                  $cantidad,
-                  fmod($cantidad, 1) == 0 ? 0 : 2
-              );
+                return $formatearCantidadBase(
+                    $producto,
+                    $cantidadStock
+                );
+            }
 
-              return $cantidadTexto . (
-                  $cantidad == 1 ? ' bolsa' : ' bolsas'
-              );
-          }
+            return $formatearCantidadBase(
+                $producto,
+                $cantidadStock
+            );
+        }
 
-          // Los demás productos
-          $cantidadTexto = number_format(
-              $cantidad,
-              fmod($cantidad, 1) == 0 ? 0 : 2
-          );
 
-          return $cantidadTexto . (
-              $cantidad == 1 ? ' pieza' : ' piezas'
-          );
-      };
+        // =====================================================
+        // CEMENTO COLA Y PASTINAS
+        // =====================================================
+        if ($unidadCompra === 'bolsa') {
+
+            // Si fue forzada, mostrar solamente las bolsas
+            // realmente asignadas al vendedor/venta.
+            $cantidadMostrar = $esForzada
+                ? $cantidadStock
+                : $cantidad;
+
+            $cantidadTexto = number_format(
+                $cantidadMostrar,
+                fmod($cantidadMostrar, 1) == 0 ? 0 : 2
+            );
+
+            return $cantidadTexto . (
+                $cantidadMostrar == 1 ? ' bolsa' : ' bolsas'
+            );
+        }
+
+
+        // =====================================================
+        // DEMÁS PRODUCTOS
+        // =====================================================
+
+        // En una venta forzada mostramos las piezas físicas
+        // realmente asignadas.
+        $cantidadMostrar = $esForzada
+            ? $cantidadStock
+            : $cantidad;
+
+        $cantidadTexto = number_format(
+            $cantidadMostrar,
+            fmod($cantidadMostrar, 1) == 0 ? 0 : 2
+        );
+
+        return $cantidadTexto . (
+            $cantidadMostrar == 1 ? ' pieza' : ' piezas'
+        );
+    };
 
   @endphp
 
@@ -1173,18 +1214,23 @@
         @if($venta->detalles->count() > 0)
           <div class="venta-productos">
             <span class="label">Productos ({{ $venta->detalles->count() }})</span>
-
             @foreach($venta->detalles as $detalle)
               <div class="venta-producto-item">
                 <span class="nombre">
                   {{ $detalle->producto->nombre ?? 'Producto eliminado' }}
+
                   @if($detalle->producto && $detalle->producto->marca)
                     · {{ $detalle->producto->marca }}
                   @endif
+
+                  @if($detalle->forzar_venta)
+                    <span class="badge-forzada">VENTA FORZADA</span>
+                  @endif
                 </span>
-               <span class="cantidad">
+
+                <span class="cantidad">
                   {{ $formatearCantidadVenta($detalle) }}
-              </span>
+                </span>
               </div>
             @endforeach
           </div>
@@ -1252,8 +1298,13 @@
               <div class="venta-producto-item" style="border-color:#fdd4db;">
                 <span class="nombre">
                   {{ $detalle->producto->nombre ?? 'Producto eliminado' }}
+
                   @if($detalle->producto && $detalle->producto->marca)
                     · {{ $detalle->producto->marca }}
+                  @endif
+
+                  @if($detalle->forzar_venta)
+                    <span class="badge-forzada">VENTA FORZADA</span>
                   @endif
                 </span>
                 <span class="cantidad" style="color:#b91c3c;">
